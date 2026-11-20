@@ -1,5 +1,7 @@
 # Superset integration checkpoint
 
+The [source integration map](superset-source-integration.md) identifies the files to change in the fork and the preview, publication, and access paths those changes use.
+
 [Recommendation] The next milestone is a buyer publishing a Sales dataset and opening it in **Explore** in the same Superset session. Today the pilot saves a versioned JSON definition and executes it against CSVs. Its client contract needs a publication operation that returns a real Superset dataset identity. [Pilot client](../ui/src/client.ts) · [Report store](../report_store.py)
 
 [Verified scope] This review compares pilot commit `cd3c890` with Apache Superset **6.1.0** at `c83fb2b`. Use this release as the reference for the first integration test. Record the actual Linux image version and repeat the checks if it differs. The warehouse's proposed decision 0046 gives visual dataset authoring priority over comprehensive column-level security. [Apache release](https://github.com/apache/superset/releases/tag/6.1.0)
@@ -26,7 +28,7 @@
 
 1. Open the builder through Superset. As the author, select shipping state, product number and sales, apply the state filter, and reconcile the preview with PostgreSQL.
 2. Publish, open a native Table chart in Explore, and run it. Check the dollar total, output columns, explicit sort precedence on tied rows, and access to later rows of an uncapped detail dataset.
-3. Save the chart. Reopen the builder definition, add an eligible field, and republish. Verify that the dataset ID and established aliases persist, the existing chart runs, and retrying publication produces one dataset.
+3. Save the chart. Reopen the builder definition and add an eligible field that preserves the dataset's grain. Republish and verify that the dataset ID, established aliases, and chart results persist. Retrying publication should produce one dataset.
 4. As the restricted account, verify the expected rows and allowed fields through choices, preview, and Explore. Verify that direct API requests enforce the same scope and that the account cannot edit another author's private definition.
 
 [Decision criterion] Record the release, dataset ID, chart ID, query comparison, and both accounts' permission outcomes. Once this passes, expand the governed relationship catalog and field mappings. Qualify scheduling against a saved chart after the chart workflow works end to end.
