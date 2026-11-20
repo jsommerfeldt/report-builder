@@ -1,0 +1,116 @@
+import React, {useEffect,useRef,useState} from 'react';
+import {Field, Mode, Preview} from './client';
+import {Icon} from './Icon';
+import {ReorderMotion} from './ReorderMotion';
+
+const dollars = new Intl.NumberFormat('en-US', {style:'currency', currency:'USD'});
+const quantity = new Intl.NumberFormat('en-US', {maximumFractionDigits:4});
+export function resultCell(value: string | null, field: Field) {
+  if (value === null || value === '') return <span className="empty-value" aria-label="Blank">—</span>;
+  if (field.kind === 'currency') return dollars.format(Number(value));
+  if (field.kind === 'quantity') return quantity.format(Number(value));
+  return value;
+}
+interface Props { data: Preview | null; byId: Record<string, Field>; mode: Mode; stale: boolean; busy: boolean;
+  canMove:boolean; move(id:string,anchor:string,after:boolean):void;
+  hasFields: boolean; setMode(mode: Mode): void; run(): void; }
+export function PreviewPane({data, byId, mode, stale, busy, hasFields, setMode, run,canMove,move}: Props) {
+  const table=useRef<HTMLTableElement>(null);
+  const [widths,setWidths]=useState<Record<string,number>>({});
+  const drag=useRef<{pointer:number; x:number; id:string; width:number}|null>(null);
+  const moving=useRef<{pointer:number;x:number;id:string;grip:number;motion:ReorderMotion|null}|null>(null);
+  function cancelMove(){
+    moving.current?.motion?.finish(true);moving.current=null;
+  }
+  useEffect(()=>{
+    const key=(e:KeyboardEvent)=>{if(e.key==='Escape')cancelMove();};
+    window.addEventListener('keydown',key);window.addEventListener('blur',cancelMove);
+    return ()=>{window.removeEventListener('keydown',key);window.removeEventListener('blur',cancelMove);cancelMove();};
+  },[data?.fields,canMove]);
+  function trackHeader(e:React.PointerEvent,scrollEdges:boolean) {
+    const start=moving.current,t=table.current;
+    if(!start || start.pointer!==e.pointerId || !t?.tHead || !t.parentElement)return;
+    if(!start.motion && Math.abs(e.clientX-start.x)<5)return;
+    const scroll=t.parentElement,bounds=scroll.getBoundingClientRect();
+    const heads=Array.from(t.tHead.rows[0].cells);
+    const rect=heads[0].getBoundingClientRect();
+    if(e.clientY<rect.top || e.clientY>rect.bottom || e.clientX<bounds.left || e.clientX>bounds.right){
+      start.motion?.finish(false);start.motion=null;return;
+    }
+    if(scrollEdges){
+      if(e.clientX<bounds.left+24)scroll.scrollLeft-=12;
+      else if(e.clientX>bounds.right-24)scroll.scrollLeft+=12;
+    }
+    if(!start.motion){
+      const rows=Array.from(t.tBodies[0].rows).filter(row=>row.cells.length===heads.length);
+      start.motion=new ReorderMotion(t.tHead,'x',heads,start.id,start.grip,i=>rows.map(row=>row.cells[i]));
+    }
+    start.motion.update(e.clientX,e.clientY);
+  }
+  const ids=data?.fields??[];
+  const manual=ids.some(id=>widths[id]!==undefined);
+  const width=(id:string)=>widths[id]??Math.max(135,(byId[id].label.length+6)*8);
+  const clamp=(n:number)=>Math.max(72,Math.min(2000,Math.round(n)));
+  function measure() {
+    const headers=Array.from(table.current?.tHead?.rows[0]?.cells??[]);
+    return Object.fromEntries(headers.map((th,i)=>[ids[i],Math.round(th.getBoundingClientRect().width)]));
+  }
+  function resizeKey(e:React.KeyboardEvent,id:string) {
+    if(e.key!=='ArrowRight' && e.key!=='ArrowLeft')return;
+    e.preventDefault();
+    const current=measure();
+    setWidths(prev=>({...prev,...current,[id]:clamp(current[id]+(e.key==='ArrowRight'?16:-16))}));
+  }
+  return <section className="preview panel" aria-label="Results preview">
+    <div className="preview-head"><div className="panel-heading"><Icon name="grid"/><h2>Preview</h2></div>
+      <div className="preview-actions">{manual && <button className="text-action" onClick={()=>setWidths({})}>Auto-fit columns</button>}<div className="segments" aria-label="Report mode">{(['summary','detail'] as const).map(m =>
+        <button key={m} aria-pressed={mode === m} onClick={() => setMode(m)}>{m === 'summary' ? 'Summary' : 'Detail'}</button>)}</div>
+        <button className="run-button" onClick={run} disabled={busy || !hasFields}><Icon name="play" size={13}/>{busy ? 'Running…' : 'Run preview'}</button>
+      </div></div>
+    <div className="result-meta" role="status"><span className={'status-dot ' + (stale ? 'amber' : '')}/>
+      {busy ? 'Reading CSV data…' : stale ? 'Report changed · Run preview to update' : data ? 'Preview ready' : 'Awaiting fields'}
+      {data && <span className="result-count">{data.rows.length.toLocaleString()} of {data.total.toLocaleString()} results</span>}</div>
+    {data ? <div className="table-scroll" tabIndex={0} aria-label="Preview table"><table ref={table}
+      className={manual?'manual-widths':undefined} style={manual?{width:ids.reduce((sum,id)=>sum+width(id),0)}:undefined}>
+      {manual && <colgroup>{ids.map(id=><col key={id} style={{width:width(id)}}/>)}</colgroup>}<thead><tr>{data.fields.map(id => {
+      const field=byId[id]; return <th scope="col" key={id} data-preview-field={id} className={field.measure?'numeric':''}
+        onPointerDown={e=>{
+          if(!canMove || !e.isPrimary || e.button!==0)return;
+          moving.current={pointer:e.pointerId,x:e.clientX,id,grip:e.clientX-e.currentTarget.getBoundingClientRect().left,motion:null};
+          e.currentTarget.setPointerCapture(e.pointerId);
+        }} onPointerMove={e=>trackHeader(e,true)} onPointerUp={e=>{
+          const start=moving.current;
+          if(!start || start.pointer!==e.pointerId)return;
+          trackHeader(e,false);const slot=start.motion?.destination();
+          cancelMove();
+          if(canMove && slot?.anchor)move(start.id,slot.anchor,slot.after);
+        }} onLostPointerCapture={cancelMove}>
+        <button type="button" disabled={!canMove} className="column-label header-grip" aria-label={'Move preview column '+field.label}
+          title="Drag to move this column, or use the left and right arrow keys" onKeyDown={e=>{
+            if(e.key!=='ArrowLeft' && e.key!=='ArrowRight')return;
+            e.preventDefault();const right=e.key==='ArrowRight',other=ids[ids.indexOf(id)+(right?1:-1)];
+            if(other)move(id,other,right);
+          }}><Icon name="grip" size={12}/>{field.label}</button>
+        <span className="column-resize" role="separator" tabIndex={0} aria-orientation="vertical" aria-label={'Resize '+field.label}
+          aria-valuemin={72} aria-valuemax={2000} aria-valuenow={width(id)} aria-valuetext={manual?width(id)+' pixels':'Automatic width'}
+          title="Drag to resize, or use the left and right arrow keys" onKeyDown={e=>resizeKey(e,id)}
+          onPointerDown={e=>{
+            if(e.button!==0 || !e.isPrimary)return;
+            e.stopPropagation();e.preventDefault();const current=measure();
+            drag.current={pointer:e.pointerId,x:e.clientX,id,width:current[id]};
+            e.currentTarget.setPointerCapture(e.pointerId);setWidths(prev=>({...prev,...current}));
+          }}
+          onPointerMove={e=>{
+            const start=drag.current;if(!start || start.pointer!==e.pointerId)return;
+            const updated=clamp(start.width+e.clientX-start.x);setWidths(prev=>({...prev,[start.id]:updated}));
+          }}
+          onLostPointerCapture={()=>{drag.current=null;}}/></th>;
+    })}</tr></thead><tbody>{data.total===0 && <tr><td colSpan={data.fields.length}>No rows match the current filters.</td></tr>}{data.rows.map((row,i) => <tr key={i}>{row.map((value,j) => {
+      const f=byId[data.fields[j]]; return <td key={f.id} title={value??undefined} className={f.measure ? 'numeric' : ''}>{resultCell(value,f)}</td>;
+    })}</tr>)}</tbody></table></div> :
+      <div className="empty-preview"><span className="empty-icon"><Icon name="grid" size={25}/></span><strong>{hasFields ? 'Ready to preview' : 'Choose your first field'}</strong>
+        <span>{hasFields ? 'Run the preview to see your report.' : 'Select a field in the library to begin.'}</span></div>}
+    <div className="preview-foot"><Icon name="layers" size={14}/>{stale ? 'Showing the previous preview.' :
+      mode === 'summary' ? 'Measures are summed by the selected dimensions.' : 'Each row represents one source sales record.'}</div>
+  </section>;
+}

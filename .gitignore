@@ -1,0 +1,15 @@
+__pycache__/
+*.py[cod]
+node_modules/
+dist/
+.venv/
+.env
+*.csv
+access.key
+.env.*
+*.key
+*.pem
+/csv/
+/reports/
+/outputs/
+/venv/
