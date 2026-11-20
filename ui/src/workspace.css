@@ -68,7 +68,10 @@
 .report-actions .row-run { background:#28354a; color:#bed4ff; margin-right:3px; }
 .report-actions .row-run:hover { background:#344665; }
 .report-actions .more-btn { width:31px; padding:5px; }
-.report-actions .trash-delete { color:#ffadab; }
+.trash-actions { gap:8px; }
+.trash-actions button { min-height:34px; line-height:18px; }
+.trash-actions .trash-delete { color:#ffadab; border-color:#795050; }
+.trash-actions .trash-delete:hover { color:#ffd0ce; background:#3e2d32; }
 .report-actions svg { flex:none; }
 .home-empty { min-height:210px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px; padding:30px 20px; text-align:center; }
 .home-empty h3 { margin:4px 0 0; font-size:17px; font-weight:600; }

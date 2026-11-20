@@ -16,6 +16,7 @@ export function FieldsPanel({fields,order,drop,remove,sort}:Props) {
   const visible=expanded?fields:fields.slice(0,3);
   return <section className="selection panel" aria-label="Fields" data-library-zone="fields">
     <div className="selection-head"><div className="panel-heading"><Icon name="fields"/><h2>Fields</h2><span className="count">{fields.length}</span></div></div>
+    <div className="configuration-scroll" tabIndex={0} role="group" aria-label="Field order and sorting">
     {fields.length>0 && <><div className="field-control-grid ordering-groups">
       <strong>Column order</strong><strong>Row ordering</strong></div>
       <div className="field-control-grid field-headings" aria-hidden="true">
@@ -53,6 +54,7 @@ export function FieldsPanel({fields,order,drop,remove,sort}:Props) {
         <button type="button" className="remove-field" aria-label={'Remove '+f.label} onClick={()=>remove(f.id)}><Icon name="close" size={12}/></button>
       </div>;
     })}{!fields.length && <span className="drop-hint">Select or drag fields from the library.</span>}</div>
+    </div>
     {fields.length>3 && <button className="text-action more-fields" aria-expanded={expanded} aria-controls="ordered-fields"
       onClick={()=>setExpanded(!expanded)}>{expanded?'Show less':'Show more ('+(fields.length-3)+')'}</button>}
   </section>;

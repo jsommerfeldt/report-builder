@@ -29,6 +29,7 @@ export function FiltersPanel({fields,entities,rules,onChange,lookup,editor,setEd
     <div className="selection-head"><div className="panel-heading"><Icon name="fields"/><h2>Filters</h2><span className="count">{enabled}/{rules.length}</span></div>
       <button type="button" className="text-action" disabled={!rules.length || !!editor}
         onClick={()=>onChange(rules.map(r=>({...r,enabled:!all})))}>{all?'Deselect all':'Select all'}</button></div>
+    <div className="configuration-scroll" tabIndex={0} role="group" aria-label="Filter rules">
     <ul className="filter-list">{rules.map((r,i)=>{
       const f=fields.find(field=>field.id===r.field)!;
       return <li key={i} className={!r.enabled?'rule-off':''}>
@@ -40,7 +41,7 @@ export function FiltersPanel({fields,entities,rules,onChange,lookup,editor,setEd
         <button className="remove-rule" aria-label={'Remove filter '+(i+1)} disabled={!!editor} onClick={()=>onChange(rules.filter((_,j)=>j!==i))}><Icon name="close" size={14}/></button>
       </li>;
     })}</ul>
-    {editor && editing ? <form className="filter-editor" onSubmit={commit}>
+    {editor && editing && <form id="filter-editor" className="filter-editor" onSubmit={commit}>
       <label>Field<select autoFocus value={editing.id} onChange={e=>setEditor({...editor,rule:{...editor.rule,field:e.target.value,op:'in',value:[]}})}>
         <FieldOptions fields={fields} entities={entities}/></select></label>
       <label>Condition<select value={editor.rule.op} onChange={e=>{const op=e.target.value as FilterOp;const old=editor.rule.value;
@@ -51,9 +52,11 @@ export function FiltersPanel({fields,entities,rules,onChange,lookup,editor,setEd
       {editor.rule.op!=='blank' && editor.rule.op!=='in' && <label className="filter-value">Value<input required maxLength={160} type={editing.kind==='date'?'date':'text'}
         pattern={editing.measure?'[+\\-]?(?:[0-9]+(?:\\.[0-9]*)?|\\.[0-9]+)':undefined} inputMode={editing.measure?'decimal':undefined}
         value={editor.rule.value} onChange={e=>setEditor({...editor,rule:{...editor.rule,value:e.target.value}})}/></label>}
-      <div className="filter-buttons"><button type="button" className="quiet-btn" onClick={()=>setEditor(null)}>Cancel</button>
-        <button className="run-button" disabled={editor.rule.op!=='blank' && !(Array.isArray(editor.rule.value)?editor.rule.value.length:editor.rule.value.trim())}>Apply filter</button></div>
-    </form> : <div className="filter-bottom"><button className="add-filter" disabled={rules.length>=32} onClick={()=>start('customer.shippingstate')}>
+    </form>}
+    </div>
+    {editor ? <div className="filter-bottom filter-buttons"><button type="button" className="quiet-btn" onClick={()=>setEditor(null)}>Cancel</button>
+      <button type="submit" form="filter-editor" className="run-button" disabled={editor.rule.op!=='blank' && !(Array.isArray(editor.rule.value)?editor.rule.value.length:editor.rule.value.trim())}>Apply filter</button></div>
+    : <div className="filter-bottom"><button className="add-filter" disabled={rules.length>=32} onClick={()=>start('customer.shippingstate')}>
       <Icon name="plus" size={14}/>Add filter</button><span className="hint">{rules.length>1?'Match all enabled filters':'Drop a field here'}</span></div>}
   </section>;
 }

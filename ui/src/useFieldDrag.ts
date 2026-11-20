@@ -15,9 +15,24 @@ export function useFieldDrag(drop:DropField) {
     const origin=e.currentTarget.closest<HTMLElement>('[data-column]');
     const grip=origin?y-origin.getBoundingClientRect().top:null;
     let zone:HTMLElement|null=null,motion:ReorderMotion|null=null;
+    let scrollFrame=0;
     function leave(settle:boolean) {
+      cancelAnimationFrame(scrollFrame);
       motion?.finish(settle);motion=null;
       zone?.classList.remove('library-drop-hover');zone=null;
+    }
+    function scrollFields(x:number,y:number) {
+      const scroller=zone?.querySelector<HTMLElement>('.configuration-scroll');
+      if(!motion || !scroller)return;
+      const {top,bottom}=scroller.getBoundingClientRect();
+      if(y<top || y>bottom)return;
+      const step=y<top+24?-8:y>bottom-24?8:0;
+      if(!step)return;
+      const before=scroller.scrollTop;
+      scroller.scrollTop+=step;
+      if(scroller.scrollTop===before)return;
+      motion.update(x,y);
+      scrollFrame=requestAnimationFrame(()=>scrollFields(x,y));
     }
     function track(p:PointerEvent) {
       if(p.pointerId!==pointer || (!moved.current && Math.hypot(p.clientX-x,p.clientY-y)<5))return;
@@ -31,6 +46,8 @@ export function useFieldDrag(drop:DropField) {
         }else zone?.classList.add('library-drop-hover');
       }
       motion?.update(p.clientX,p.clientY);
+      cancelAnimationFrame(scrollFrame);
+      if(motion)scrollFrame=requestAnimationFrame(()=>scrollFields(p.clientX,p.clientY));
     }
     function cleanup() {
       leave(true);

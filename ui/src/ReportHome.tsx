@@ -162,9 +162,9 @@ export function ReportHome({library,client,schedules,location,navigate,onNew,onE
           return <li key={report.id} aria-label={report.name} {...(trash?{}:source({kind:'report',item:report}))}><div className="report-file"><Icon name="document" size={22}/></div>
             <div className="report-description"><h3>{report.name}</h3><div className="report-details"><span>{path??'Library root'}</span><i aria-hidden="true"/>
               <time dateTime={report.deletedAt??report.updated}>{trash?'Deleted':'Updated'} {updated.format(new Date(report.deletedAt??report.updated))}</time></div></div>
-            <div className="report-actions">{trash?<>
+            <div className={trash?'report-actions trash-actions':'report-actions'}>{trash?<>
               <button className="secondary-btn" disabled={working} onClick={()=>void restore(report)}>Restore</button>
-              <button className="trash-delete" disabled={working} onClick={()=>{setDeleteError('');setDeleteTarget(report);}}>Delete permanently</button>
+              <button className="secondary-btn trash-delete" disabled={working} onClick={()=>{setDeleteError('');setDeleteTarget(report);}}>Delete permanently</button>
             </>:<>
               <button className="row-run" disabled={working} onClick={()=>onRun(report)}><Icon name="play" size={13}/>Run</button>
               <button disabled={working} onClick={()=>void edit(report)}><Icon name="edit" size={14}/>Edit</button>
