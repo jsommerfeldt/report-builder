@@ -1,5 +1,5 @@
 .home-shell { min-height:100vh; }
-.appbar.editor-bar { display:grid; grid-template-columns:minmax(17rem,1fr) minmax(0,2fr) minmax(17rem,1fr); grid-template-areas:"brand title actions"; padding-block:10px; }
+.appbar.editor-bar { position:sticky; top:0; z-index:10; display:grid; grid-template-columns:minmax(17rem,1fr) minmax(0,2fr) minmax(17rem,1fr); grid-template-areas:"brand title actions"; padding-block:10px; }
 .editor-bar .brand { grid-area:brand; }
 .editor-actions { grid-area:actions; justify-self:end; display:flex; align-items:center; gap:8px; }
 .editor-bar .bar-title { grid-area:title; min-width:0; text-align:center; }
