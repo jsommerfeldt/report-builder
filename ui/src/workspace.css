@@ -1,13 +1,14 @@
 .home-shell { min-height:100vh; }
-.appbar.editor-bar { display:grid; grid-template-columns:1fr minmax(0,50%) 1fr; grid-template-areas:"brand title back"; }
+.appbar.editor-bar { display:grid; grid-template-columns:minmax(17rem,1fr) minmax(0,2fr) minmax(17rem,1fr); grid-template-areas:"brand title actions"; padding-block:10px; }
 .editor-bar .brand { grid-area:brand; }
-.editor-bar nav { grid-area:back; justify-self:end; margin:0; }
+.editor-actions { grid-area:actions; justify-self:end; display:flex; align-items:center; gap:8px; }
 .editor-bar .bar-title { grid-area:title; min-width:0; text-align:center; }
 .bar-title h1 { font-size:18px; letter-spacing:-.4px; }
 .bar-title .rename-title { position:relative; display:block; max-width:100%; margin:auto; padding:0 23px; overflow-wrap:anywhere; text-align:center; }
 .bar-title .rename-title span { position:absolute; right:0; top:50%; transform:translateY(-50%); }
 .bar-title .title-edit { justify-content:center; }
 .bar-title .title-edit input { min-width:0; width:min(230px,100%); }
+.bar-title .doc-status { justify-content:center; margin:4px 0 0; }
 .folders-index-link { font:inherit; color:inherit; padding:4px 0; }
 .folders-index-link:hover,.folders-index-link[aria-current=page] { color:var(--blue); }
 .folder-directory { list-style:none; padding:0; margin:0; }
@@ -20,8 +21,15 @@
 .folder-directory small,.folder-count-label { color:var(--muted); font-size:12px; }
 .home-shell [draggable=true] { cursor:grab; }
 .home-shell [data-drop-active=true] { background:#293b56; box-shadow:inset 0 0 0 2px var(--blue); }
+@media(max-width:760px) {
+  .appbar.editor-bar { grid-template-columns:minmax(0,1fr) auto; grid-template-areas:"brand actions" "title title"; }
+}
+@media(max-width:420px) {
+  .editor-actions { gap:5px; }
+  .editor-actions .primary-btn { padding-inline:9px; }
+  .editor-actions .primary-btn svg { display:none; }
+}
 @media(max-width:650px) {
-  .appbar.editor-bar { grid-template-columns:1fr auto; grid-template-areas:"brand back" "title title"; }
   .folder-directory button { gap:8px; padding:12px; }
 }
 .local-mark { margin-left:auto; display:flex; align-items:center; gap:6px; color:var(--muted); font-size:12px; }

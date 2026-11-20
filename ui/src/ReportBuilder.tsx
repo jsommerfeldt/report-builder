@@ -23,12 +23,6 @@ const message = (e: unknown) => e instanceof Error ? e.message : 'The operation 
 function previewKey(d:Definition) {
   return definitionKey({...d,fields:[...d.fields].sort()});
 }
-function period(from: string, through: string) {
-  const date = (iso:string, year?:boolean) => new Date(iso + 'T12:00:00Z').toLocaleDateString('en-US',
-    {month:'short', day:'numeric', year:year ? 'numeric' : undefined, timeZone:'UTC'});
-  return date(from) + ' – ' + date(through,true);
-}
-
 const blank:Definition={version:1,source:'sales',mode:'summary',fields:[]};
 interface BuilderProps {catalog:Catalog; client:ReportClient; initialReport?:SavedReport; folderId?:string|null; onHome?():void}
 export function ReportBuilder({catalog,client,initialReport,folderId,onHome}:BuilderProps) {
@@ -141,21 +135,28 @@ export function ReportBuilder({catalog,client,initialReport,folderId,onHome}:Bui
   }
   const close=() => {if (!working) setDialog(null);};
   return <div className="shell">
-    <header className="appbar editor-bar"><div className="brand"><img src="/assets/mark.svg" width="31" height="31" alt=""/><strong>Report Builder</strong></div>
-      <nav aria-label="Reports"><button className="quiet-btn" onClick={onHome ? ()=>{if(discardOK())onHome();} : openList}><Icon name={onHome?'back':'folder'} size={17}/>{onHome?'My reports':'Saved reports'}</button>
-      </nav><div className="bar-title">{renaming ? <form className="title-edit" onSubmit={e=>{e.preventDefault();if(name.trim()){setTitle(name.trim());setRenaming(false);}}}>
-        <input autoFocus aria-label="Report title" maxLength={80} required value={name} onFocus={e=>e.target.select()}
-          onChange={e=>setName(e.target.value)} onKeyDown={e=>{if(e.key==='Escape'){e.preventDefault();setRenaming(false);}}}/>
-        <button className="text-action" disabled={!name.trim()}>Apply title</button><button type="button" className="quiet-btn" onClick={()=>setRenaming(false)}>Cancel</button>
-      </form> : <h1><button className="rename-title" title="Rename report" aria-label={'Rename report: '+title} onClick={()=>{setName(title);setRenaming(true);}}>
-        {title}<span aria-hidden="true">✎</span></button></h1>}</div></header>
+    <header className="appbar editor-bar">
+      <div className="brand"><img src="/assets/mark.svg" width="31" height="31" alt=""/><strong>Report Builder</strong></div>
+      <div className="bar-title">
+        {renaming ? <form className="title-edit" onSubmit={e=>{e.preventDefault();if(name.trim()){setTitle(name.trim());setRenaming(false);}}}>
+          <input autoFocus aria-label="Report title" maxLength={80} required value={name} onFocus={e=>e.target.select()}
+            onChange={e=>setName(e.target.value)} onKeyDown={e=>{if(e.key==='Escape'){e.preventDefault();setRenaming(false);}}}/>
+          <button className="text-action" disabled={!name.trim()}>Apply title</button><button type="button" className="quiet-btn" onClick={()=>setRenaming(false)}>Cancel</button>
+        </form> : <h1><button className="rename-title" title="Rename report" aria-label={'Rename report: '+title} onClick={()=>{setName(title);setRenaming(true);}}>
+          {title}<span aria-hidden="true">✎</span></button></h1>}
+        <p className="doc-status">{dirty ? 'Unsaved changes' : saved ? 'Saved changes' : 'Draft report'}</p>
+      </div>
+      <div className="editor-actions">
+        <button type="button" className="primary-btn" disabled={!definition.fields.length || renaming}
+          onClick={()=>{setCollision(null);setModalError('');setName(title);setDialog('save');}}>
+          <Icon name="save" size={16}/>Save report</button>
+        <button type="button" className="primary-btn" onClick={onHome ? ()=>{if(discardOK())onHome();} : openList}>
+          <Icon name={onHome?'home':'folder'} size={16}/>{onHome?'Home':'Saved reports'}</button>
+      </div>
+    </header>
     <LibraryLayout library={<FieldLibrary key={editorSession} catalog={catalog} fields={definition.fields} toggle={toggle}
       drop={dropField}/>}>
-    <main><div className="report-head"><div className="report-name"><div className="doc-status"><Icon name="document" size={14}/>
-      {saved ? (dirty ? 'Unsaved changes' : 'Saved report') : 'Draft report'}</div>
-      <div className="scope"><span>Company {catalog.scope.company}</span><i/><span>{period(catalog.scope.from,catalog.scope.through)}</span></div></div>
-      <button className="primary-btn" disabled={!definition.fields.length || renaming} onClick={() => {setCollision(null);setModalError('');setName(title);setDialog('save');}}>
-        <Icon name="save" size={16}/>Save report</button></div>
+    <main>
       {error && <div className="alert" role="alert">{error}</div>}
       <div className="configuration"><FieldsPanel key={'fields-'+editorSession} fields={definition.fields.map(id=>byId[id])}
         order={definition.order??[]} drop={dropField} remove={toggle} sort={changeSort}/>

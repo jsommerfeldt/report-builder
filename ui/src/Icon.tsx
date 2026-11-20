@@ -5,6 +5,7 @@ const paths = {
   trash: 'M4 7h16 M9 7V4h6v3 M6 7l1 14h10l1-14 M10 10v7 M14 10v7',
   more: 'M5 12h.3 M12 12h.3 M19 12h.3',
   back: 'M19 12H5 M11 6l-6 6 6 6',
+  home: 'M3 10.5 12 3l9 7.5 M5 9v11h5v-6h4v6h5V9',
   search: 'M20 20l-4.4-4.4 M17 10.5a6.5 6.5 0 11-13 0 6.5 6.5 0 0113 0',
   folder: 'M3 7a2 2 0 012-2h5l2 2h7a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2z',
   plus: 'M12 5v14 M5 12h14', close: 'M6 6l12 12 M18 6L6 18',
