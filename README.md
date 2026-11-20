@@ -54,6 +54,8 @@ Run the offline regression checks from the project directory with the pilot's Py
 
 ## Integration boundary
 
+The [Superset integration checkpoint](docs/superset-integration.md) records the 6.1.0 source review, the compiler and PostgreSQL checks, and the first publish-to-Explore test for the Linux instance.
+
 - `ui/src/ScheduleEditor.tsx` edits timing and recipients through the asynchronous `ScheduleDraftStore` contract in `scheduleDrafts.ts`. The pilot adapter stores drafts by report ID in browser local storage. A future authenticated service can implement this contract and handle delivery. Browser data clearing removes these drafts.
 - `ui/src/ReportWorkspace.tsx` connects the library, read-only results and editor. `LibraryClient` covers folder management, Trash and paged results. Existing report JSON without folder metadata appears in the library root.
 
