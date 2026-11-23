@@ -4,9 +4,9 @@ A Windows, single-user CSV pilot for composing sales reports. Open **Open Report
 
 ## Use the builder
 
-The homepage lists all saved reports. **Run** opens a read-only result with 50 rows per page. **Edit** opens the saved fields, filters and sorting in the builder. **New report** starts an empty definition in the current folder.
+**Home** shows recently updated reports and folders. Select a recent report to open it in the builder, or choose **Reports** for the full library. **Run** opens a read-only result with 50 rows per page. **Edit** opens the saved fields, filters and sorting in the builder. **New report** starts an empty definition in the current folder.
 
-Use the plus beside **Folders** to create a folder or subfolder. Open a folder and choose **Manage folder** to rename or move it. A report's **…** button moves it to another folder or to **Trash**. Restore a report from Trash to return it to its former folder, or to the library root if that folder was removed. If its name has been reused, the restored copy receives a suffix. Choose the trash icon beside a folder or open it and choose **Delete folder**. Confirming moves its reports and subfolders up one level.
+Choose **New folder** on Home or use the plus beside **Folders** in Reports to create a folder or subfolder. Open a folder and choose **Manage folder** to rename or move it. A report's **…** button moves it to another folder or to **Trash**. Restore a report from Trash to return it to its former folder, or to the library root if that folder was removed. If its name has been reused, the restored copy receives a suffix. Choose the trash icon beside a folder or open it and choose **Delete folder**. Confirming moves its reports and subfolders up one level.
 
 In **Trash**, choose **Delete permanently** and confirm to remove a saved report. This also removes its schedule draft from the browser where you confirm the deletion.
 

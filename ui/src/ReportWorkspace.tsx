@@ -11,17 +11,18 @@ type View={page:'home'}|{page:'edit';report?:SavedReport}|{page:'run';report:Sav
 interface Props {catalog:Catalog;client:ReportClient;library:LibraryClient;schedules:ScheduleDraftStore}
 export function ReportWorkspace({catalog,client,library,schedules}:Props) {
   const [view,setView]=useState<View>({page:'home'});
-  const [location,setLocation]=useState('all');
-  const onHome=()=>setView({page:'home'});
+  const [location,setLocation]=useState('home');
+  const onHome=()=>{setLocation('home');setView({page:'home'});};
+  const onReports=()=>{setLocation(current=>current==='home'?'all':current);setView({page:'home'});};
   useEffect(()=>{window.scrollTo(0,0);},[view]);
   if(view.page==='edit')return <ReportBuilder catalog={catalog} client={client} initialReport={view.report}
-    folderId={location==='all'||location==='trash'||location==='folders'?null:location} onHome={onHome}/>;
-  if(view.page==='run')return <ReportResults report={view.report} catalog={catalog} library={library} onHome={onHome}/>;
+    folderId={['home','all','trash','folders'].includes(location)?null:location} onHome={onHome} onReports={onReports}/>;
+  if(view.page==='run')return <ReportResults report={view.report} catalog={catalog} library={library} onHome={onHome} onReports={onReports}/>;
   return <ReportHome location={location} navigate={setLocation} library={library} schedules={schedules} client={client}
     onNew={()=>setView({page:'edit'})} onEdit={report=>setView({page:'edit',report})} onRun={report=>setView({page:'run',report})}/>;
 }
 
-function ReportResults({report,catalog,library,onHome}:{report:SavedInfo;catalog:Catalog;library:LibraryClient;onHome():void}) {
+function ReportResults({report,catalog,library,onHome,onReports}:{report:SavedInfo;catalog:Catalog;library:LibraryClient;onHome():void;onReports():void}) {
   const [offset,setOffset]=useState(0);
   const [retry,setRetry]=useState(0);
   const [page,setPage]=useState<{offset:number;result:Preview}|null>(null);
@@ -37,7 +38,7 @@ function ReportResults({report,catalog,library,onHome}:{report:SavedInfo;catalog
     return ()=>{active=false;};
   },[report,library,offset,retry]);
   const fields=data?.fields.map(id=>catalog.fields.find(field=>field.id===id)!)??[];
-  return <div><WorkspaceBar onHome={onHome}/><main className="run-main">
+  return <div><WorkspaceBar active="reports" onHome={onHome} onReports={onReports}/><main className="run-main">
     <div className="doc-status"><Icon name="grid" size={15}/>Report results</div>
     <h1 ref={title} tabIndex={-1}>{report.name}</h1>
     {error?<div role="alert" className="alert">{error} <button className="text-action" onClick={()=>setRetry(n=>n+1)}>Try again</button></div>:
