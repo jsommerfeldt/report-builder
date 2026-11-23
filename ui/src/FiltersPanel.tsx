@@ -26,9 +26,9 @@ export function FiltersPanel({fields,entities,rules,onChange,lookup,editor,setEd
     onChange(next); setEditor(null);
   }
   return <section className="filters" aria-label="Filters" data-library-zone={!editor && rules.length<32?'filters':undefined}>
-    <div className="selection-head"><div className="panel-heading"><h4 className="query-label">Filters</h4><span className="count">{enabled}/{rules.length}</span></div>
-      <button type="button" className="text-action" disabled={!rules.length || !!editor}
-        onClick={()=>onChange(rules.map(r=>({...r,enabled:!all})))}>{all?'Deselect all':'Select all'}</button></div>
+    <div className="selection-head"><div className="panel-heading"><h4 className="query-label">Filters</h4>{rules.length>0 && <span className="count">{enabled}/{rules.length}</span>}</div>
+      {rules.length>0 && <button type="button" className="text-action" disabled={!!editor}
+        onClick={()=>onChange(rules.map(r=>({...r,enabled:!all})))}>{all?'Deselect all':'Select all'}</button>}</div>
     <div className="configuration-scroll" tabIndex={0} role="group" aria-label="Filter rules">
     <ul className="filter-list">{rules.map((r,i)=>{
       const f=fields.find(field=>field.id===r.field)!;
@@ -56,7 +56,8 @@ export function FiltersPanel({fields,entities,rules,onChange,lookup,editor,setEd
     </div>
     {editor ? <div className="filter-bottom filter-buttons"><button type="button" className="quiet-btn" onClick={()=>setEditor(null)}>Cancel</button>
       <button type="submit" form="filter-editor" className="run-button" disabled={editor.rule.op!=='blank' && !(Array.isArray(editor.rule.value)?editor.rule.value.length:editor.rule.value.trim())}>Apply filter</button></div>
-    : <div className="filter-bottom"><button className="add-filter" disabled={rules.length>=32} onClick={()=>start('customer.shippingstate')}>
-      <Icon name="plus" size={14}/>Add filter</button><span className="hint">{rules.length>1?'Match all enabled filters':'Drop a field here'}</span></div>}
+    : <div className="filter-bottom"><button className="add-filter" aria-label="Add filter" disabled={rules.length>=32} onClick={()=>start('customer.shippingstate')}>
+      <Icon name="plus" size={14}/>Add filter<span className="hint" aria-hidden="true">Drop a field here</span></button>
+      {rules.length>1 && <span className="hint">Match all enabled filters</span>}</div>}
   </section>;
 }

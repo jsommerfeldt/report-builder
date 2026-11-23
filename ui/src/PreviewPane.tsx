@@ -66,9 +66,9 @@ export function PreviewPane({data,byId,stale,busy,error,hasFields,canMove,move}:
       {data && manual && <button className="text-action" onClick={()=>setWidths({})}>Auto-fit columns</button>}
       {data && <span className="result-count" role="status">{data.rows.length.toLocaleString()} of {data.total.toLocaleString()} rows</span>}
     </div></div>
-    <div className="result-meta" role="status">
+    <div className="result-meta" role="status">{(busy || data || error) && <>
       <span className={'status-dot'+(busy?' loading':stale?' amber':data && !error?' ready':'')}/>
-      {busy?'Running preview…':error?'Preview failed':stale?'Report changed. Run preview to update.':data?'Preview ready':'Preview'}</div>
+      {busy?'Running preview…':error?'Preview failed':stale?'Report changed. Run preview to update.':'Preview ready'}</>}</div>
     {error && <div className="alert preview-alert" role="alert">{error}{data && ' The table shows the previous preview.'}</div>}
     {data ? <div className="table-scroll" tabIndex={0} aria-label="Preview table"><table ref={table}
       className={manual?'manual-widths':undefined} style={manual?{width:ids.reduce((sum,id)=>sum+width(id),0)}:undefined}>

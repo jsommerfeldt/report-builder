@@ -192,7 +192,8 @@
 .switch[aria-checked=true] { background: var(--accent); }
 .switch[aria-checked=true] span { transform: translateX(12px); }
 .filter-bottom { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px; margin-top: 4px; }
-.add-filter { color: var(--accent-hover); font-weight: 600; }
+.add-filter { width: 100%; color: var(--accent-hover); font-weight: 600; text-align: left; }
+.add-filter .hint { margin-left: auto; font-weight: 400; }
 .add-filter:hover:enabled { background: var(--accent-subtle); border-color: var(--accent); }
 .hint { color: var(--muted); font-size: 11px; }
 .filter-buttons { justify-content: flex-end; margin-top: 8px; }
@@ -220,6 +221,7 @@
 .preview { display: flex; flex-direction: column; min-height: 0; min-width: 0; }
 .preview-actions, .result-meta { display: flex; align-items: center; gap: 8px; }
 .result-meta { min-height: 37px; padding: 8px 16px; color: var(--muted); font-size: 12px; }
+.result-meta:empty { min-height: 0; padding: 0; }
 .status-dot { flex: none; width: 6px; height: 6px; border-radius: 50%; background: var(--soft); }
 .status-dot.amber { background: #b46d00; }
 .status-dot.ready { background: #329a74; }
