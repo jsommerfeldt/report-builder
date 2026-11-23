@@ -8,7 +8,7 @@ interface Props {
 }
 
 export function QueryCard({title,icon,children,actions,className,dropZone}:Props) {
-  const [expanded,setExpanded]=useState(true);
+  const [expanded,setExpanded]=useState(false);
   const id='query-'+title.toLowerCase();
   return <section className={'query-card'+(className?' '+className:'')} aria-labelledby={id+'-heading'}
     data-library-zone={expanded?dropZone:undefined}>
