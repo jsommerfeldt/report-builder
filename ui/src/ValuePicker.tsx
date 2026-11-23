@@ -32,8 +32,13 @@ export function ValuePicker({field,selected,change,lookup,caseSensitive}:Props) 
   function search(value:string) {setQuery(value);setOffset(0);setOptions([]);setTotal(0);}
   const custom=valid && !contains(selected,text) && !contains(options,text) && selected.length<256;
   return <div className="value-picker">
-    <label>Search or enter a value<input type="search" maxLength={160} value={query} placeholder={'Search '+field.label.toLowerCase()}
-      onChange={e=>search(e.target.value)} onKeyDown={e=>{if(e.key==='Enter'){e.preventDefault();if(custom){toggle(text);search('');}}}}/></label>
+    <div className="filter-value-heading"><label htmlFor="filter-value-search">Values</label>
+      {selected.length>0 && <span className="hint">{selected.length} selected</span>}
+    </div>
+    <input id="filter-value-search" type="search" maxLength={160} value={query} placeholder="Search or enter a value"
+      onChange={e=>search(e.target.value)} onKeyDown={e=>{if(e.key==='Enter'){e.preventDefault();if(custom){toggle(text);search('');}}}}/>
+    {selected.length>0 && <div className="picked-values" aria-label="Chosen values">{selected.map(v=><button type="button" key={v} aria-label={'Remove value '+v}
+      onClick={()=>change(selected.filter(x=>x!==v))}>{v}<Icon name="close" size={11}/></button>)}</div>}
     {custom && <button className="text-action custom-value" type="button" onClick={()=>{toggle(text);search('');}}>Use “{text}”</button>}
     <div className="value-options" aria-label="Available values">{options.map(v=><label key={v}>
       <input type="checkbox" checked={contains(selected,v)} disabled={!contains(selected,v)&&selected.length>=256} onChange={()=>toggle(v)}/>{v}</label>)}
@@ -42,8 +47,6 @@ export function ValuePicker({field,selected,change,lookup,caseSensitive}:Props) 
       {!progress && !options.length && <span>No matching values in this snapshot.</span>}
       {!progress && options.length<total && <button type="button" className="text-action" onClick={()=>setOffset(options.length)}>Show more values</button>}
     </div>
-    {selected.length>0 && <div className="picked-values" aria-label="Chosen values">{selected.map(v=><button type="button" key={v} aria-label={'Remove value '+v}
-      onClick={()=>change(selected.filter(x=>x!==v))}>{v}<Icon name="close" size={11}/></button>)}</div>}
   </div>;
 }
 

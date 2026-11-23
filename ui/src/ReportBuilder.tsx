@@ -4,7 +4,7 @@ import {Modal} from './Modal';
 import {FieldLibrary} from './FieldLibrary';
 import {Icon} from './Icon';
 import {PreviewPane} from './PreviewPane';
-import {FilterEditor,FiltersPanel} from './FiltersPanel';
+import {FilterEditor,FiltersPanel,newFilterRule} from './FiltersPanel';
 import {LibraryLayout} from './LibraryLayout';
 import {FieldsPanel} from './FieldsPanel';
 import {GroupingPanel} from './GroupingPanel';
@@ -141,11 +141,12 @@ export function ReportBuilder({catalog,client,initialReport,folderId,onReports}:
     setQueryCollapsed(false);
     cardDisclosure(card).setExpanded(true);
   }
-  function startFilter(id:string) {
+  function startFilter(id?:string) {
     const count=definition.filters?.length??0;
-    if(!filterEditor && count<32 && byId[id]) {
+    const field=id?byId[id]:undefined;
+    if(!filterEditor && count<32 && (!id || field)) {
       revealDestination('filters');
-      setFilterEditor({index:count,rule:{field:id,op:'in',value:[],enabled:true}});
+      setFilterEditor({index:count,rule:newFilterRule(field)});
     }
   }
   const dropField:DropField=(id,zone,anchor,after)=>{

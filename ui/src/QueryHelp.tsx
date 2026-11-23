@@ -16,7 +16,7 @@ export const filtersHelp={
   body:<div className="query-help-content">
     <p>Filters choose which sales are included before grouping or totaling.</p>
     <dl>
-      <div><dt>Build a rule</dt><dd>Drag in a field or choose <strong>Add filter</strong>. Set <strong>Shipping State</strong> to <strong>is any of</strong> and choose <strong>MN</strong> and <strong>WI</strong> to include sales shipped to either state.</dd></div>
+      <div><dt>Build a rule</dt><dd>Choose <strong>Add filter</strong> and select a field, or drag a field into Filters to select it directly. Set <strong>Shipping State</strong> to <strong>is any of</strong> and choose <strong>MN</strong> and <strong>WI</strong> to include sales shipped to either state.</dd></div>
       <div><dt>Apply and manage</dt><dd>Choose <strong>Apply filter</strong>, then <strong>Run preview</strong>. Every active rule must match. Use the switch on a rule to pause or resume it.</dd></div>
       <div><dt>Match case and relative dates</dt><dd><strong>Match case</strong> checks capitalization on text. Relative date and time filters recalculate their range each time the report runs.</dd></div>
     </dl>
