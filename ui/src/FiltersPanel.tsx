@@ -121,8 +121,11 @@ export function FiltersPanel({fields,entities,rules,onChange,lookup,editor,setEd
         <button type="submit" className="primary-btn" disabled={!editing || (editor.rule.op!=='blank' && !valid)}>Apply filter</button>
       </div>
     </form> : <div className="filter-overview">
-      {rules.length>1 && <button type="button" className="text-action filter-bulk"
-        onClick={()=>onChange(rules.map(r=>({...r,enabled:!all})))}>{all?'Disable all':'Enable all'}</button>}
+      {rules.length>0 && <div className="filter-list-heading">
+        <div className="filter-content"><strong>Column Name</strong><span>Filter</span></div>
+        {rules.length>1 && <button type="button" className="text-action filter-bulk"
+          onClick={()=>onChange(rules.map(r=>({...r,enabled:!all})))}>{all?'Disable all':'Enable all'}</button>}
+      </div>}
       {rules.length>0 && <ul className="filter-list" aria-label="Filter rules">{rules.map((r,i)=>{
         const f=fields.find(field=>field.id===r.field)!;
         return <li key={i} className={'filter-rule-grid'+(!r.enabled?' rule-off':'')}>
