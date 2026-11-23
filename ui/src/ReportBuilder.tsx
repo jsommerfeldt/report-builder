@@ -171,7 +171,7 @@ export function ReportBuilder({catalog,client,initialReport,folderId,onHome,onRe
       <LibraryLayout library={<FieldLibrary key={editorSession} catalog={catalog} fields={definition.fields} toggle={toggle} drop={dropField}/>}>
         <section className={'query-controls'+(queryCollapsed?' query-collapsed':'')} aria-labelledby="query-heading">
           <div className="query-header">
-            <h3 id="query-heading"><button type="button" className="query-disclosure" aria-expanded={!queryCollapsed}
+            <h3 id="query-heading"><button type="button" className="pane-disclosure" aria-expanded={!queryCollapsed}
               aria-controls="query-contents" onClick={()=>setQueryCollapsed(collapsed=>!collapsed)}>
               <Icon name="chevron" size={16}/>Query
             </button></h3>

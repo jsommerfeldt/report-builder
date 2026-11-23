@@ -12,13 +12,13 @@ In **Trash**, choose **Delete permanently** and confirm to remove a saved report
 
 **Schedule** opens a delivery draft for the selected report. Choose a recurrence, local time, time zone and To, Cc and Bcc recipients. One draft per report is saved in this browser profile. Opening Schedule again lets you edit or remove it. Email delivery is inactive.
 
-1. In **Build Report**, browse Sales, Customers, or Products in **Fields**, or search for a field. Click fields or drag them into **Selected fields** in **Query**. Drag selected fields to reorder them.
+1. In **Build Report**, browse Sales, Customers, Products, or Trips in **Columns**, or search for a field. Click fields or drag them into **Selected fields** in **Query**. Drag selected fields to reorder them.
 2. In **Query**, choose **Summary** to total measures such as Sales for each group or **Detail** for individual sales rows. The **?** icon shows examples of both modes. In **Selected fields**, turn on **Sort** for each field to use, and choose **Asc** or **Desc**. **Run preview** displays the first 50 matching rows in **Preview** after sorting.
 3. Choose **Save report** and give the definition a name. Choose **Home** to return to the homepage. Saving an existing report updates its revision. If another tab saved first, reopen that revision before editing again.
 
 With the expanded snapshot active, a new report includes sales for `0001` and `0030`. Use **Sales company** to group or filter by the company on the sale. Reports saved before the expansion still use `0030`. To broaden one, open it, choose **Include both companies** in Query, run the preview, and save the updated definition. An unassigned trip displays blank trip fields.
 
-**Selected fields** shows the first three columns. **Show more** reveals the full ordered list. Drag the divider beside **Fields**, or focus it and use the left and right arrow keys, to resize the pane. **Fields** also has a hide/show button.
+**Selected fields** shows the first three columns. **Show more** reveals the full ordered list. Drag the divider beside **Columns**, or focus it and use the left and right arrow keys, to resize the pane. Select **Columns** or **Query** to collapse or reopen that pane.
 
 Drag a field by its name or grip to move its output column, or focus it and press the up/down arrows. Use **Priority** to order the enabled sorts independently. Priority **1** sorts first and **2** breaks its ties. Choosing a priority shifts the other ranks automatically. New or re-enabled sorts take the last priority. Disabling a sort remembers its direction and releases its rank. With all sorts off, rows and summary groups follow their first occurrence in the filtered source. Older saved definitions start with the precedence they had under column-based sorting.
 
