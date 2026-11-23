@@ -196,7 +196,10 @@ export function ReportBuilder({catalog,client,initialReport,folderId,onReports}:
         {renaming ? <form className="title-edit" onSubmit={e=>{e.preventDefault();if(name.trim()){setTitle(name.trim());setRenaming(false);}}}>
           <input autoFocus aria-label="Report title" maxLength={80} required value={name} onFocus={e=>e.target.select()}
             onChange={e=>setName(e.target.value)} onKeyDown={e=>{if(e.key==='Escape'){e.preventDefault();setRenaming(false);}}}/>
-          <button className="text-action" disabled={!name.trim()}>Apply title</button><button type="button" className="quiet-btn" onClick={()=>setRenaming(false)}>Cancel</button>
+          <div className="title-edit-actions">
+            <button type="submit" className="primary-btn" disabled={!name.trim()}>Apply title</button>
+            <button type="button" className="secondary-btn" onClick={()=>setRenaming(false)}>Cancel</button>
+          </div>
         </form> : <h1><button className="rename-title" title="Rename report" aria-label={'Rename report: '+title} onClick={()=>{setName(title);setRenaming(true);}}>
           <span>{title}</span><Icon name="edit" size={15}/></button></h1>}
       </div>

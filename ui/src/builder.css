@@ -15,7 +15,7 @@
   background: var(--raised);
   border-bottom: 1px solid var(--line);
 }
-.bar-title, .editor-actions, .save-actions, .rename-title, .title-edit { display: flex; align-items: center; gap: 8px; }
+.bar-title, .editor-actions, .save-actions, .rename-title, .title-edit-actions { display: flex; align-items: center; gap: 8px; }
 .bar-title { min-width: 0; gap: 12px; }
 .bar-title h1 { min-width: 0; font-size: 21px; }
 .editor-actions { flex-wrap: wrap; justify-content: flex-end; }
@@ -33,13 +33,20 @@
 }
 .save-actions .doc-status { background: var(--surface); }
 .save-actions .unsaved { color: #754900; background: #fff1d5; }
-.title-edit { flex-wrap: wrap; }
+.bar-title:has(.title-edit) { flex: 1; }
+.title-edit { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 8px; width: min(100%, 640px); }
+.title-edit-actions { justify-content: flex-end; gap: 6px; }
+.title-edit-actions button { min-height: 36px; }
 .title-edit input {
-  width: min(240px, 100%);
+  width: 100%;
   min-width: 0;
+  min-height: 36px;
+  padding: 6px 10px;
   border: 1px solid var(--line-control);
   border-radius: var(--radius);
-  padding: 5px 8px;
+  background: var(--surface);
+  font-size: 16px;
+  font-weight: 600;
 }
 
 .editor-content { display: grid; grid-template-columns: auto minmax(0, 1fr); flex: 1; min-height: 0; }
@@ -322,6 +329,9 @@ th[data-preview-field] { user-select: none; touch-action: pan-y; cursor: grab; }
   .editor-content { display: block; }
   .build-report { border-right: 0; }
   .editor-bar { padding-inline: 12px; }
+  .editor-bar:has(.title-edit) { flex-wrap: wrap; gap: 8px; }
+  .bar-title:has(.title-edit) { flex-basis: 100%; }
+  .editor-bar:has(.title-edit) .editor-actions { margin-left: auto; }
   .bar-title { flex-wrap: wrap; gap: 4px; }
   .bar-title h1 { font-size: 18px; }
   .query-body { border-bottom: 1px solid var(--build-line); }
@@ -334,5 +344,6 @@ th[data-preview-field] { user-select: none; touch-action: pan-y; cursor: grab; }
   .mode-comparison { grid-template-columns: 1fr; }
 }
 @media (max-width: 395px) {
+  .title-edit { grid-template-columns: minmax(0, 1fr); }
   .editor-actions .primary-btn svg { display: none; }
 }
