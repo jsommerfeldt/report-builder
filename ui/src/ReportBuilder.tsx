@@ -7,18 +7,24 @@ import {PreviewPane} from './PreviewPane';
 import {FilterEditor,FiltersPanel} from './FiltersPanel';
 import {LibraryLayout} from './LibraryLayout';
 import {FieldsPanel} from './FieldsPanel';
-import {QueryCard} from './QueryCard';
+import {GroupingPanel} from './GroupingPanel';
 import {DropField} from './useFieldDrag';
 import {WorkspaceBar} from './WorkspaceBar';
-import {QUERY_MODE_EXAMPLE_TITLE, QueryModeExamples} from './QueryModeExamples';
 
 function numberSorts(order:Order[]):Order[] {
   let rank=0;
   return order.map(item=>item.enabled===false?item:{...item,priority:++rank});
 }
 
+function placeField(fields:string[],id:string,anchor?:string,after?:boolean) {
+  const reordered=fields.filter(field=>field!==id);
+  const at=anchor?reordered.indexOf(anchor):-1;
+  reordered.splice(at<0?reordered.length:at+(after?1:0),0,id);
+  return reordered;
+}
+
 function definitionKey(d:Definition) {
-  return JSON.stringify([d.version,d.source,d.mode,d.fields,(d.filters ?? []).map(r=>{
+  return JSON.stringify([d.version,d.source,d.mode,d.fields,d.groupBy?[...d.groupBy].sort():null,(d.filters ?? []).map(r=>{
     const value=r.value;
     const operand=typeof value==='object' && !Array.isArray(value)?[value.direction,value.amount,value.unit]:value;
     return [r.field,r.op,operand,r.enabled,r.caseSensitive??false];
@@ -27,8 +33,8 @@ function definitionKey(d:Definition) {
 }
 const message = (e: unknown) => e instanceof Error ? e.message : 'The operation failed.';
 // Moving output columns only rearranges the cells in an already computed result.
-function previewKey(d:Definition) {
-  return definitionKey({...d,fields:[...d.fields].sort()});
+function previewKey(d:Definition,outputIds:string[]) {
+  return definitionKey({...d,fields:[...outputIds].sort(),groupBy:undefined});
 }
 interface BuilderProps {catalog:Catalog; client:ReportClient; initialReport?:SavedReport; folderId?:string|null; onReports?():void}
 export function ReportBuilder({catalog,client,initialReport,folderId,onReports}:BuilderProps) {
@@ -44,7 +50,7 @@ export function ReportBuilder({catalog,client,initialReport,folderId,onReports}:
   const [result, setResult] = useState<{data:Preview; key:string} | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
-  const [dialog, setDialog] = useState<'save' | 'open' | 'query-mode' | null>(null);
+  const [dialog, setDialog] = useState<'save' | 'open' | null>(null);
   const [name, setName] = useState('');
   const [listing,setListing] = useState<SavedInfo[]>([]);
   const [working,setWorking] = useState(false);
@@ -54,29 +60,36 @@ export function ReportBuilder({catalog,client,initialReport,folderId,onReports}:
   const [queryCollapsed,setQueryCollapsed]=useState(false);
   const [notice,setNotice] = useState('');
   const generation = useRef(0);
-  const modeHelp = useRef<HTMLButtonElement>(null);
   const byId = useMemo(() => Object.fromEntries(catalog.fields.map(f => [f.id, f])) as Record<string,Field>, [catalog]);
-  const groupFields=definition.fields.map(id=>byId[id]).filter(field=>!field.measure);
+  const columns=definition.fields.map(id=>byId[id]);
+  const dimensions=columns.filter(field=>!field.measure);
+  const groupBy=definition.groupBy??dimensions.map(field=>field.id);
   const grouped=definition.mode==='summary';
+  const outputIds=useMemo(()=>{
+    if(!grouped || !definition.groupBy)return definition.fields;
+    const groupKeys=new Set(definition.groupBy);
+    return definition.fields.filter(id=>byId[id].measure || groupKeys.has(id));
+  },[byId,definition.fields,definition.groupBy,grouped]);
+  const hasOutput=outputIds.length>0;
   const lookup = useCallback((field:string, query:string, offset:number)=>client.values(field,query,offset,definition.version),
     [client,definition.version]);
   const key = definitionKey(definition);
   const dirty = key !== baseline || title!==baseTitle;
-  const shown = definition.fields.length ? result : null;
-  const sameColumns=!!shown && shown.data.fields.length===definition.fields.length &&
-    definition.fields.every(id=>shown.data.fields.includes(id));
+  const shown = hasOutput ? result : null;
+  const sameColumns=!!shown && shown.data.fields.length===outputIds.length &&
+    outputIds.every(id=>shown.data.fields.includes(id));
   const displayData=useMemo(()=>{
     if(!shown || !sameColumns)return shown?.data??null;
     const original=shown.data;
-    const indexes=definition.fields.map(id=>original.fields.indexOf(id));
-    return {...original,fields:definition.fields,rows:original.rows.map(row=>indexes.map(i=>row[i]))};
-  },[shown,sameColumns,definition.fields]);
+    const indexes=outputIds.map(id=>original.fields.indexOf(id));
+    return {...original,fields:outputIds,rows:original.rows.map(row=>indexes.map(i=>row[i]))};
+  },[shown,sameColumns,outputIds]);
 
   async function run(d:Definition) {
     const ticket = ++generation.current;
     setBusy(true); setError('');
     try { const data = await client.preview(d);
-      if (ticket === generation.current) setResult({data, key:previewKey(d)});
+      if (ticket === generation.current) setResult({data, key:previewKey(d,data.fields)});
     } catch (e) { if (ticket === generation.current) setError(message(e)); }
     finally { if (ticket === generation.current) setBusy(false); }
   }
@@ -88,7 +101,11 @@ export function ReportBuilder({catalog,client,initialReport,folderId,onReports}:
     return () => window.removeEventListener('beforeunload',warn);
   }, [dirty]);
   function changeFields(fields:string[]) {
-    setDefinition(prev => ({...prev,fields,order:prev.order && numberSorts(prev.order.filter(o=>fields.includes(o.field)))})); setNotice(''); setError('');
+    setDefinition(prev=>({
+      ...prev,fields,groupBy:prev.groupBy?.filter(id=>fields.includes(id)),
+      order:prev.order && numberSorts(prev.order.filter(o=>fields.includes(o.field))),
+    }));
+    setNotice('');setError('');
   }
   function toggle(id:string) {
     changeFields(definition.fields.includes(id) ? definition.fields.filter(f => f !== id) : [...definition.fields,id]);
@@ -116,11 +133,15 @@ export function ReportBuilder({catalog,client,initialReport,folderId,onReports}:
   const dropField:DropField=(id,zone,anchor,after)=>{
     if(zone==='filters'){startFilter(id);return;}
     if (!byId[id] || id===anchor) return;
-    const fields=definition.fields.filter(field=>field!==id);
-    const at=anchor?fields.indexOf(anchor):-1;
-    fields.splice(at<0?fields.length:at+(after?1:0),0,id);
-    changeFields(fields);
+    changeFields(placeField(definition.fields,id,anchor,after));
   };
+  function moveOutputColumn(id:string,anchor:string,after:boolean) {
+    if(id===anchor)return;
+    const reordered=placeField(outputIds,id,anchor,after);
+    // Leave the positions of columns hidden by grouping alone.
+    let next=0;
+    changeFields(definition.fields.map(field=>outputIds.includes(field)?reordered[next++]:field));
+  }
   function discardOK() { return !dirty || window.confirm('Discard unsaved report changes?'); }
   async function openList() {
     setModalError(''); setListing([]); setDialog('open'); setWorking(true);
@@ -136,7 +157,7 @@ export function ReportBuilder({catalog,client,initialReport,folderId,onReports}:
     } catch(e) {setModalError(message(e));} finally {setWorking(false);}
   }
   async function save(e:React.FormEvent) {
-    e.preventDefault(); if (working || !name.trim()) return;
+    e.preventDefault(); if (working || !name.trim() || !hasOutput) return;
     setWorking(true); setModalError('');
     try { const overwrite=collision?{id:collision.id,revision:collision.revision}:undefined;
       const r=await client.save(name.trim(),definition,saved,overwrite,folderId);
@@ -147,10 +168,6 @@ export function ReportBuilder({catalog,client,initialReport,folderId,onReports}:
     } finally {setWorking(false);}
   }
   const close=() => {if (!working) setDialog(null);};
-  function closeModeExamples() {
-    setDialog(null);
-    requestAnimationFrame(()=>modeHelp.current?.focus());
-  }
   return <div className="shell">
     <div className="editor-header">
     <WorkspaceBar onReports={onReports && (()=>{if(discardOK())onReports();})}/>
@@ -167,7 +184,7 @@ export function ReportBuilder({catalog,client,initialReport,folderId,onReports}:
       <div className="editor-actions">
         {!onReports && <button type="button" className="secondary-btn" onClick={openList}>
           <Icon name="folder" size={16}/>Saved reports</button>}
-        <button type="button" className="primary-btn" disabled={!definition.fields.length || renaming}
+        <button type="button" className="primary-btn" disabled={!hasOutput || renaming}
           onClick={()=>{setCollision(null);setModalError('');setName(title);setDialog('save');}}>
           <Icon name="save" size={16}/>Save report</button>
       </div>
@@ -184,23 +201,14 @@ export function ReportBuilder({catalog,client,initialReport,folderId,onReports}:
           </div>
           <div className="query-body" id="query-contents" hidden={queryCollapsed}>
             <div className="query-scroll">
-              <FieldsPanel key={'fields-'+editorSession} fields={definition.fields.map(id=>byId[id])}
+              <FieldsPanel key={'fields-'+editorSession} fields={columns} outputIds={outputIds}
                 order={definition.order??[]} drop={dropField} remove={toggle} sort={changeSort}/>
               <FiltersPanel key={editorSession} fields={catalog.fields} entities={catalog.entities} lookup={lookup} rules={definition.filters??[]}
                 editor={filterEditor} setEditor={setFilterEditor} start={startFilter}
                 onChange={filters=>{setDefinition(prev=>({...prev,filters}));setNotice('');setError('');}}/>
-              <QueryCard title="Grouping" icon="group" actions={
-                <button ref={modeHelp} type="button" className="icon-button query-help" aria-label={QUERY_MODE_EXAMPLE_TITLE} aria-haspopup="dialog"
-                  title={QUERY_MODE_EXAMPLE_TITLE} onClick={()=>setDialog('query-mode')}><Icon name="help"/></button>
-              }>
-                <label className="grouping-option"><input type="checkbox" checked={grouped} aria-describedby="grouping-description"
-                  onChange={e=>{
-                    const mode=e.target.checked?'summary':'detail';
-                    setDefinition(prev=>({...prev,mode}));setNotice('');setError('');
-                  }}/>Group rows and total measures</label>
-                <p className="hint grouping-description" id="grouping-description">{!grouped?'One row per sale.':
-                  groupFields.length?'Group by '+groupFields.map(field=>field.label).join(', ')+'.':'One total row when only measures are selected.'}</p>
-              </QueryCard>
+              <GroupingPanel columns={dimensions} grouped={grouped} groupBy={groupBy} hasOutput={hasOutput}
+                onModeChange={active=>{setDefinition(prev=>({...prev,mode:active?'summary':'detail'}));setNotice('');setError('');}}
+                onGroupByChange={ids=>{setDefinition(prev=>({...prev,groupBy:ids}));setNotice('');setError('');}}/>
             </div>
             <div className="query-footer">
               {catalog.scope.companies && <div className="query-scope">
@@ -208,24 +216,23 @@ export function ReportBuilder({catalog,client,initialReport,folderId,onReports}:
                 {definition.version===1 && <button type="button" className="text-action"
                   onClick={()=>{setDefinition(prev=>({...prev,version:2}));setNotice('');}}>Include both companies</button>}
               </div>}
-              <button className="primary-btn" disabled={busy || !definition.fields.length} onClick={()=>void run(definition)}>
+              <button className="primary-btn" disabled={busy || !hasOutput} onClick={()=>void run(definition)}>
                 <Icon name="play" size={15}/>{busy?'Running…':'Run preview'}</button>
             </div>
           </div>
         </section>
       </LibraryLayout>
-      <PreviewPane data={displayData} byId={byId} stale={Boolean(shown && shown.key!==previewKey(definition))} error={error}
-        canMove={sameColumns} move={(id,anchor,after)=>dropField(id,'fields',anchor,after)}
-        busy={busy} hasFields={Boolean(definition.fields.length)}/>
+      <PreviewPane data={displayData} byId={byId} stale={Boolean(shown && shown.key!==previewKey(definition,outputIds))} error={error}
+        canMove={sameColumns} move={moveOutputColumn}
+        busy={busy} hasFields={Boolean(definition.fields.length)} hasOutput={hasOutput}/>
       <p className="sr-only" role="status">{notice}</p>
     </main>
-    {dialog==='query-mode' && <QueryModeExamples close={closeModeExamples}/>}
     {dialog==='save' && <Modal title={collision?'Replace saved report?':'Save report'} close={close}><form onSubmit={save}>
       {collision ? <p className="modal-note">Replace the saved definition of <strong>{collision.name}</strong> with this report?
         {saved && <> Your previously saved report, <strong>{saved.name}</strong>, will keep its own definition.</>}</p> : <>
       <label className="input-label" htmlFor="report-name">Report name</label><input className="name-input" id="report-name" maxLength={80} required autoFocus
         value={name} onFocus={e => e.target.select()} onChange={e => setName(e.target.value)}/>
-      <p className="modal-note">Saves the fields, filters, output order, and report mode on this device.</p></>}
+      <p className="modal-note">Saves the columns, filters, grouping, and output order on this device.</p></>}
       {modalError && <p role="alert" className="alert">{modalError}</p>}
       <footer><button type="button" className="secondary-btn" onClick={collision?()=>setCollision(null):close} disabled={working}>{collision?'Go back':'Cancel'}</button>
         <button className="primary-btn" type="submit" disabled={working || !name.trim()}>{working?'Saving…':collision?'Replace report':'Save'}</button></footer>

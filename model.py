@@ -157,7 +157,7 @@ def validate_filters(rules):
 
 
 def validate_definition(value):
-    if not isinstance(value, dict) or set(value) - {"filters", "order"} != {"version", "source", "mode", "fields"}:
+    if not isinstance(value, dict) or set(value) - {"filters", "order", "groupBy"} != {"version", "source", "mode", "fields"}:
         raise InvalidDefinition("The report definition has an unsupported format.")
     if type(value["version"]) is not int or value["version"] not in (1, 2) or value["source"] != "sales":
         raise InvalidDefinition("The report source or definition version is unavailable.")
@@ -171,6 +171,16 @@ def validate_definition(value):
     result = {"version": value["version"], "source": "sales", "mode": value["mode"], "fields": list(ids)}
     if "filters" in value:
         result["filters"] = validate_filters(value["filters"])
+    if "groupBy" in value:
+        group_by = value["groupBy"]
+        dimensions = {key for key in ids if not BY_ID[key].measure}
+        if (not isinstance(group_by, list) or len(group_by) > len(dimensions)
+                or any(not isinstance(key, str) or key not in dimensions for key in group_by)
+                or len(set(group_by)) != len(group_by)):
+            raise InvalidDefinition("Group by selected non-measure columns, each at most once.")
+        if result["mode"] == "summary" and not group_by and len(dimensions) == len(ids):
+            raise InvalidDefinition("Choose a column to group by or add a measure.")
+        result["groupBy"] = list(group_by)
     if "order" in value:
         order = value["order"]
         if not isinstance(order, list) or len(order) > len(ids):

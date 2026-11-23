@@ -132,7 +132,13 @@
 .query-card-heading svg { flex: none; color: var(--accent-hover); }
 .query-card-body { padding: 8px; }
 .grouping-option, .filter-editor .filter-case { display: flex; align-items: center; gap: 6px; font-size: 12px; }
-.grouping-description { margin: 5px 3px 2px 23px; overflow-wrap: anywhere; }
+.grouping-option { min-height: 24px; overflow-wrap: anywhere; }
+.grouping-fields { display: grid; gap: 3px; min-inline-size: 0; margin: 7px 0 0; padding: 0; border: 0; }
+.grouping-fields legend { margin-bottom: 3px; color: var(--muted); font-size: 11px; font-weight: 650; }
+.grouping-fields .grouping-option { padding: 3px 6px; border-radius: var(--radius); }
+.grouping-fields .grouping-option:has(input:checked) { background: var(--accent-subtle); }
+.grouping-fields .grouping-option:hover { background: var(--raised); }
+.grouping-description { margin: 6px 0 1px; overflow-wrap: anywhere; }
 .grouping-option input, .filter-editor .filter-case input { width: 14px; height: 14px; flex: none; accent-color: var(--accent); }
 .filter-status .text-action { padding: 3px 4px; }
 .count { min-width: 18px; padding: 2px 6px; border-radius: 12px; background: var(--accent-subtle); color: var(--accent-hover); text-align: center; white-space: nowrap; }
@@ -150,6 +156,7 @@
 .move-field > svg { flex: none; color: var(--soft); }
 .column-ordinal { color: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; }
 .field-name { min-width: 0; overflow-wrap: anywhere; }
+.field-hidden { display: block; }
 .field-priority, .field-direction {
   min-width: 0;
   width: 100%;
@@ -215,22 +222,19 @@
 .picked-values button { display: inline-flex; align-items: center; gap: 4px; padding: 3px 6px; border-radius: var(--radius); background: var(--accent-subtle); color: var(--accent-hover); font-size: 12px; overflow-wrap: anywhere; }
 .custom-value { max-width: 100%; overflow-wrap: anywhere; text-align: left; }
 
-.mode-dialog { width: min(660px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); overflow: auto; }
-.mode-intro { margin-bottom: 16px; color: var(--muted); font-size: 13px; line-height: 1.5; }
-.mode-intro strong { color: var(--text); }
-.mode-comparison { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
-.mode-example { padding: 12px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); }
+.mode-dialog { width: min(760px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); overflow: auto; }
+.mode-comparison { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 12px; }
+.mode-example { display: flex; flex-direction: column; padding: 12px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); }
 .mode-example h3 { font-size: 16px; font-weight: 700; }
+.example-grouped h3 { color: var(--accent-hover); }
 .mode-example p { margin-top: 4px; color: var(--muted); font-size: 12px; line-height: 1.45; }
-.mode-example-table { overflow: hidden; margin-top: 12px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); }
-.mode-example :is(th, td) { padding: 7px 10px; }
+.mode-example p strong { color: var(--text); }
+.mode-example-table { display: grid; flex: 1; overflow: hidden; margin-top: 12px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); }
+.mode-example :is(th, td) { padding: 7px 10px; white-space: normal; }
+.mode-example .numeric { white-space: nowrap; }
 .mode-example th { position: static; color: var(--muted); font-size: 11px; }
-.mode-example tbody tr:last-child td { border-bottom: 0; }
 .mode-example tbody tr:hover { background: inherit; }
-.example-summary { border-color: #cbdfe3; background: var(--accent-subtle); }
-.example-summary h3, .example-summary td.numeric { color: var(--accent-hover); }
-.example-summary td.numeric { font-weight: 700; }
-.mode-example .mode-equation { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 9px; color: var(--accent-hover); font-variant-numeric: tabular-nums; }
+.mode-example tfoot :is(th, td) { border-bottom: 0; background: var(--accent-subtle); color: var(--accent-hover); font-size: 12px; font-weight: 700; }
 
 .preview { display: flex; flex-direction: column; min-height: 0; min-width: 0; }
 .preview-actions, .result-meta { display: flex; align-items: center; gap: 8px; }

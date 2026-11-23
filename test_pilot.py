@@ -66,6 +66,68 @@ class PilotTest(unittest.TestCase):
             with self.assertRaises(InvalidDefinition):
                 self.snapshot.preview({**self.d, "fields": fields})
 
+    def test_grouping_uses_only_checked_columns(self):
+        state, product = "customer.shippingstate", "product.productnumber"
+        sales, cases = "sales.sales", "sales.shipquantitycseq"
+        first = self.snapshot.facts[0]
+        self.snapshot.facts.insert(2, {**first, "product_key": "5", "lot_key": "3",
+                                       "sales": Decimal("8.00"), "shipquantitycseq": Decimal("2.5")})
+        definition = {**self.d, "fields": [product, state, sales, cases]}
+        original = self.snapshot.preview(definition)
+        self.assertEqual(original["rows"], [["00003", "MN", "12.10", "1.2501"],
+                                             ["00005", "MN", "8.00", "2.5"], ["00005", "~NO", None, None]])
+
+        group_by_state = {**definition, "groupBy": [state],
+                          "order": [{"field": product, "direction": "asc", "priority": 1},
+                                    {"field": state, "direction": "desc", "priority": 2}]}
+        grouped = self.snapshot.preview(group_by_state)
+        self.assertEqual(grouped["fields"], [state, sales, cases])
+        self.assertEqual(grouped["rows"], [["~NO", None, None], ["MN", "20.10", "3.7501"]])
+        self.assertEqual(self.snapshot.preview(group_by_state, offset=1, limit=1)["rows"], grouped["rows"][1:])
+
+        filtered = {**group_by_state, "filters": [
+            {"field": product, "op": "eq", "value": "00003", "enabled": True}]}
+        self.assertEqual(self.snapshot.preview(filtered)["rows"], [["MN", "12.10", "1.2501"]])
+        grand_total = self.snapshot.preview({**group_by_state, "groupBy": []})
+        self.assertEqual(grand_total["fields"], [sales, cases])
+        self.assertEqual(grand_total["rows"], [["20.10", "3.7501"]])
+        detail = self.snapshot.preview({**group_by_state, "mode": "detail"})
+        self.assertEqual(detail["fields"], definition["fields"])
+        self.assertEqual(detail["total"], 4)
+
+    def test_grouping_accepts_selected_dimensions_only(self):
+        state = "customer.shippingstate"
+        for value in (None, state, [state, state], [False], [[state]], ["sales.sales"], ["trip.tripnumber"]):
+            with self.subTest(value=value), self.assertRaises(InvalidDefinition):
+                self.snapshot.preview({**self.d, "groupBy": value})
+        dimension_only = {**self.d, "fields": [state], "groupBy": []}
+        with self.assertRaisesRegex(InvalidDefinition, "Choose a column"):
+            self.snapshot.preview(dimension_only)
+        detail = self.snapshot.preview({**dimension_only, "mode": "detail"})
+        self.assertEqual(detail["rows"], [["MN"], ["MN"], ["~NO"]])
+
+    def test_grouping_persists_and_runs_from_the_report_library(self):
+        client = self.client()
+        self.sign_in(client)
+        post = {"base_url": ORIGIN, "headers": {"Origin": ORIGIN}}
+        state, sales = "customer.shippingstate", "sales.sales"
+        definition = {**self.d, "groupBy": [state]}
+        created = client.post("/api/reports", json={"name": "Sales by state", "definition": definition}, **post)
+        self.assertEqual(created.status_code, 201)
+        url = "/api/reports/" + created.json["id"]
+        opened = client.get(url, base_url=ORIGIN)
+        self.assertEqual(opened.json["definition"]["groupBy"], [state])
+        results = client.get(url + "/results?revision=1", base_url=ORIGIN)
+        self.assertEqual(results.json["fields"], [state, sales, "sales.shipquantitycseq"])
+        self.assertEqual(results.json["rows"][0], ["MN", "12.10", "1.2501"])
+        detail = {**definition, "mode": "detail"}
+        updated = client.put(url, json={"name": "Sales by state", "definition": detail, "revision": 1}, **post)
+        self.assertEqual(updated.status_code, 200)
+        self.assertEqual(updated.json["definition"]["groupBy"], [state])
+        results = client.get(url + "/results?revision=2", base_url=ORIGIN)
+        self.assertEqual(results.json["fields"], self.d["fields"])
+        self.assertEqual(results.json["total"], 3)
+
     def test_snapshot_integrity(self):
         with (self.path / "fact_sales.csv").open("a", encoding="utf-8") as f:
             f.write("\n")

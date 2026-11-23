@@ -2,41 +2,47 @@ import React from 'react';
 import {Modal} from './Modal';
 
 interface ExampleProps {
-  mode: 'Detail'|'Summary';
-  description: string;
-  rows: ReadonlyArray<readonly [state: string, sales: string]>;
-  children?: React.ReactNode;
+  grouped:boolean;
+  description:React.ReactNode;
+  columns:string[];
+  rows:ReadonlyArray<readonly [values:string[],sales:number]>;
 }
 
-function ModeExample({mode, description, rows, children}: ExampleProps) {
-  const id = 'example-' + mode.toLowerCase();
-  return <section className={'mode-example '+id}>
-    <h3 id={id}>{mode}</h3>
+const dollars = new Intl.NumberFormat('en-US', {style:'currency', currency:'USD'});
+export const QUERY_MODE_EXAMPLE_TITLE = 'Query Mode Example';
+
+function ModeExample({grouped,description,columns,rows}:ExampleProps) {
+  const id=grouped?'example-grouped':'example-ungrouped';
+  const total = rows.reduce((sum, [,sales])=>sum+sales, 0);
+  return <section className={'mode-example'+(grouped?' example-grouped':'')}>
+    <h3 id={id}>{grouped?'Grouping on':'Grouping off'}</h3>
     <p>{description}</p>
     <div className="mode-example-table">
       <table aria-labelledby={id}>
-        <thead><tr><th scope="col">Shipping state</th><th scope="col" className="numeric">Sales</th></tr></thead>
-        <tbody>{rows.map(([state,sales])=> <tr key={state+sales}>
-          <td>{state}</td><td className="numeric">{sales}</td>
+        <thead><tr>{columns.map(column=><th key={column} scope="col">{column}</th>)}
+          <th scope="col" className="numeric">Sales</th></tr></thead>
+        <tbody>{rows.map(([values,sales])=><tr key={values.join('|')}>
+          {values.map((value,i)=><td key={columns[i]}>{value}</td>)}
+          <td className="numeric">{dollars.format(sales)}</td>
         </tr>)}</tbody>
+        <tfoot><tr><th scope="row" colSpan={columns.length}>Grand Total</th>
+          <td className="numeric">{dollars.format(total)}</td></tr></tfoot>
       </table>
     </div>
-    {children}
   </section>;
 }
 
-export const QUERY_MODE_EXAMPLE_TITLE = 'Query Mode Example';
-
 export function QueryModeExamples({close}:{close():void}) {
   return <Modal title={QUERY_MODE_EXAMPLE_TITLE} className="mode-dialog" close={close}>
-    <p className="mode-intro">Both previews use <strong>Shipping state</strong> and <strong>Sales</strong> from the same three sample sales.</p>
     <div className="mode-comparison">
-      <ModeExample mode="Detail" description="One row for each sale."
-        rows={ [['MN','$44.50'], ['MN','$55.50'], ['WI','$72.25']] }/>
-      <ModeExample mode="Summary" description="One row per state with its total sales."
-        rows={ [['MN','$100.00'], ['WI','$72.25']] }>
-        <p className="mode-equation"><strong>MN</strong> <span>$44.50 + $55.50 = <strong>$100.00</strong></span></p>
-      </ModeExample>
+      <ModeExample grouped={false}
+        description={<>Clear <strong>Group rows and total measures</strong> to show one row for each sale.</>}
+        columns={['Shipping State','Product Description']}
+        rows={[[['MN','Apples'],44.50],[['MN','Carrots'],55.50],[['WI','Apples'],72.25]]}/>
+      <ModeExample grouped
+        description={<>Turn on grouping. In <strong>Group by</strong>, check <strong>Shipping State</strong> and clear <strong>Product Description</strong> to total sales by state.</>}
+        columns={['Shipping State']}
+        rows={[[['MN'],100],[['WI'],72.25]]}/>
     </div>
   </Modal>;
 }

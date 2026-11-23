@@ -13,8 +13,11 @@ In **Trash**, choose **Delete permanently** and confirm to remove a saved report
 **Schedule** opens a delivery draft for the selected report. Choose a recurrence, local time, time zone and To, Cc and Bcc recipients. One draft per report is saved in this browser profile. Opening Schedule again lets you edit or remove it. Email delivery is inactive.
 
 1. In **Build Report**, expand Sales, Customers, Products, or Trips in **Objects**, or search for a field. Click fields or drag them into **Columns** in **Query**. Drag columns to reorder them.
-2. In **Grouping**, select **Group rows and total measures** to summarize the sales, or clear it to see one row per sale. The **?** icon shows both modes. In **Columns**, turn on **Sort** for each field to use, and choose **Asc** or **Desc**. **Run preview** displays the first 50 matching rows in **Preview** after sorting.
-3. Choose **Save report** and give the definition a name. Choose **Reports** to return to the library. Saving an existing report updates its revision. If another tab saved first, reopen that revision before editing again.
+2. In **Grouping**, select **Group rows and total measures** and choose which selected columns appear under **Group by**. The results show one row per group with totals for the selected measures. Unchecked columns are hidden from grouped results. Clear **Group rows and total measures** to show every selected column and one row per sale. The **?** icon shows both views.
+3. In **Columns**, turn on **Sort** for each visible column and choose **Asc** or **Desc**. **Run preview** displays the first 50 matching rows in **Preview** after sorting.
+4. Choose **Save report** and give the definition a name. Choose **Reports** to return to the library. Saving an existing report updates its revision. If another tab saved first, reopen that revision before editing again.
+
+A grouped report with no checked columns shows one grand total across the matching sales when at least one measure is selected.
 
 With the expanded snapshot active, a new report includes sales for `0001` and `0030`. Use **Sales company** to group or filter by the company on the sale. Reports saved before the expansion still use `0030`. To broaden one, open it, choose **Include both companies** in Query, run the preview, and save the updated definition. An unassigned trip displays blank trip fields.
 

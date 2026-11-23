@@ -195,7 +195,12 @@ class CsvSnapshot:
     def preview(self, raw, *, offset=0, limit=PREVIEW_LIMIT, now=None):
         definition = self.definition(raw)
         facts = self.scoped_facts(definition["version"])
-        fields = [BY_ID[key] for key in definition["fields"]]
+        detail = definition["mode"] == "detail"
+        output_ids = definition["fields"]
+        if not detail and "groupBy" in definition:
+            group_by = set(definition["groupBy"])
+            output_ids = [key for key in output_ids if key in group_by or BY_ID[key].measure]
+        fields = [BY_ID[key] for key in output_ids]
         entities = {field.entity for field in fields if field.entity in RELATIONSHIPS}
         active = []
         now = datetime.now() if now is None else now
@@ -215,11 +220,10 @@ class CsvSnapshot:
                     entities.add(field.entity)
         dimension_pos = [i for i, field in enumerate(fields) if not field.measure]
         measure_pos = [i for i, field in enumerate(fields) if field.measure]
-        detail = definition["mode"] == "detail"
         rows = []
         groups = {}
         matched = 0
-        order = [spec for spec in definition.get("order", []) if spec.get("enabled", True)]
+        order = [spec for spec in definition.get("order", []) if spec.get("enabled", True) and spec["field"] in output_ids]
         end = None if limit is None else offset + limit
         candidates = facts[offset:end] if detail and not active and not order else facts
         for fact in candidates:
@@ -252,12 +256,12 @@ class CsvSnapshot:
             total = len(groups)
         # Stable sorts from the last priority to the first. NULL stays last in both directions.
         for spec in reversed(order):
-            pos = definition["fields"].index(spec["field"])
+            pos = output_ids.index(spec["field"])
             present = [row for row in rows if row[pos] is not None]
             present.sort(key=lambda row: row[pos], reverse=spec["direction"] == "desc")
             rows = present + [row for row in rows if row[pos] is None]
         if not detail or order:
             rows = rows[offset:end]
-        return {"fields": definition["fields"], "rows": [
+        return {"fields": output_ids, "rows": [
             [cell_value(value) for value in row] for row in rows
         ], "total": total, "limit": limit, "sourceRows": len(facts)}

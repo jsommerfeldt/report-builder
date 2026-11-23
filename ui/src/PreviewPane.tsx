@@ -13,8 +13,8 @@ export function resultCell(value: string | null, field: Field) {
 }
 interface Props { data: Preview | null; byId: Record<string, Field>; stale: boolean; busy: boolean; error:string;
   canMove:boolean; move(id:string,anchor:string,after:boolean):void;
-  hasFields: boolean; }
-export function PreviewPane({data,byId,stale,busy,error,hasFields,canMove,move}:Props) {
+  hasFields: boolean; hasOutput:boolean; }
+export function PreviewPane({data,byId,stale,busy,error,hasFields,hasOutput,canMove,move}:Props) {
   const table=useRef<HTMLTableElement>(null);
   const [widths,setWidths]=useState<Record<string,number>>({});
   const drag=useRef<{pointer:number; x:number; id:string; width:number}|null>(null);
@@ -109,6 +109,7 @@ export function PreviewPane({data,byId,stale,busy,error,hasFields,canMove,move}:
       const f=byId[data.fields[j]]; return <td key={f.id} title={value??undefined} className={f.measure ? 'numeric' : ''}>{resultCell(value,f)}</td>;
     })}</tr>)}</tbody></table></div> :
       <div className="empty-preview"><span className="empty-icon"><Icon name="grid" size={26}/></span><strong>{busy?'Running preview':hasFields?'No results to display':'Choose your first field'}</strong>
-        {!busy && <span>{hasFields?'Run preview to see your report.':'Select a field in Columns or drag it into Query.'}</span>}</div>}
+        {!busy && <span>{hasOutput?'Run preview to see your report.':hasFields?'Choose a column to group by or add a measure.':
+          'Select a field in Objects or drag it into Query.'}</span>}</div>}
   </section>;
 }

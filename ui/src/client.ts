@@ -6,7 +6,10 @@ export interface ReportFilter {
   field:string; op:FilterOp; value:string|string[]|RelativePeriod; enabled:boolean; caseSensitive?:boolean;
 }
 export interface Order {field:string; direction:'asc'|'desc'; enabled?:boolean; priority?:number}
-export interface Definition { version: 1|2; source: 'sales'; mode: Mode; fields: string[]; filters?: ReportFilter[]; order?:Order[] }
+export interface Definition {
+  version:1|2; source:'sales'; mode:Mode; fields:string[]; filters?:ReportFilter[]; order?:Order[];
+  groupBy?:string[];
+}
 export interface Field { id: string; entity: Entity; label: string; kind: 'currency' | 'quantity' | 'date' | 'datetime' | 'text'; measure: boolean }
 export interface Catalog {
   entities: Record<Entity, string>; fields: Field[]; counts: Record<Entity, number>;
