@@ -97,8 +97,8 @@
 .group-title strong { flex: 1; font-size: 13px; font-weight: 600; }
 .entity-icon, .twist { display: flex; align-items: center; color: var(--soft); }
 .twist.closed { transform: rotate(-90deg); }
-.group-count, .count, .result-count { color: var(--muted); font-variant-numeric: tabular-nums; }
-.group-count, .count { font-size: 11px; }
+.group-count, .result-count { color: var(--muted); font-variant-numeric: tabular-nums; }
+.group-count { font-size: 11px; }
 .field-row {
   position: relative;
   display: flex;
@@ -139,12 +139,12 @@
 .query-card[data-field-target] { border-color: var(--accent); }
 .query-card[data-field-target] .query-card-heading { background: var(--accent-subtle); border-radius: 5px 5px 0 0; }
 .query-card.library-drop-hover { box-shadow: 0 0 0 2px var(--accent); background: var(--accent-subtle); }
-.query-card-heading, .query-card-tools { display: flex; align-items: center; gap: 6px; }
-.query-card-heading { flex-wrap: wrap; justify-content: space-between; min-height: 36px; padding: 3px 8px; }
-.query-card-tools { margin-left: auto; }
+.query-card-heading { display: flex; align-items: stretch; min-height: 36px; }
 .query-card-heading:has([aria-expanded=true]) { border-bottom: 1px solid var(--build-line); }
-.query-card-heading h4 { font-size: 13px; font-weight: 650; }
-.query-card-heading .pane-disclosure { gap: 5px; }
+.query-card-heading h4 { display: flex; flex: 1; min-width: 0; font-size: 13px; font-weight: 650; }
+.query-card-heading > .query-help { width: 40px; height: auto; cursor: pointer; }
+.query-card-heading .pane-disclosure { width: 100%; min-height: 36px; gap: 5px; padding: 0 12px; cursor: pointer; }
+.query-card-status { margin-left: auto; color: var(--muted); font-size: 11px; font-weight: 400; }
 .query-card-heading .pane-disclosure:hover { background: var(--accent-subtle); }
 .query-card-heading svg { flex: none; color: var(--accent-hover); }
 .query-card-body { padding: 8px; }
@@ -157,7 +157,6 @@
 .grouping-fields .grouping-option:hover { background: var(--raised); }
 .grouping-description { margin: 6px 0 1px; overflow-wrap: anywhere; }
 .grouping-option input, .filter-editor .filter-case input { width: 14px; height: 14px; flex: none; accent-color: var(--accent); }
-.count { min-width: 18px; padding: 2px 6px; border-radius: 12px; background: var(--accent-subtle); color: var(--accent-hover); text-align: center; white-space: nowrap; }
 .configuration-scroll:focus-visible { outline-offset: -2px; }
 .selection .configuration-scroll { max-height: 18rem; overflow: auto; padding-bottom: 2px; scrollbar-width: thin; scrollbar-color: var(--line-control) transparent; }
 .selection .field-control-grid { min-width: 250px; }

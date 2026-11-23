@@ -42,8 +42,7 @@ export type FilterEditor = {index:number;rule:ReportFilter}|null;
 interface Props { fields:Field[]; entities:Catalog['entities']; rules:ReportFilter[]; lookup:ReportClient['values']; onChange(rules:ReportFilter[]):void;
   editor:FilterEditor;setEditor(value:FilterEditor):void;start():void;showDropTarget:boolean;disclosure:CardDisclosure }
 export function FiltersPanel({fields,entities,rules,onChange,lookup,editor,setEditor,start,showDropTarget,disclosure}:Props) {
-  const enabled = rules.filter(r => r.enabled).length;
-  const all = rules.length>0 && enabled === rules.length;
+  const all = rules.every(r=>r.enabled);
   const editing = editor && fields.find(f=>f.id===editor.rule.field);
   const addButton=useRef<HTMLButtonElement>(null);
   const value=editor?.rule.value;
@@ -65,10 +64,7 @@ export function FiltersPanel({fields,entities,rules,onChange,lookup,editor,setEd
   }
   return <QueryCard title="Filters" icon="filter" className="filters" dropZone={!editor && rules.length<32?'filters':undefined}
     showDropTarget={showDropTarget} disclosure={disclosure} help={filtersHelp}
-    actions={editor?(!disclosure.expanded && !showDropTarget && <span className="count">Filter draft</span>):
-      <span className="count" aria-label={!rules.length?'No active filters':undefined}>
-        {rules.length?enabled+' of '+rules.length+' active':0}
-      </span>}>
+    status={editor && !disclosure.expanded && !showDropTarget?'Filter draft':undefined}>
     {editor ? <form id="filter-editor" className="filter-editor" onSubmit={commit}>
       <h5>{editor.index<rules.length?'Edit Filter':'New Filter'}</h5>
       <div className="filter-control"><label htmlFor="filter-field">Field</label>

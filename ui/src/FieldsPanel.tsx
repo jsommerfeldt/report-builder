@@ -17,8 +17,7 @@ export function FieldsPanel({fields,outputIds,order,drop,remove,sort,showDropTar
   const priorities=order.filter(item=>item.enabled!==false).map((_,i)=>i+1);
   const visible=expanded?fields:fields.slice(0,3);
   return <QueryCard title="Columns" icon="grid" className="selection" dropZone="fields" showDropTarget={showDropTarget}
-    disclosure={disclosure} help={columnsHelp}
-    actions={<span className="count" aria-label={fields.length+' selected columns'}>{fields.length}</span>}>
+    disclosure={disclosure} help={columnsHelp}>
     <div className="configuration-scroll" tabIndex={0} role="group" aria-label="Field order and sorting">
     {fields.length>0 && <><div className="field-control-grid ordering-groups">
       <strong>Column Order</strong><strong>Row Order</strong></div>
