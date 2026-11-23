@@ -32,7 +32,7 @@ function PaneDivider({className,label,controls,min,max,value,step,dragScale=1,va
     }}/>;
 }
 
-export function LibraryLayout({library,children}:{library:React.ReactNode;children:React.ReactNode}) {
+export function LibraryLayout({library,headerAction,children}:{library:React.ReactNode;headerAction:React.ReactNode;children:React.ReactNode}) {
   const [hidden,setHidden]=useState(()=>{const pref=stored('hidden');return pref===null?window.matchMedia('(max-width:900px)').matches:pref==='true';});
   const [width,setWidth]=useState(()=>Number(stored('build-width')) || initial);
   const [availableWidth,setAvailableWidth]=useState(()=>document.documentElement.clientWidth);
@@ -55,7 +55,7 @@ export function LibraryLayout({library,children}:{library:React.ReactNode;childr
   useEffect(()=>{remember('objects-share',String(objectsShare));},[objectsShare]);
   useEffect(()=>{remember('hidden',String(hidden));},[hidden]);
   return <section id="build-report-pane" ref={layout} style={layoutStyle} className={'build-report'+(hidden?' library-hidden':'')} aria-labelledby="build-report-heading">
-    <div className="pane-header build-header"><h2 id="build-report-heading">Build Report</h2></div>
+    <div className="pane-header build-header"><h2 id="build-report-heading">Build Report</h2>{headerAction}</div>
     <aside id="objects-pane" className="library-wrap" aria-labelledby="objects-heading">
       <div className="library-heading">
         <h3 id="objects-heading"><button type="button" className="pane-disclosure" aria-expanded={!hidden}

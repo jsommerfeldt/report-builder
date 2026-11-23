@@ -59,7 +59,8 @@
 .build-report.library-hidden { --field-pane-width: var(--collapsed-pane-width); }
 .build-report:has(> .query-collapsed) { --query-pane-width: var(--collapsed-pane-width); }
 .build-report.library-hidden:has(> .query-collapsed) { --build-layout-width: calc(2 * var(--collapsed-pane-width) + 1px); }
-.build-report .build-header { grid-column: 1 / -1; background: var(--accent-subtle); border-color: var(--build-line); }
+.build-report .build-header { grid-column: 1 / -1; gap: 8px; padding-inline: 12px; background: var(--accent-subtle); border-color: var(--build-line); }
+.build-header > .primary-btn { align-self: center; min-height: 30px; padding: 4px 8px; gap: 4px; font-size: 12px; }
 .library-wrap { position: relative; display: flex; flex-direction: column; min-height: 0; border-right: 1px solid var(--build-line); }
 #library-contents { flex: 1; min-height: 0; }
 .library-heading, .query-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 45px; padding: 6px 10px; color: var(--accent-hover); }
@@ -122,7 +123,6 @@
 .query-body:not([hidden]) { display: grid; grid-template-rows: minmax(0, 1fr) auto; min-height: 0; }
 .query-scroll { min-height: 0; overflow: auto; padding: 12px; scrollbar-width: thin; scrollbar-color: var(--line-control) transparent; }
 .query-footer { padding: 12px 15px; border-top: 1px solid var(--build-line); }
-.query-footer > button { width: 100%; }
 .query-scope { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 4px; margin-bottom: 8px; color: var(--muted); font-size: 12px; }
 
 .query-card { border: 1px solid var(--build-line); border-radius: 6px; background: var(--surface); }

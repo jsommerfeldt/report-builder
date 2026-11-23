@@ -212,7 +212,10 @@ export function ReportBuilder({catalog,client,initialReport,folderId,onReports}:
     </div>
     <main className="editor-content">
       <LibraryLayout library={<FieldLibrary key={editorSession} catalog={catalog} fields={definition.fields} toggle={toggle}
-        drop={dropField} onInteraction={setFieldInteraction}/>}>
+        drop={dropField} onInteraction={setFieldInteraction}/>}
+        headerAction={<button type="button" className="primary-btn" disabled={busy || !hasOutput} onClick={()=>void run(definition)}>
+          <Icon name="play" size={15}/>{busy?'Running…':'Run preview'}
+        </button>}>
         <section className={'query-controls'+(queryOpen?'':' query-collapsed')} aria-labelledby="query-heading">
           <div className="query-header">
             <h3 id="query-heading"><button type="button" className="pane-disclosure" aria-expanded={queryOpen}
@@ -238,8 +241,6 @@ export function ReportBuilder({catalog,client,initialReport,folderId,onReports}:
                 {definition.version===1 && <button type="button" className="text-action"
                   onClick={()=>{setDefinition(prev=>({...prev,version:2}));setNotice('');}}>Include both companies</button>}
               </div>}
-              <button className="primary-btn" disabled={busy || !hasOutput} onClick={()=>void run(definition)}>
-                <Icon name="play" size={15}/>{busy?'Running…':'Run preview'}</button>
             </div>
           </div>
         </section>
