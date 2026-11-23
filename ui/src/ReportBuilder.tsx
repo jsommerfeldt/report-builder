@@ -199,14 +199,16 @@ export function ReportBuilder({catalog,client,initialReport,folderId,onReports}:
           <button className="text-action" disabled={!name.trim()}>Apply title</button><button type="button" className="quiet-btn" onClick={()=>setRenaming(false)}>Cancel</button>
         </form> : <h1><button className="rename-title" title="Rename report" aria-label={'Rename report: '+title} onClick={()=>{setName(title);setRenaming(true);}}>
           <span>{title}</span><Icon name="edit" size={15}/></button></h1>}
-        <p role="status" className={'doc-status'+(dirty?' unsaved':'')}>{dirty?'Unsaved changes':saved?'Saved':'Draft'}</p>
       </div>
       <div className="editor-actions">
         {!onReports && <button type="button" className="secondary-btn" onClick={openList}>
           <Icon name="folder" size={16}/>Saved reports</button>}
-        <button type="button" className="primary-btn" disabled={!hasOutput || renaming}
-          onClick={()=>{setCollision(null);setModalError('');setName(title);setDialog('save');}}>
-          <Icon name="save" size={16}/>Save report</button>
+        <div className="save-actions">
+          <p role="status" className={'doc-status'+(dirty?' unsaved':'')}>{dirty?'Unsaved changes':saved?'Saved':'Draft'}</p>
+          <button type="button" className="primary-btn" disabled={!hasOutput || renaming}
+            onClick={()=>{setCollision(null);setModalError('');setName(title);setDialog('save');}}>
+            <Icon name="save" size={16}/>Save report</button>
+        </div>
       </div>
     </header>
     </div>

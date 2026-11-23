@@ -12,9 +12,10 @@
   gap: 16px;
   min-height: 60px;
   padding: 10px 24px;
+  background: var(--raised);
   border-bottom: 1px solid var(--line);
 }
-.bar-title, .editor-actions, .rename-title, .title-edit { display: flex; align-items: center; gap: 8px; }
+.bar-title, .editor-actions, .save-actions, .rename-title, .title-edit { display: flex; align-items: center; gap: 8px; }
 .bar-title { min-width: 0; gap: 12px; }
 .bar-title h1 { min-width: 0; font-size: 21px; }
 .editor-actions { flex-wrap: wrap; justify-content: flex-end; }
@@ -23,14 +24,15 @@
 .rename-title svg { flex: none; color: var(--soft); }
 .rename-title:hover svg { color: var(--accent); }
 .doc-status { color: var(--muted); font-size: 12px; }
-.bar-title .doc-status, .result-count {
+.save-actions .doc-status, .result-count {
   padding: 3px 8px;
   border-radius: 20px;
   background: var(--raised);
   font-size: 12px;
   white-space: nowrap;
 }
-.bar-title .unsaved { color: #754900; background: #fff1d5; }
+.save-actions .doc-status { background: var(--surface); }
+.save-actions .unsaved { color: #754900; background: #fff1d5; }
 .title-edit { flex-wrap: wrap; }
 .title-edit input {
   width: min(240px, 100%);
@@ -325,6 +327,8 @@ th[data-preview-field] { user-select: none; touch-action: pan-y; cursor: grab; }
   .preview { min-height: 280px; }
   .query-scroll { padding-bottom: 18px; }
 }
+  .editor-bar { flex-wrap: wrap; gap: 8px; }
+  .editor-actions { margin-left: auto; }
 @media (max-width: 555px) {
   .mode-comparison { grid-template-columns: 1fr; }
 }
