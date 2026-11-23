@@ -6,17 +6,26 @@ from decimal import Decimal
 import re
 
 
-CSV_COLUMNS = {
+LEGACY_COLUMNS = {
     "fact_sales": ("time_key", "company_key", "it_key", "lot_key", "reporting_date",
                    "customer_key", "product_key", "sales", "creditsales", "shipquantitycseq"),
     "dim_customers": ("customer_key", "customercompany", "customer", "customername", "shippingcity", "shippingstate"),
     "dim_products": ("product_key", "productcompany", "productnumber", "productdesc", "packaging"),
 }
-ENTITIES = {"sales": "Sales", "customer": "Customers", "product": "Products"}
+CSV_COLUMNS = {
+    "fact_sales": (*LEGACY_COLUMNS["fact_sales"], "company", "trip_key"),
+    "dim_customers": (*LEGACY_COLUMNS["dim_customers"], "customerregiondescription", "shippingzip", "salesparentcustomername"),
+    "dim_products": (*LEGACY_COLUMNS["dim_products"], "departmentdescription", "commoditydescription", "classdescription"),
+    "dim_trips": ("trip_key", "tripnumber", "tripdescription", "dispatchdate"),
+}
+COMPANIES = ("0001", "0030")
+LEGACY_COMPANY = "0030"
+ENTITIES = {"sales": "Sales", "customer": "Customers", "product": "Products", "trip": "Trips"}
 # entity -> (CSV relation, fact foreign key, dimension primary key)
 RELATIONSHIPS = {
     "customer": ("dim_customers", "customer_key", "customer_key"),
     "product": ("dim_products", "product_key", "product_key"),
+    "trip": ("dim_trips", "trip_key", "trip_key"),
 }
 
 
@@ -37,6 +46,7 @@ class Field:
 
 
 FIELDS = (
+    Field("sales", "company", "Sales company"),
     Field("sales", "reporting_date", "Reporting date", "date"),
     Field("sales", "sales", "Sales", "currency"),
     Field("sales", "creditsales", "Credit sales", "currency"),
@@ -46,10 +56,19 @@ FIELDS = (
     Field("customer", "shippingcity", "Shipping city"),
     Field("customer", "shippingstate", "Shipping state"),
     Field("customer", "customercompany", "Customer company"),
+    Field("customer", "customerregiondescription", "Customer region"),
+    Field("customer", "shippingzip", "Shipping ZIP"),
+    Field("customer", "salesparentcustomername", "Sales parent customer"),
     Field("product", "productnumber", "Product number"),
     Field("product", "productdesc", "Product description"),
     Field("product", "packaging", "Packaging"),
     Field("product", "productcompany", "Product company"),
+    Field("product", "departmentdescription", "Department"),
+    Field("product", "commoditydescription", "Commodity"),
+    Field("product", "classdescription", "Class"),
+    Field("trip", "tripnumber", "Trip number"),
+    Field("trip", "tripdescription", "Trip description"),
+    Field("trip", "dispatchdate", "Dispatch date", "date"),
 )
 BY_ID = {field.id: field for field in FIELDS}
 MEASURES = tuple(field.column for field in FIELDS if field.measure)
@@ -107,7 +126,7 @@ def validate_filters(rules):
 def validate_definition(value):
     if not isinstance(value, dict) or set(value) - {"filters", "order"} != {"version", "source", "mode", "fields"}:
         raise InvalidDefinition("The report definition has an unsupported format.")
-    if type(value["version"]) is not int or value["version"] != 1 or value["source"] != "sales":
+    if type(value["version"]) is not int or value["version"] not in (1, 2) or value["source"] != "sales":
         raise InvalidDefinition("The report source or definition version is unavailable.")
     if value["mode"] not in ("detail", "summary"):
         raise InvalidDefinition("Choose a detail or summary preview.")
@@ -116,7 +135,7 @@ def validate_definition(value):
         raise InvalidDefinition("Choose at least one available field.")
     if any(not isinstance(key, str) or key not in BY_ID for key in ids) or len(set(ids)) != len(ids):
         raise InvalidDefinition("Each selected field must be available and appear once.")
-    result = {"version": 1, "source": "sales", "mode": value["mode"], "fields": list(ids)}
+    result = {"version": value["version"], "source": "sales", "mode": value["mode"], "fields": list(ids)}
     if "filters" in value:
         result["filters"] = validate_filters(value["filters"])
     if "order" in value:

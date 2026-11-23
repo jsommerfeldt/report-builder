@@ -15,8 +15,8 @@ from waitress import serve
 from werkzeug.exceptions import HTTPException
 
 from csv_source import CsvSnapshot
-from local_paths import HERE, ORIGIN, PORT, private_home
-from model import ENTITIES, FIELDS, STARTER, InvalidDefinition, validate_definition
+from local_paths import HERE, ORIGIN, PORT, active_snapshot, private_home
+from model import ENTITIES, STARTER, InvalidDefinition
 from report_store import LibraryConflict, NameConflict, ReportStore, RevisionConflict, check_revision
 
 
@@ -113,8 +113,8 @@ def make_app(snapshot, reports, assets: Path, key, origin=ORIGIN):
     @api.get("/catalog")
     def catalog():
         return jsonify(entities=ENTITIES, fields=[{"id": f.id, "entity": f.entity, "label": f.label,
-                       "kind": f.kind, "measure": f.measure} for f in FIELDS],
-                       counts=snapshot.counts, scope=snapshot.scope, starter=STARTER)
+                       "kind": f.kind, "measure": f.measure} for f in snapshot.fields],
+                       counts=snapshot.counts, scope=snapshot.scope, starter={**STARTER, "version": snapshot.version})
 
     @api.post("/preview")
     def preview():
@@ -169,20 +169,20 @@ def make_app(snapshot, reports, assets: Path, key, origin=ORIGIN):
     def read_report(rid):
         try:
             record = reports.get(str(rid))
-            return jsonify({**record, "definition": validate_definition(record["definition"])})
+            return jsonify({**record, "definition": snapshot.definition(record["definition"])})
         except FileNotFoundError:
             abort(404)
 
     @api.post("/reports")
     def create_report():
         payload = request.get_json()
-        record = reports.save(payload)
+        record = reports.save(payload, validate=snapshot.definition)
         return jsonify(record), 200 if "overwrite" in payload else 201
 
     @api.put("/reports/<uuid:rid>")
     def update_report(rid):
         try:
-            return jsonify(reports.save(request.get_json(), str(rid)))
+            return jsonify(reports.save(request.get_json(), str(rid), validate=snapshot.definition))
         except FileNotFoundError:
             abort(404)
 
@@ -232,7 +232,7 @@ def main():
     assets = home / "ui" / "dist"
     if not all((assets / name).is_file() for name in ("builder.js", "builder.css")):
         raise RuntimeError("Build the local frontend first.")
-    app = make_app(CsvSnapshot(home / "csv"), ReportStore(home / "reports"), assets, key)
+    app = make_app(CsvSnapshot(active_snapshot(home)), ReportStore(home / "reports"), assets, key)
     serve(app, host="127.0.0.1", port=PORT, threads=4, max_request_body_size=16384,
           connection_limit=32, channel_timeout=30, expose_tracebacks=False, ident="report-builder")
 

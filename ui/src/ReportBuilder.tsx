@@ -1,4 +1,4 @@
-import React, {useEffect, useMemo, useRef, useState} from 'react';
+import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {Catalog, Collision, Definition, Field, Order, Preview, ReportClient, RequestError, SavedInfo, SavedReport} from './client';
 import {Modal} from './Modal';
 import {FieldLibrary} from './FieldLibrary';
@@ -24,9 +24,9 @@ const message = (e: unknown) => e instanceof Error ? e.message : 'The operation 
 function previewKey(d:Definition) {
   return definitionKey({...d,fields:[...d.fields].sort()});
 }
-const blank:Definition={version:1,source:'sales',mode:'summary',fields:[]};
 interface BuilderProps {catalog:Catalog; client:ReportClient; initialReport?:SavedReport; folderId?:string|null; onHome?():void; onReports?():void}
 export function ReportBuilder({catalog,client,initialReport,folderId,onHome,onReports}:BuilderProps) {
+  const blank=useMemo<Definition>(()=>({version:catalog.starter.version,source:'sales',mode:'summary',fields:[]}),[catalog.starter.version]);
   const initial = initialReport?.definition ?? (onHome ? blank : catalog.starter);
   const [definition, setDefinition] = useState<Definition>(initial);
   const [title, setTitle] = useState(initialReport?.name ?? (onHome ? 'Untitled report' : 'Sales by state and product'));
@@ -49,6 +49,8 @@ export function ReportBuilder({catalog,client,initialReport,folderId,onHome,onRe
   const generation = useRef(0);
   const modeHelp = useRef<HTMLButtonElement>(null);
   const byId = useMemo(() => Object.fromEntries(catalog.fields.map(f => [f.id, f])) as Record<string,Field>, [catalog]);
+  const lookup = useCallback((field:string, query:string, offset:number)=>client.values(field,query,offset,definition.version),
+    [client,definition.version]);
   const key = definitionKey(definition);
   const dirty = key !== baseline || title!==baseTitle;
   const shown = definition.fields.length ? result : null;
@@ -179,11 +181,16 @@ export function ReportBuilder({catalog,client,initialReport,folderId,onHome,onRe
           <div className="query-scroll">
             <FieldsPanel key={'fields-'+editorSession} fields={definition.fields.map(id=>byId[id])}
               order={definition.order??[]} drop={dropField} remove={toggle} sort={changeSort}/>
-            <FiltersPanel key={editorSession} fields={catalog.fields} entities={catalog.entities} lookup={client.values} rules={definition.filters??[]}
+            <FiltersPanel key={editorSession} fields={catalog.fields} entities={catalog.entities} lookup={lookup} rules={definition.filters??[]}
               editor={filterEditor} setEditor={setFilterEditor} start={startFilter}
               onChange={filters=>{setDefinition(prev=>({...prev,filters}));setNotice('');setError('');}}/>
           </div>
           <div className="query-footer">
+            {catalog.scope.companies && <div className="query-scope">
+              <span>{definition.version===1?'Sales scope · 0030':'Sales scope · '+catalog.scope.companies.join(', ')}</span>
+              {definition.version===1 && <button type="button" className="text-action"
+                onClick={()=>{setDefinition(prev=>({...prev,version:2}));setNotice('');}}>Include both companies</button>}
+            </div>}
             <button className="primary-btn" disabled={busy || !definition.fields.length} onClick={()=>void run(definition)}>
               <Icon name="play" size={15}/>{busy?'Running…':'Run preview'}</button>
           </div>

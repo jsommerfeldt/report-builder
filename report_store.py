@@ -187,13 +187,13 @@ class ReportStore:
                 raise LibraryConflict("Only reports in Trash can be deleted permanently.")
             (self.directory / f"{report_id}.json").unlink()
 
-    def save(self, payload, report_id=None):
+    def save(self, payload, report_id=None, *, validate=validate_definition):
         expected = {"name", "definition", "revision"} if report_id else {"name", "definition"}
         optional = {"overwrite"} if report_id else {"overwrite", "folderId"}
         if not isinstance(payload, dict) or set(payload) - optional != expected:
             raise InvalidDefinition("Invalid save request.")
         name = checked_name(payload["name"], "report")
-        definition = validate_definition(payload["definition"])
+        definition = validate(payload["definition"])
         confirmation = payload.get("overwrite")
         if "overwrite" in payload and (not isinstance(confirmation, dict)
                 or set(confirmation) != {"id", "revision"} or type(confirmation["revision"]) is not int):

@@ -13,7 +13,7 @@ from itsdangerous import URLSafeTimedSerializer
 from app import make_app
 from csv_source import CsvSnapshot, file_hash
 from local_paths import ORIGIN
-from model import CSV_COLUMNS, InvalidDefinition
+from model import CSV_COLUMNS, LEGACY_COLUMNS, InvalidDefinition
 from report_store import ReportStore
 
 
@@ -34,7 +34,7 @@ class PilotTest(unittest.TestCase):
         for table, rows in tables.items():
             with (self.path / f"{table}.csv").open("w", newline="", encoding="utf-8") as output:
                 writer = csv.writer(output, quoting=csv.QUOTE_NOTNULL)
-                writer.writerow(CSV_COLUMNS[table])
+                writer.writerow(LEGACY_COLUMNS[table])
                 writer.writerows(rows)
         self.manifest = {"scope": {"company": "0030", "from": "2026-11-09", "through": "2026-11-15"},
                          "sha256": {t: file_hash(self.path / f"{t}.csv") for t in tables},
@@ -71,6 +71,60 @@ class PilotTest(unittest.TestCase):
             f.write("\n")
         with self.assertRaisesRegex(ValueError, "checksum"):
             CsvSnapshot(self.path)
+
+    def test_expanded_scope_and_unassigned_trip(self):
+        saved = ReportStore(self.reports).save({"name": "Legacy sales", "definition": self.d})
+        original_rows = self.snapshot.preview(self.d)["rows"]
+        expanded = self.path / "expanded"
+        expanded.mkdir()
+        for table, columns in CSV_COLUMNS.items():
+            with (expanded / f"{table}.csv").open("w", encoding="utf-8", newline="") as stream:
+                writer = csv.DictWriter(stream, columns, quoting=csv.QUOTE_NOTNULL)
+                writer.writeheader()
+                if table == "fact_sales":
+                    legacy_facts = self.snapshot.facts
+                    writer.writerows({**row, "company": "0030", "trip_key": "7"} for row in legacy_facts)
+                    writer.writerow({**legacy_facts[0], "company_key": "1", "company": "0001",
+                                     "trip_key": None, "sales": "20", "creditsales": "0", "shipquantitycseq": "2"})
+                elif table == "dim_trips":
+                    writer.writerow({"trip_key": "7", "tripnumber": "000007", "tripdescription": "Sample trip",
+                                     "dispatchdate": "2026-11-10"})
+                elif table == "dim_customers":
+                    writer.writerows({**row, "shippingzip": "00501", "customerregiondescription": "North"}
+                                     for row in self.snapshot.dimensions["customer"].values())
+                else:
+                    writer.writerows({**row, "commoditydescription": "Apples"}
+                                     for row in self.snapshot.dimensions["product"].values())
+        control = {
+            "passed": True, "dimension_rows": {"customers": 2, "products": 2, "trips": 1},
+            "before_joins": {"rows": 4, "sales": "32.10", "creditsales": "2.10", "shipquantitycseq": "3.2501"},
+            "by_company": {"0030": self.manifest["verification"]["before_joins"],
+                           "0001": {"rows": 1, "sales": "20", "creditsales": "0", "shipquantitycseq": "2"}},
+        }
+        (expanded / "manifest.json").write_text(json.dumps({
+            "snapshot_version": 2, "scope": {"companies": ["0001", "0030"]},
+            "sha256": {table: file_hash(expanded / f"{table}.csv") for table in CSV_COLUMNS},
+            "verification": control,
+        }), encoding="utf-8")
+        snapshot = CsvSnapshot(expanded)
+        definition = {**self.d, "version": 2, "fields": ["sales.company", "product.commoditydescription",
+                      "customer.customerregiondescription", "trip.tripnumber", "sales.sales"]}
+        self.assertEqual(snapshot.preview(definition)["rows"], [
+            ["0001", "Apples", "North", None, "20"], ["0030", "Apples", "North", "000007", "12.10"],
+        ])
+        detail = {**definition, "mode": "detail"}
+        self.assertEqual(snapshot.preview(detail)["total"], 4)
+        detail["filters"] = [{"field": "trip.tripnumber", "op": "blank", "value": "", "enabled": True}]
+        self.assertEqual(snapshot.preview(detail)["rows"], [["0001", "Apples", "North", None, "20"]])
+        self.assertEqual(snapshot.choices({"field": "customer.shippingzip"})["values"], ["00501"])
+        self.assertEqual(snapshot.choices({"field": "sales.company", "version": 1})["values"], ["0030"])
+        self.snapshot = snapshot
+        client = self.client()
+        self.sign_in(client)
+        results = client.get(f"/api/reports/{saved['id']}/results?revision=1", base_url=ORIGIN)
+        self.assertEqual(results.status_code, 200)
+        self.assertEqual(results.json["rows"], original_rows)
+        self.assertEqual(results.json["sourceRows"], 3)
 
     def test_filters_before_grouping_and_in_detail(self):
         rules = [

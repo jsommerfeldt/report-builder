@@ -1,13 +1,13 @@
-export type Entity = 'sales' | 'customer' | 'product';
+export type Entity = 'sales' | 'customer' | 'product' | 'trip';
 export type Mode = 'summary' | 'detail';
 export type FilterOp = 'eq' | 'contains' | 'gte' | 'lte' | 'blank' | 'in';
 export interface ReportFilter { field: string; op: FilterOp; value: string | string[]; enabled: boolean }
 export interface Order {field:string; direction:'asc'|'desc'; enabled?:boolean; priority?:number}
-export interface Definition { version: 1; source: 'sales'; mode: Mode; fields: string[]; filters?: ReportFilter[]; order?:Order[] }
+export interface Definition { version: 1|2; source: 'sales'; mode: Mode; fields: string[]; filters?: ReportFilter[]; order?:Order[] }
 export interface Field { id: string; entity: Entity; label: string; kind: 'currency' | 'quantity' | 'date' | 'text'; measure: boolean }
 export interface Catalog {
   entities: Record<Entity, string>; fields: Field[]; counts: Record<Entity, number>;
-  scope: {company: string; from: string; through: string}; starter: Definition;
+  scope: {company?: string; companies?: string[]; from: string; through: string}; starter: Definition;
 }
 export interface Preview { fields: string[]; rows: (string | null)[][]; total: number; limit: number; sourceRows: number }
 export interface SavedInfo { id: string; name: string; updated: string; revision: number; folderId?:string|null; deletedAt?:string }
@@ -16,7 +16,7 @@ export type Overwrite = Pick<SavedInfo,'id'|'revision'>;
 export type Collision = Overwrite & {name:string};
 export interface Choices {values:string[]; total:number}
 export interface ReportClient {
-  values(field:string, query:string, offset:number):Promise<Choices>;
+  values(field:string, query:string, offset:number, version?:Definition['version']):Promise<Choices>;
   preview(d: Definition): Promise<Preview>;
   list(): Promise<SavedInfo[]>;
   open(id: string): Promise<SavedReport>;
@@ -38,7 +38,7 @@ export async function request<T>(path: string, method = 'GET', body?: unknown): 
   return res.json();
 }
 export const pilotClient: ReportClient = {
-  values: (field,query,offset) => request('values','POST',{field,query,offset}),
+  values: (field,query,offset,version) => request('values','POST',{field,query,offset,version}),
   preview: d => request('preview', 'POST', d),
   list: async () => (await request<{reports: SavedInfo[]}>('reports')).reports,
   open: id => request('reports/' + id),

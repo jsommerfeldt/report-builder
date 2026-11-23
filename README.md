@@ -16,6 +16,8 @@ In **Trash**, choose **Delete permanently** and confirm to remove a saved report
 2. In **Query**, choose **Summary** to total measures such as Sales for each group or **Detail** for individual sales rows. The **?** icon shows examples of both modes. In **Selected fields**, turn on **Sort** for each field to use, and choose **Asc** or **Desc**. **Run preview** displays the first 50 matching rows in **Preview** after sorting.
 3. Choose **Save report** and give the definition a name. Choose **Home** to return to the homepage. Saving an existing report updates its revision. If another tab saved first, reopen that revision before editing again.
 
+With the expanded snapshot active, a new report includes sales for `0001` and `0030`. Use **Sales company** to group or filter by the company on the sale. Reports saved before the expansion still use `0030`. To broaden one, open it, choose **Include both companies** in Query, run the preview, and save the updated definition. An unassigned trip displays blank trip fields.
+
 **Selected fields** shows the first three columns. **Show more** reveals the full ordered list. Drag the divider beside **Fields**, or focus it and use the left and right arrow keys, to resize the pane. **Fields** also has a hide/show button.
 
 Drag a field by its name or grip to move its output column, or focus it and press the up/down arrows. Use **Priority** to order the enabled sorts independently. Priority **1** sorts first and **2** breaks its ties. Choosing a priority shifts the other ranks automatically. New or re-enabled sorts take the last priority. Disabling a sort remembers its direction and releases its rank. With all sorts off, rows and summary groups follow their first occurrence in the filtered source. Older saved definitions start with the precedence they had under column-based sorting.
@@ -35,14 +37,17 @@ Run these commands from the project directory. Setup needs Python 3.13, Node, pn
 ```powershell
 .\pilot.ps1 -Action Build
 .\pilot.ps1 -Action Export
+.\pilot.ps1 -Action Stop
+.\pilot.ps1 -Action Activate
 .\pilot.ps1 -Action Start
 .\pilot.ps1 -Action Status
-.\pilot.ps1 -Action Stop
 ```
 
-**Build** installs pinned Python packages and builds the locked React 17/TypeScript project in the local profile. **Export** uses the read-only warehouse interface in `sales_pilot.sql` for company 0030 from November 9 through 15, 2026. Set `RDWDW_URL` in the export environment or use `RDWDW_ENV_FILE` for the existing warehouse environment file. The default file is the sibling OneDrive `rdwdw/.env`. The browser server reads only local files.
+**Build** installs pinned Python packages and builds the locked React 17/TypeScript project in the local profile. **Export** uses the read-only warehouse interface in `sales_pilot.sql` for companies `0001` and `0030` and Sales reporting dates November 9–15, 2026. Set `RDWDW_URL` in the export environment or use `RDWDW_ENV_FILE` for the existing warehouse environment file. The default file is the sibling OneDrive `rdwdw/.env`. The browser server reads only local files.
 
-The three CSVs, manifest, compiled bundle, access key and saved report JSON files live under `%LOCALAPPDATA%\RDWDW\ReportBuilderPilot`. A single legacy SELECT supplies all records and controls. The exporter validates file hashes, fact grain, referenced dimension keys, row counts and exact decimal totals before publishing the directory. Repeating Export verifies the existing fixed snapshot. The CSV dialect distinguishes NULL from quoted empty text and keeps codes as strings.
+The four CSVs and reconciliation manifest are staged in `csv-expanded-v2` under `%LOCALAPPDATA%\RDWDW\ReportBuilderPilot`. The original `csv` directory remains available for rollback. One read-only SELECT supplies the records, direct SQL summary, and reconciliation controls. The exporter checks fact grain, dimension keys, row counts and exact decimal totals by company and combined, then compares every Summary group for Sales company, Commodity, Customer region, and Trip number. Repeating Export verifies the staged files. The CSV dialect distinguishes NULL from quoted empty text and keeps ZIP codes and trip numbers as strings.
+
+**Activate** selects the verified expanded snapshot for the next server start. To roll back, stop the server, run `./pilot.ps1 -Action Rollback`, and start it again. The original snapshot supports older reports. Saved two-company reports remain in the library and require the expanded snapshot to run.
 
 The server listens on `127.0.0.1:8784`. The private launcher authenticates the listener and opens a short-lived sign-in link. The browser removes the sign-in fragment and receives a host-only, HTTP-only session cookie. The server checks host, origin, content type, selected fields and definition version. The bundle, icon and styles are served locally. The CSV directory and reports directory have no static HTTP routes.
 

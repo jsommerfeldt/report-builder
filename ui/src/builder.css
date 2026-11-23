@@ -118,7 +118,8 @@
 .mode-examples dt { margin-top: 12px; font-weight: 600; }
 .mode-examples dd { margin: 2px 0 0; color: var(--muted); }
 .query-footer { padding: 12px 15px; border-top: 1px solid var(--line); background: var(--surface); }
-.query-footer button { width: 100%; }
+.query-footer > button { width: 100%; }
+.query-scope { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 4px; margin-bottom: 8px; color: var(--muted); font-size: 12px; }
 
 .selection, .filters { border-radius: var(--radius); }
 .filters { margin-top: 18px; }

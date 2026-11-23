@@ -1,7 +1,7 @@
 import React from 'react';
 import {Catalog, Entity, Field} from './client';
 
-export const entityOrder: readonly Entity[] = ['sales','customer','product'];
+export const entityOrder: readonly Entity[] = ['sales','customer','product','trip'];
 
 export function FieldOptions({fields,entities}: {fields:Field[];entities:Catalog['entities']}) {
   return <>{entityOrder.map(entity=>{

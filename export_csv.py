@@ -1,5 +1,6 @@
 """Export one read-only warehouse snapshot to the user's private pilot directory."""
 
+import argparse
 import csv
 import json
 import os
@@ -10,9 +11,12 @@ from contextlib import ExitStack
 from pathlib import Path
 from urllib.parse import parse_qs, unquote, urlsplit
 
-from csv_source import CsvSnapshot, file_hash
-from local_paths import HERE, private_home
-from model import CSV_COLUMNS
+from csv_source import CsvSnapshot, control_amount, file_hash
+from local_paths import EXPANDED_SNAPSHOT, HERE, LEGACY_SNAPSHOT, SNAPSHOT_POINTER, private_home
+from model import COMPANIES, CSV_COLUMNS, MEASURES
+
+SUMMARY_FIELDS = ("sales.company", "product.commoditydescription", "customer.customerregiondescription",
+                  "trip.tripnumber", *(f"sales.{measure}" for measure in MEASURES))
 
 
 def warehouse_environment():
@@ -44,6 +48,7 @@ def write_snapshot(folder):
     command = [shutil.which("psql") or "psql", "-X", "-w", "-qAt", "-v", "stream_rows=on",
                "-f", str(HERE / "sales_pilot.sql")]
     controls = None
+    source_summary = {}
     with ExitStack() as files:
         writers = {}
         for table, columns in CSV_COLUMNS.items():
@@ -57,6 +62,11 @@ def write_snapshot(folder):
                     table, record = json.loads(line, parse_float=str)
                     if table == "verification":
                         controls = record
+                    elif table == "summary":
+                        key = tuple(record[field.split(".", 1)[1]] for field in SUMMARY_FIELDS[:4])
+                        if key in source_summary:
+                            raise ValueError("Duplicate direct SQL summary group.")
+                        source_summary[key] = tuple(control_amount(record[measure]) for measure in MEASURES)
                     elif table in writers and set(record) == set(CSV_COLUMNS[table]):
                         writers[table].writerow(record)
                     else:
@@ -67,26 +77,58 @@ def write_snapshot(folder):
                 if source.poll() is None:
                     source.kill()
                 source.stdout.close()
-    manifest = {"scope": {"company": "0030", "from": "2026-11-09", "through": "2026-11-15"},
+    manifest = {"snapshot_version": 2,
+                "scope": {"companies": list(COMPANIES), "from": "2026-11-09", "through": "2026-11-15"},
                 "verification": controls, "sha256": {t: file_hash(folder / f"{t}.csv") for t in CSV_COLUMNS}}
-    (folder / "manifest.json").write_text(json.dumps(manifest, indent=2), encoding="utf-8")
+    manifest_file = folder / "manifest.json"
+    manifest_file.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
+    snapshot = CsvSnapshot(folder)
+    definition = {"version": 2, "source": "sales", "mode": "summary", "fields": list(SUMMARY_FIELDS)}
+    preview = snapshot.preview(definition, limit=None)
+    csv_summary = {tuple(row[:4]): tuple(map(control_amount, row[4:])) for row in preview["rows"]}
+    if not source_summary or csv_summary != source_summary:
+        raise ValueError("The grouped report differs from direct SQL.")
+    controls["verified_summary_groups"] = len(source_summary)
+    manifest_file.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
+
+
+def select_snapshot(home, name):
+    with tempfile.NamedTemporaryFile(mode="w", encoding="ascii", dir=home,
+                                     prefix="snapshot-pointer-", delete=False) as handle:
+        temporary = Path(handle.name)
+        handle.write(name + "\n")
+    try:
+        temporary.replace(home / SNAPSHOT_POINTER)
+    finally:
+        temporary.unlink(missing_ok=True)
 
 
 def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("action", nargs="?", default="stage", choices=["stage", "activate", "rollback"])
+    action = parser.parse_args().action
     home = private_home()
     home.mkdir(parents=True, exist_ok=True)
-    destination = home / "csv"
-    if not destination.exists():
+    destination = home / (LEGACY_SNAPSHOT if action == "rollback" else EXPANDED_SNAPSHOT)
+    if action == "stage" and not destination.exists():
         # A failed export never becomes the active snapshot. Only this call's
         # temporary parent is cleaned by TemporaryDirectory.
         with tempfile.TemporaryDirectory(dir=home, prefix="export-") as temp:
             staging = Path(temp) / "csv"
             staging.mkdir()
             write_snapshot(staging)
-            CsvSnapshot(staging)
-            staging.rename(destination)
+            try:
+                staging.rename(destination)
+            except FileExistsError:
+                pass  # A concurrent stage already published the immutable version.
     snapshot = CsvSnapshot(destination)
-    print(json.dumps({"csv_directory": str(destination), "verified_rows": snapshot.counts}))
+    if snapshot.version != (1 if action == "rollback" else 2):
+        raise ValueError("Snapshot version does not match its destination.")
+    if snapshot.version == 2 and not snapshot.verified_summary_groups:
+        raise ValueError("The staged snapshot lacks direct SQL summary verification.")
+    if action != "stage":
+        select_snapshot(home, destination.name)
+    print(json.dumps({"action": action, "csv_directory": str(destination), "verified_rows": snapshot.counts}))
 
 
 if __name__ == "__main__":

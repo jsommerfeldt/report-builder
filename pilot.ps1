@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-    [ValidateSet('Start', 'Open', 'Stop', 'Build', 'Export', 'Status')]
+    [ValidateSet('Start', 'Open', 'Stop', 'Build', 'Export', 'Activate', 'Rollback', 'Status')]
     [string] $Action = 'Start',
     [switch] $NoBrowser
 )
@@ -43,9 +43,10 @@ if ($Action -eq 'Status') {
     return
 }
 if (-not (Test-Path -LiteralPath $python)) { throw 'Run pilot.ps1 -Action Build first.' }
-if ($Action -eq 'Export') {
-    & $python -B (Join-Path $PSScriptRoot 'export_csv.py')
-    if ($LASTEXITCODE) { throw 'The private CSV export failed.' }
+if ($Action -in 'Export','Activate','Rollback') {
+    $snapshotAction = @{ Export='stage'; Activate='activate'; Rollback='rollback' }[$Action]
+    & $python -B (Join-Path $PSScriptRoot 'export_csv.py') $snapshotAction
+    if ($LASTEXITCODE) { throw "The snapshot action $snapshotAction failed." }
     return
 }
 if ($Action -eq 'Stop') {
