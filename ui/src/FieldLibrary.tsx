@@ -4,9 +4,9 @@ import {entityOrder} from './FieldOptions';
 import {DropField, useFieldDrag} from './useFieldDrag';
 import {Icon} from './Icon';
 
-export function FieldLibrary({catalog, fields, toggle, drop}: {catalog: Catalog; fields: string[]; toggle(id: string): void;
-  drop:DropField}) {
-  const {begin,moved}=useFieldDrag(drop);
+export function FieldLibrary({catalog,fields,toggle,drop,onInteraction}: {catalog:Catalog; fields:string[]; toggle(id:string):void;
+  drop:DropField; onInteraction(active:boolean):void}) {
+  const {begin,moved}=useFieldDrag(drop,onInteraction);
   const [search, setSearch] = useState('');
   const [open, setOpen] = useState<Entity[]>([]);
   const query = search.trim().toLowerCase();

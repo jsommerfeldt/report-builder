@@ -4,14 +4,15 @@ import {ReorderMotion} from './ReorderMotion';
 export type Destination='fields'|'filters';
 export type DropField=(id:string,zone:Destination,anchor?:string,after?:boolean)=>void;
 
-export function useFieldDrag(drop:DropField) {
-  const stop=useRef<()=>void>(()=>{});
+export function useFieldDrag(drop:DropField,onInteraction?:(active:boolean)=>void) {
+  const stop=useRef<(notify?:boolean)=>void>(()=>{});
   const moved=useRef(false);
-  useEffect(()=>()=>stop.current(),[]);
-  function begin(e:ReactPointerEvent,id:string) {
+  useEffect(()=>()=>stop.current(false),[]);
+  function begin(e:ReactPointerEvent<HTMLElement>,id:string) {
     if(e.button!==0 || !e.isPrimary)return;
     stop.current();moved.current=false;
     const x=e.clientX,y=e.clientY,pointer=e.pointerId;
+    const source=e.currentTarget;
     const origin=e.currentTarget.closest<HTMLElement>('[data-column]');
     const grip=origin?y-origin.getBoundingClientRect().top:null;
     let zone:HTMLElement|null=null,motion:ReorderMotion|null=null;
@@ -49,13 +50,17 @@ export function useFieldDrag(drop:DropField) {
       cancelAnimationFrame(scrollFrame);
       if(motion)scrollFrame=requestAnimationFrame(()=>scrollFields(p.clientX,p.clientY));
     }
-    function cleanup() {
+    function cleanup(notify=true) {
       leave(true);
       window.removeEventListener('pointermove',track);window.removeEventListener('pointerup',finish);
-      window.removeEventListener('pointercancel',cleanup);window.removeEventListener('blur',cleanup);
+      window.removeEventListener('pointercancel',cancelPointer);window.removeEventListener('blur',cancel);
+      source.removeEventListener('lostpointercapture',cancelPointer);
       window.removeEventListener('keydown',escape);stop.current=()=>{};
+      if(notify)onInteraction?.(false);
     }
-    function escape(e:KeyboardEvent) {if(e.key==='Escape')cleanup();}
+    function cancel() {moved.current=true;cleanup();}
+    function cancelPointer(e:PointerEvent) {if(e.pointerId===pointer)cancel();}
+    function escape(e:KeyboardEvent) {if(e.key==='Escape')cancel();}
     function finish(p:PointerEvent) {
       if(p.pointerId!==pointer)return;
       track(p);const name=zone?.dataset.libraryZone,slot=motion?.destination();cleanup();
@@ -63,7 +68,13 @@ export function useFieldDrag(drop:DropField) {
       if(name==='fields' && slot)drop(id,'fields',slot.anchor,slot.after);
     }
     stop.current=cleanup;window.addEventListener('pointermove',track);window.addEventListener('pointerup',finish);
-    window.addEventListener('pointercancel',cleanup);window.addEventListener('blur',cleanup);window.addEventListener('keydown',escape);
+    window.addEventListener('pointercancel',cancelPointer);window.addEventListener('blur',cancel);window.addEventListener('keydown',escape);
+    if(onInteraction) {
+      // Opening Query can move the Objects divider while the original field is pressed.
+      source.setPointerCapture(pointer);
+      source.addEventListener('lostpointercapture',cancelPointer);
+      onInteraction(true);
+    }
   }
   return {begin,moved};
 }

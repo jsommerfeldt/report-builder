@@ -58,6 +58,8 @@ export function ReportBuilder({catalog,client,initialReport,folderId,onReports}:
   const [editorSession,setEditorSession] = useState(0);
   const [filterEditor,setFilterEditor]=useState<FilterEditor>(null);
   const [queryCollapsed,setQueryCollapsed]=useState(false);
+  const [fieldInteraction,setFieldInteraction]=useState(false);
+  const queryOpen=!queryCollapsed || fieldInteraction;
   const [notice,setNotice] = useState('');
   const generation = useRef(0);
   const byId = useMemo(() => Object.fromEntries(catalog.fields.map(f => [f.id, f])) as Record<string,Field>, [catalog]);
@@ -151,7 +153,7 @@ export function ReportBuilder({catalog,client,initialReport,folderId,onReports}:
     if (!discardOK()) return;
     setWorking(true); setModalError('');
     try { const r=await client.open(id);
-      setEditorSession(n=>n+1);setFilterEditor(null);
+      setEditorSession(n=>n+1);setFilterEditor(null);setFieldInteraction(false);
       setSaved(r); setTitle(r.name); setBaseTitle(r.name); setRenaming(false); setDefinition(r.definition); setBaseline(definitionKey(r.definition));
       setResult(null); setDialog(null); setNotice('Report opened'); void run(r.definition);
     } catch(e) {setModalError(message(e));} finally {setWorking(false);}
@@ -191,20 +193,21 @@ export function ReportBuilder({catalog,client,initialReport,folderId,onReports}:
     </header>
     </div>
     <main className="editor-content">
-      <LibraryLayout library={<FieldLibrary key={editorSession} catalog={catalog} fields={definition.fields} toggle={toggle} drop={dropField}/>}>
-        <section className={'query-controls'+(queryCollapsed?' query-collapsed':'')} aria-labelledby="query-heading">
+      <LibraryLayout library={<FieldLibrary key={editorSession} catalog={catalog} fields={definition.fields} toggle={toggle}
+        drop={dropField} onInteraction={setFieldInteraction}/>}>
+        <section className={'query-controls'+(queryOpen?'':' query-collapsed')} aria-labelledby="query-heading">
           <div className="query-header">
-            <h3 id="query-heading"><button type="button" className="pane-disclosure" aria-expanded={!queryCollapsed}
+            <h3 id="query-heading"><button type="button" className="pane-disclosure" aria-expanded={queryOpen}
               aria-controls="query-contents" onClick={()=>setQueryCollapsed(collapsed=>!collapsed)}>
               <Icon name="chevron" size={16}/>Query
             </button></h3>
           </div>
-          <div className="query-body" id="query-contents" hidden={queryCollapsed}>
+          <div className="query-body" id="query-contents" hidden={!queryOpen}>
             <div className="query-scroll">
               <FieldsPanel key={'fields-'+editorSession} fields={columns} outputIds={outputIds}
-                order={definition.order??[]} drop={dropField} remove={toggle} sort={changeSort}/>
+                order={definition.order??[]} drop={dropField} remove={toggle} sort={changeSort} showDropTarget={fieldInteraction}/>
               <FiltersPanel key={editorSession} fields={catalog.fields} entities={catalog.entities} lookup={lookup} rules={definition.filters??[]}
-                editor={filterEditor} setEditor={setFilterEditor} start={startFilter}
+                editor={filterEditor} setEditor={setFilterEditor} start={startFilter} showDropTarget={fieldInteraction}
                 onChange={filters=>{setDefinition(prev=>({...prev,filters}));setNotice('');setError('');}}/>
               <GroupingPanel columns={dimensions} grouped={grouped} groupBy={groupBy} hasOutput={hasOutput}
                 onModeChange={active=>{setDefinition(prev=>({...prev,mode:active?'summary':'detail'}));setNotice('');setError('');}}

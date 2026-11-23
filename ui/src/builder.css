@@ -127,6 +127,8 @@
 
 .query-card { border: 1px solid var(--build-line); border-radius: 6px; background: var(--surface); }
 .query-card + .query-card { margin-top: 12px; }
+.query-card[data-field-target] { border-color: var(--accent); }
+.query-card[data-field-target] .query-card-heading { background: var(--accent-subtle); border-radius: 5px 5px 0 0; }
 .query-card.library-drop-hover { box-shadow: 0 0 0 2px var(--accent); background: var(--accent-subtle); }
 .query-card-heading, .filter-status { display: flex; align-items: center; gap: 6px; }
 .query-card-heading { flex-wrap: wrap; justify-content: space-between; min-height: 36px; padding: 3px 8px; }
