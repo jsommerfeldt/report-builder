@@ -25,10 +25,16 @@ export function FiltersPanel({fields,entities,rules,onChange,lookup,editor,setEd
     next[editor.index] = {...editor.rule, value:editor.rule.op==='blank' ? '' : Array.isArray(value)?value:value.trim()};
     onChange(next); setEditor(null);
   }
-  return <section className="filters" aria-label="Filters" data-library-zone={!editor && rules.length<32?'filters':undefined}>
-    <div className="selection-head"><div className="panel-heading"><h4 className="query-label">Filters</h4>{rules.length>0 && <span className="count">{enabled}/{rules.length}</span>}</div>
-      {rules.length>0 && <button type="button" className="text-action" disabled={!!editor}
-        onClick={()=>onChange(rules.map(r=>({...r,enabled:!all})))}>{all?'Deselect all':'Select all'}</button>}</div>
+  return <section className="query-card filters" aria-labelledby="filters-heading" data-library-zone={!editor && rules.length<32?'filters':undefined}>
+    <header className="query-card-heading">
+      <h4 id="filters-heading"><Icon name="filter" size={16}/>Filters</h4>
+      {rules.length>0 && <div className="filter-status">
+        <span className="count">{enabled} of {rules.length} active</span>
+        <button type="button" className="text-action" disabled={!!editor}
+          onClick={()=>onChange(rules.map(r=>({...r,enabled:!all})))}>{all?'Disable all':'Enable all'}</button>
+      </div>}
+    </header>
+    <div className="query-card-body">
     <div className="configuration-scroll" tabIndex={0} role="group" aria-label="Filter rules">
     <ul className="filter-list">{rules.map((r,i)=>{
       const f=fields.find(field=>field.id===r.field)!;
@@ -59,5 +65,6 @@ export function FiltersPanel({fields,entities,rules,onChange,lookup,editor,setEd
     : <div className="filter-bottom"><button className="add-filter" aria-label="Add filter" disabled={rules.length>=32} onClick={()=>start('customer.shippingstate')}>
       <Icon name="plus" size={14}/>Add filter<span className="hint" aria-hidden="true">Drop a field here</span></button>
       {rules.length>1 && <span className="hint">Match all enabled filters</span>}</div>}
+    </div>
   </section>;
 }

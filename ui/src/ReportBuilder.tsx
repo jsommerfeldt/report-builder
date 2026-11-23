@@ -9,6 +9,7 @@ import {LibraryLayout} from './LibraryLayout';
 import {FieldsPanel} from './FieldsPanel';
 import {DropField} from './useFieldDrag';
 import {WorkspaceBar} from './WorkspaceBar';
+import {QueryModeExamples} from './QueryModeExamples';
 
 function numberSorts(order:Order[]):Order[] {
   let rank=0;
@@ -45,6 +46,7 @@ export function ReportBuilder({catalog,client,initialReport,folderId,onHome,onRe
   const [modalError,setModalError] = useState('');
   const [editorSession,setEditorSession] = useState(0);
   const [filterEditor,setFilterEditor]=useState<FilterEditor>(null);
+  const [queryCollapsed,setQueryCollapsed]=useState(false);
   const [notice,setNotice] = useState('');
   const generation = useRef(0);
   const modeHelp = useRef<HTMLButtonElement>(null);
@@ -167,32 +169,37 @@ export function ReportBuilder({catalog,client,initialReport,folderId,onHome,onRe
     </div>
     <main className="editor-content">
       <LibraryLayout library={<FieldLibrary key={editorSession} catalog={catalog} fields={definition.fields} toggle={toggle} drop={dropField}/>}>
-        <section className="query-controls" aria-labelledby="query-heading">
+        <section className={'query-controls'+(queryCollapsed?' query-collapsed':'')} aria-labelledby="query-heading">
           <div className="query-header">
-            <h3 id="query-heading">Query</h3>
-            <div className="query-mode">
+            <h3 id="query-heading"><button type="button" className="query-disclosure" aria-expanded={!queryCollapsed}
+              aria-controls="query-contents" onClick={()=>setQueryCollapsed(collapsed=>!collapsed)}>
+              <Icon name="chevron" size={16}/>Query
+            </button></h3>
+            {!queryCollapsed && <div className="query-mode">
+              <button ref={modeHelp} type="button" className="icon-button query-help" aria-label="Query mode examples" aria-haspopup="dialog"
+                title="Query mode examples" onClick={()=>setDialog('query-mode')}><Icon name="help"/></button>
               <div className="segments" role="group" aria-label="Query mode">{(['summary','detail'] as const).map(mode=>
                 <button key={mode} type="button" aria-pressed={definition.mode===mode}
                   onClick={()=>{setDefinition(prev=>({...prev,mode}));setNotice('');}}>{mode==='summary'?'Summary':'Detail'}</button>)}</div>
-              <button ref={modeHelp} type="button" className="icon-button query-help" aria-label="Query mode examples" aria-haspopup="dialog"
-                title="Query mode examples" onClick={()=>setDialog('query-mode')}><Icon name="help"/></button>
-            </div>
-          </div>
-          <div className="query-scroll">
-            <FieldsPanel key={'fields-'+editorSession} fields={definition.fields.map(id=>byId[id])}
-              order={definition.order??[]} drop={dropField} remove={toggle} sort={changeSort}/>
-            <FiltersPanel key={editorSession} fields={catalog.fields} entities={catalog.entities} lookup={lookup} rules={definition.filters??[]}
-              editor={filterEditor} setEditor={setFilterEditor} start={startFilter}
-              onChange={filters=>{setDefinition(prev=>({...prev,filters}));setNotice('');setError('');}}/>
-          </div>
-          <div className="query-footer">
-            {catalog.scope.companies && <div className="query-scope">
-              <span>{definition.version===1?'Sales scope · 0030':'Sales scope · '+catalog.scope.companies.join(', ')}</span>
-              {definition.version===1 && <button type="button" className="text-action"
-                onClick={()=>{setDefinition(prev=>({...prev,version:2}));setNotice('');}}>Include both companies</button>}
             </div>}
-            <button className="primary-btn" disabled={busy || !definition.fields.length} onClick={()=>void run(definition)}>
-              <Icon name="play" size={15}/>{busy?'Running…':'Run preview'}</button>
+          </div>
+          <div className="query-body" id="query-contents" hidden={queryCollapsed}>
+            <div className="query-scroll">
+              <FieldsPanel key={'fields-'+editorSession} fields={definition.fields.map(id=>byId[id])}
+                order={definition.order??[]} drop={dropField} remove={toggle} sort={changeSort}/>
+              <FiltersPanel key={editorSession} fields={catalog.fields} entities={catalog.entities} lookup={lookup} rules={definition.filters??[]}
+                editor={filterEditor} setEditor={setFilterEditor} start={startFilter}
+                onChange={filters=>{setDefinition(prev=>({...prev,filters}));setNotice('');setError('');}}/>
+            </div>
+            <div className="query-footer">
+              {catalog.scope.companies && <div className="query-scope">
+                <span>{definition.version===1?'Sales scope · 0030':'Sales scope · '+catalog.scope.companies.join(', ')}</span>
+                {definition.version===1 && <button type="button" className="text-action"
+                  onClick={()=>{setDefinition(prev=>({...prev,version:2}));setNotice('');}}>Include both companies</button>}
+              </div>}
+              <button className="primary-btn" disabled={busy || !definition.fields.length} onClick={()=>void run(definition)}>
+                <Icon name="play" size={15}/>{busy?'Running…':'Run preview'}</button>
+            </div>
           </div>
         </section>
       </LibraryLayout>
@@ -201,13 +208,7 @@ export function ReportBuilder({catalog,client,initialReport,folderId,onHome,onRe
         busy={busy} hasFields={Boolean(definition.fields.length)}/>
       <p className="sr-only" role="status">{notice}</p>
     </main>
-    {dialog==='query-mode' && <Modal title="Query mode examples" close={closeModeExamples}>
-      <p className="modal-note">Suppose you select Shipping state and Sales for two Minnesota sales of $40 and $60.</p>
-      <dl className="mode-examples">
-        <dt>Summary</dt><dd>One row for Minnesota with $100 in total sales.</dd>
-        <dt>Detail</dt><dd>Two rows for Minnesota, one with $40 and one with $60.</dd>
-      </dl>
-    </Modal>}
+    {dialog==='query-mode' && <QueryModeExamples close={closeModeExamples}/>}
     {dialog==='save' && <Modal title={collision?'Replace saved report?':'Save report'} close={close}><form onSubmit={save}>
       {collision ? <p className="modal-note">Replace the saved definition of <strong>{collision.name}</strong> with this report?
         {saved && <> Your previously saved report, <strong>{saved.name}</strong>, will keep its own definition.</>}</p> : <>
