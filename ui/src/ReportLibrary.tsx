@@ -13,11 +13,14 @@ interface Props {
 }
 const updated=new Intl.DateTimeFormat(undefined,{month:'short',day:'numeric',year:'numeric'});
 const reason=(e:unknown)=>e instanceof Error?e.message:'The library could not be opened.';
-export function ReportHome({library,client,schedules,location,navigate,onNew,onEdit,onRun}:Props) {
+type SortKey='name'|'modified';
+export function ReportLibrary({library,client,schedules,location,navigate,onNew,onEdit,onRun}:Props) {
   const [data,setData]=useState<Library|null>(null);
   const [error,setError]=useState('');
   const [notice,setNotice]=useState('');
   const [search,setSearch]=useState('');
+  const [foldersOpen,setFoldersOpen]=useState(false);
+  const [sort,setSort]=useState<{key:SortKey;ascending:boolean}>({key:'modified',ascending:false});
   const [manage,setManage]=useState<ManagedItem|null>(null);
   const [schedule,setSchedule]=useState<SavedInfo|null>(null);
   const [deleteTarget,setDeleteTarget]=useState<SavedInfo|null>(null);
@@ -35,7 +38,6 @@ export function ReportHome({library,client,schedules,location,navigate,onNew,onE
   },[refresh]);
   const paths=useMemo(()=>folderPaths(data?.folders??[]),[data]);
   const current=paths.find(p=>p.folder.id===location);
-  const overview=location==='home';
   const directory=location==='folders';
   type Moving={kind:'folder';item:Folder}|{kind:'report';item:SavedInfo};
   const dragging=useRef<Moving|null>(null);
@@ -77,14 +79,27 @@ export function ReportHome({library,client,schedules,location,navigate,onNew,onE
   }
   const trash=location==='trash';
   useEffect(()=>{
-    if(data && location!=='all' && !overview && !directory && !trash && !current)navigate('all');
-  },[data,location,overview,trash,directory,current,navigate]);
+    if(data && location!=='all' && !directory && !trash && !current)navigate('all');
+  },[data,location,trash,directory,current,navigate]);
   const choose=(id:string)=>{navigate(id);setSearch('');setNotice('');};
   const reports=data?.reports??[];
   const scoped=reports.filter(r=>trash?!!r.deletedAt:!r.deletedAt && (!current || r.folderId===current.folder.id));
-  const shown=scoped.filter(r=>r.name.toLocaleLowerCase().includes(search.trim().toLocaleLowerCase()));
-  const recent=overview?[...scoped].sort((a,b)=>b.updated.localeCompare(a.updated)).slice(0,4):[];
-  const rootFolders=overview?paths.filter(p=>!p.parents.length).slice(0,4):[];
+  const searchTerm=search.trim().toLocaleLowerCase();
+  const modified=(report:SavedInfo)=>report.deletedAt??report.updated;
+  const shown=scoped.filter(r=>r.name.toLocaleLowerCase().includes(searchTerm)).sort((a,b)=>{
+    const byName=a.name.localeCompare(b.name);
+    const comparison=sort.key==='name'?byName:modified(a).localeCompare(modified(b));
+    return comparison*(sort.ascending?1:-1) || byName;
+  });
+  const folderLabels=new Map(paths.map(path=>[path.folder.id,path.label]));
+  function sortHeader(key:SortKey,label:string) {
+    const active=sort.key===key;
+    return <th scope="col" aria-sort={active?(sort.ascending?'ascending':'descending'):undefined}>
+      <button type="button" className="report-sort" onClick={()=>setSort({key,ascending:active?!sort.ascending:key==='name'})}>
+        {label}<Icon name={active?'chevron':'sort'} size={14}/>
+      </button>
+    </th>;
+  }
   const newFolder=()=>setManage({kind:'new',parentId:current?.folder.id??null});
   function changed(message:string){
     setNotice(message);setManage(null);setSchedule(null);void refresh();
@@ -118,59 +133,54 @@ export function ReportHome({library,client,schedules,location,navigate,onNew,onE
       void refresh();
     }finally{setWorking(false);}
   }
-  return <div className="home-shell">
-    <WorkspaceBar active={overview?'home':'reports'} onHome={()=>choose('home')} onReports={()=>choose('all')}/>
-    <div className={'home-layout'+(overview?' home-overview':'')}>
-    {!overview && <aside className="home-sidebar"><nav aria-label="Report library">
+  return <div className="reports-shell">
+    <WorkspaceBar onReports={()=>choose('all')}/>
+    <main>
+      <div className="reports-heading">
+        <h1>{directory?'Folders':trash?'Trash':'Reports'}</h1>
+        <div className="reports-tools">
+          <button className="secondary-btn" type="button" aria-controls="report-folders" aria-expanded={foldersOpen}
+            onClick={()=>setFoldersOpen(open=>!open)}><Icon name="folder" size={16}/>Folders</button>
+          {current && <button className="secondary-btn" onClick={()=>setManage({kind:'folder',folder:current.folder})}>Manage folder</button>}
+          {directory && <button className="secondary-btn" onClick={newFolder} disabled={!data}>New folder</button>}
+          {!trash && <button className="primary-btn" disabled={!data} onClick={onNew}><Icon name="plus" size={16}/>New report</button>}
+        </div>
+      </div>
+      <div className={'reports-layout'+(foldersOpen?' folders-open':'')}>
+      <aside id="report-folders" className="reports-sidebar" hidden={!foldersOpen}><nav aria-label="Report library">
       <h2>Library</h2>
       <button {...target(null)} title="Drop here to move to the library root" className="location-link" aria-current={location==='all'?'page':undefined} onClick={()=>choose('all')}><Icon name="layers"/>All reports</button>
       <button className="location-link" aria-current={trash?'page':undefined} onClick={()=>choose('trash')}><Icon name="trash"/>Trash</button>
-      <div className="folder-nav-head"><h2><button className="folders-index-link" aria-current={directory?'page':undefined} onClick={()=>choose('folders')}>Folders</button></h2><button className="icon-button" title="New folder" aria-label="New folder" onClick={newFolder} disabled={!data}><Icon name="plus" size={16}/></button></div>
+      <div className="folder-nav-head"><h2><button className="folders-index-link" aria-label="Folder directory" aria-current={directory?'page':undefined} onClick={()=>choose('folders')}>Folders</button></h2><button className="icon-button" title="New folder" aria-label="New folder" onClick={newFolder} disabled={!data}><Icon name="plus" size={16}/></button></div>
       {paths.map(p=><div className="folder-nav-row" key={p.folder.id}><button {...source({kind:'folder',item:p.folder})} {...target(p.folder.id)} className="location-link folder-link" title={p.label} aria-current={p.folder.id===location?'page':undefined}
         style={{paddingLeft:12+Math.min(p.parents.length,5)*14}} onClick={()=>choose(p.folder.id)}><Icon name="folder" size={17}/><span>{p.folder.name}</span></button>
         <button className="icon-button folder-delete" title={'Delete '+p.label} aria-label={'Delete folder '+p.label}
           onClick={()=>setManage({kind:'folder',folder:p.folder,deleteNow:true})}><Icon name="trash" size={15}/></button></div>)}
       {data && !paths.length && <button className="add-first-folder" onClick={newFolder}>Create a folder</button>}
-    </nav></aside>}
-    <main className="home-main">
-      {!overview && <div className="mobile-location"><label>Browse library<select value={location} onChange={e=>choose(e.target.value)}>
-        <option value="all">All reports</option><option value="folders">Folders</option><option value="trash">Trash</option>{paths.map(p=><option key={p.folder.id} value={p.folder.id}>{p.label}</option>)}</select></label>
-        <button className="secondary-btn" onClick={newFolder} disabled={!data}><Icon name="folder" size={15}/>New folder</button></div>}
+    </nav></aside>
+    <div className="reports-content">
+      <div className="reports-filters">
+        <div className="reports-location"><label htmlFor="reports-location">Location</label>
+          <select id="reports-location" value={location} onChange={e=>choose(e.target.value)}>
+          <option value="all">All reports</option><option value="folders">Folder directory</option><option value="trash">Trash</option>
+          {paths.length>0 && <optgroup label="Folders">{paths.map(p=><option key={p.folder.id} value={p.folder.id}>{p.label}</option>)}</optgroup>}
+        </select></div>
+        {!directory && <div className="reports-search">
+          <label htmlFor="reports-search">Search</label>
+          <div className="search"><Icon name="search" size={16}/>
+            <input type="search" id="reports-search" placeholder="Search reports" value={search} onChange={e=>setSearch(e.target.value)}/>
+          </div>
+        </div>}
+      </div>
       {current && <nav className="crumbs" aria-label="Folder path"><button onClick={()=>choose('all')}>Reports</button>
         {current.parents.map(f=><React.Fragment key={f.id}><Icon name="arrow" size={12}/><button onClick={()=>choose(f.id)}>{f.name}</button></React.Fragment>)}
         <Icon name="arrow" size={12}/><span>{current.folder.name}</span></nav>}
-      <div className="home-heading"><div><h1>{overview?'Home':directory?'Folders':trash?'Trash':current?.folder.name??'Reports'}</h1>
-        {directory && data && <p>{paths.length} {paths.length===1?'folder':'folders'} in your library</p>}{data && !directory && !overview && <p>{scoped.length.toLocaleString()} {scoped.length===1?'report':'reports'}{trash?' in Trash':current?' in this folder':' in your library'}</p>}</div>
-        <div className="home-tools">{current && <button className="secondary-btn" onClick={()=>setManage({kind:'folder',folder:current.folder})}>Manage folder</button>}
-          {current && <button className="secondary-btn" onClick={()=>setManage({kind:'folder',folder:current.folder,deleteNow:true})}><Icon name="trash" size={15}/>Delete folder</button>}
-          {directory && <button className="secondary-btn" onClick={newFolder} disabled={!data}>New folder</button>}
-          {!trash && <button className="primary-btn" disabled={!data} onClick={onNew}><Icon name="plus" size={16}/>New report</button>}</div></div>
       {error && <div className="alert" role="alert">{error} <button className="text-action" onClick={refresh}>Refresh library</button></div>}
       <p role="status" className={'library-notice'+(notice?' visible':'')}>{notice}</p>
       {!data && !error && <p className="muted" role="status">Loading reports…</p>}
-      {data && overview && <>
-        <section className="overview-section" aria-labelledby="recent-heading">
-          <div className="overview-head"><h2 id="recent-heading"><Icon name="clock" size={17}/>Recently updated</h2>
-            <button className="text-action" onClick={()=>choose('all')}>View all reports<Icon name="arrow" size={14}/></button></div>
-          {recent.length?<ul className="overview-tiles">{recent.map(report=><li key={report.id}>
-            <button className="overview-card" aria-label={report.name} disabled={working} onClick={()=>void edit(report)}>
-              <span className="saved-icon"><Icon name="grid" size={18}/></span><span className="overview-card-text"><strong>{report.name}</strong>
-                <time dateTime={report.updated}>{updated.format(new Date(report.updated))}</time></span>
-            </button></li>)}</ul>:<p className="overview-empty">No saved reports yet.</p>}
-        </section>
-        <section className="overview-section" aria-labelledby="folders-heading">
-          <div className="overview-head"><h2 id="folders-heading"><Icon name="folder" size={17}/>Folders</h2>
-            <div className="home-tools"><button className="quiet-btn" onClick={newFolder}><Icon name="plus" size={15}/>New folder</button>
-              <button className="text-action" onClick={()=>choose('folders')}>View all folders<Icon name="arrow" size={14}/></button></div></div>
-          {rootFolders.length?<ul className="overview-tiles">{rootFolders.map(({folder})=><li key={folder.id}>
-            <button className="overview-card" onClick={()=>choose(folder.id)}><span className="saved-icon"><Icon name="folder" size={18}/></span>
-              <strong className="overview-card-text">{folder.name}</strong></button></li>)}</ul>:
-            <p className="overview-empty">No folders yet.</p>}
-        </section>
-      </>}
       {data && directory && <section className="report-list-panel" aria-label="Folder directory">
         <div className="list-tools"><h2>All folders</h2><span className="folder-count-label">Direct contents</span></div>
-        {paths.length===0?<div className="home-empty"><Icon name="folder"/><h3>No folders yet</h3><button className="text-action" onClick={newFolder}>Create a folder</button></div>:
+        {paths.length===0?<div className="reports-empty"><Icon name="folder"/><h3>No folders yet</h3><button className="text-action" onClick={newFolder}>Create a folder</button></div>:
           <ul className="folder-directory">{paths.map(p=>{
             const count=reports.filter(r=>!r.deletedAt && r.folderId===p.folder.id).length;
             const children=paths.filter(other=>other.folder.parentId===p.folder.id).length;
@@ -179,30 +189,38 @@ export function ReportHome({library,client,schedules,location,navigate,onNew,onE
               <small>{p.parents.map(f=>f.name).join(' / ')||'Library root'}</small></span>
               <small>{count} {count===1?'report':'reports'} · {children} {children===1?'subfolder':'subfolders'}</small></button></li>;
           })}</ul>}</section>}
-      {data && !directory && !overview && <section className="report-list-panel" aria-label={trash?'Deleted reports':'Saved reports'}>
-        <div className="list-tools"><h2>{trash?'Deleted reports':'Saved reports'}</h2>
-          <label className="search home-search"><Icon name="search" size={16}/><input type="search" aria-label="Search reports" placeholder="Search reports" value={search} onChange={e=>setSearch(e.target.value)}/></label></div>
-        {shown.length>0?<ul className="report-list">{shown.map(report=>{
-          const path=paths.find(f=>f.folder.id===report.folderId)?.label;
-          return <li key={report.id} aria-label={report.name} {...(trash?{}:source({kind:'report',item:report}))}><div className="report-file"><Icon name="document" size={22}/></div>
-            <div className="report-description"><h3>{report.name}</h3><div className="report-details"><span>{path??'Library root'}</span><i aria-hidden="true"/>
-              <time dateTime={report.deletedAt??report.updated}>{trash?'Deleted':'Updated'} {updated.format(new Date(report.deletedAt??report.updated))}</time></div></div>
-            <div className={trash?'report-actions trash-actions':'report-actions'}>{trash?<>
+      {data && !directory && <section className="report-list-panel" aria-label={trash?'Deleted reports':'Saved reports'}>
+        <div className="table-scroll" tabIndex={0} aria-label="Report list">
+          <table className="reports-table" aria-label={trash?'Deleted reports':'Saved reports'}>
+            <thead><tr>{sortHeader('name','Name')}<th scope="col">Folder</th>{sortHeader('modified',trash?'Deleted':'Last modified')}
+              <th scope="col" className="report-actions-heading">Actions</th></tr></thead>
+            <tbody>{shown.map(report=><tr key={report.id} {...(trash?{}:source({kind:'report',item:report}))}>
+              <td className="report-name">{trash?<strong>{report.name}</strong>:
+                <button type="button" disabled={working} onClick={()=>onRun(report)}>{report.name}</button>}</td>
+              <td className="report-folder">{folderLabels.get(report.folderId??'')??'Library root'}</td>
+              <td><time dateTime={modified(report)}>{updated.format(new Date(modified(report)))}</time></td>
+              <td><div className="report-actions">{trash?<>
               <button className="secondary-btn" disabled={working} onClick={()=>void restore(report)}>Restore</button>
               <button className="secondary-btn trash-delete" disabled={working} onClick={()=>{setDeleteError('');setDeleteTarget(report);}}>Delete permanently</button>
             </>:<>
-              <button className="row-run" disabled={working} onClick={()=>onRun(report)}><Icon name="play" size={13}/>Run</button>
-              <button disabled={working} onClick={()=>void edit(report)}><Icon name="edit" size={14}/>Edit</button>
-              <button disabled={working} onClick={()=>setSchedule(report)}><Icon name="clock" size={15}/>Schedule</button>
-              <button className="more-btn" title="Manage report" aria-label={'Manage '+report.name} disabled={working} onClick={()=>setManage({kind:'report',report})}><Icon name="more"/></button></>}</div>
-          </li>;
-        })}</ul>:<div className="home-empty"><span className="empty-icon"><Icon name={search?'search':trash?'trash':'document'} size={26}/></span>
-          <h3>{search?'No matching reports':trash?'Trash is empty':current?'This folder is empty':'No saved reports yet'}</h3>
-          <p>{search?'Try another report name.':trash?'Reports you delete appear here.':current?'Create a report here or move one into this folder.':'Create a report and save it to your library.'}</p>
-          {search && <button className="text-action" onClick={()=>setSearch('')}>Clear search</button>}</div>}
+              <button className="icon-button" title="Run report" aria-label={'Run '+report.name} disabled={working} onClick={()=>onRun(report)}><Icon name="play" size={15}/></button>
+              <button className="icon-button" title="Edit report" aria-label={'Edit '+report.name} disabled={working} onClick={()=>void edit(report)}><Icon name="edit" size={16}/></button>
+              <button className="icon-button" title="Schedule report" aria-label={'Schedule '+report.name} disabled={working} onClick={()=>setSchedule(report)}><Icon name="clock" size={16}/></button>
+              <button className="icon-button" title="Manage report" aria-label={'Manage '+report.name} disabled={working} onClick={()=>setManage({kind:'report',report})}><Icon name="more" size={17}/></button>
+            </>}</div></td></tr>)}</tbody>
+          </table>
+        </div>
+        {!shown.length && <div className="reports-empty"><span className="empty-icon"><Icon name={searchTerm?'search':trash?'trash':'document'} size={24}/></span>
+          <h3>{searchTerm?'No matching reports':trash?'Trash is empty':current?'This folder is empty':'No saved reports yet'}</h3>
+          <p>{searchTerm?'Try another report name.':trash?'Reports you delete appear here.':current?'Create a report here or move one into this folder.':'Create a report and save it to your library.'}</p>
+          {searchTerm && <button className="text-action" onClick={()=>setSearch('')}>Clear search</button>}</div>}
+        <div className="reports-count" role="status">{shown.length!==scoped.length
+          ?`${shown.length.toLocaleString()} of ${scoped.length.toLocaleString()} reports`
+          :`${shown.length.toLocaleString()} ${shown.length===1?'report':'reports'}`}</div>
       </section>}
+    </div></div>
     </main>
-  </div>{manage && <LibraryDialog item={manage} paths={paths} library={library} close={()=>setManage(null)} done={changed}/>}
+    {manage && <LibraryDialog item={manage} paths={paths} library={library} close={()=>setManage(null)} done={changed}/>}
     {schedule && <ScheduleEditor report={schedule} store={schedules} close={()=>setSchedule(null)} onChange={changed}/>}
     {deleteTarget && <Modal title="Permanently delete report?" close={()=>{if(!working)setDeleteTarget(null);}} className="library-dialog">
       <p className="modal-note"><strong>{deleteTarget.name}</strong> will be removed from Trash. This cannot be undone.</p>

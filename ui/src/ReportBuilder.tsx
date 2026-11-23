@@ -25,12 +25,12 @@ const message = (e: unknown) => e instanceof Error ? e.message : 'The operation 
 function previewKey(d:Definition) {
   return definitionKey({...d,fields:[...d.fields].sort()});
 }
-interface BuilderProps {catalog:Catalog; client:ReportClient; initialReport?:SavedReport; folderId?:string|null; onHome?():void; onReports?():void}
-export function ReportBuilder({catalog,client,initialReport,folderId,onHome,onReports}:BuilderProps) {
+interface BuilderProps {catalog:Catalog; client:ReportClient; initialReport?:SavedReport; folderId?:string|null; onReports?():void}
+export function ReportBuilder({catalog,client,initialReport,folderId,onReports}:BuilderProps) {
   const blank=useMemo<Definition>(()=>({version:catalog.starter.version,source:'sales',mode:'summary',fields:[]}),[catalog.starter.version]);
-  const initial = initialReport?.definition ?? (onHome ? blank : catalog.starter);
+  const initial = initialReport?.definition ?? (onReports ? blank : catalog.starter);
   const [definition, setDefinition] = useState<Definition>(initial);
-  const [title, setTitle] = useState(initialReport?.name ?? (onHome ? 'Untitled report' : 'Sales by state and product'));
+  const [title, setTitle] = useState(initialReport?.name ?? (onReports ? 'Untitled report' : 'Sales by state and product'));
   const [baseTitle,setBaseTitle]=useState(title);
   const [renaming,setRenaming]=useState(false);
   const [collision,setCollision]=useState<Collision|null>(null);
@@ -146,8 +146,7 @@ export function ReportBuilder({catalog,client,initialReport,folderId,onHome,onRe
   }
   return <div className="shell">
     <div className="editor-header">
-    <WorkspaceBar active={onReports?'reports':undefined} onHome={onHome && (()=>{if(discardOK())onHome();})}
-      onReports={onReports && (()=>{if(discardOK())onReports();})}/>
+    <WorkspaceBar onReports={onReports && (()=>{if(discardOK())onReports();})}/>
     <header className="editor-bar">
       <div className="bar-title">
         {renaming ? <form className="title-edit" onSubmit={e=>{e.preventDefault();if(name.trim()){setTitle(name.trim());setRenaming(false);}}}>
@@ -159,7 +158,7 @@ export function ReportBuilder({catalog,client,initialReport,folderId,onHome,onRe
         <p role="status" className={'doc-status'+(dirty?' unsaved':'')}>{dirty?'Unsaved changes':saved?'Saved':'Draft'}</p>
       </div>
       <div className="editor-actions">
-        {!onHome && <button type="button" className="secondary-btn" onClick={openList}>
+        {!onReports && <button type="button" className="secondary-btn" onClick={openList}>
           <Icon name="folder" size={16}/>Saved reports</button>}
         <button type="button" className="primary-btn" disabled={!definition.fields.length || renaming}
           onClick={()=>{setCollision(null);setModalError('');setName(title);setDialog('save');}}>

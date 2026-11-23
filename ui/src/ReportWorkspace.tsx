@@ -3,26 +3,25 @@ import {Catalog,LibraryClient,Preview,ReportClient,SavedInfo,SavedReport} from '
 import {ReportBuilder} from './ReportBuilder';
 import {resultCell} from './PreviewPane';
 import {Icon} from './Icon';
-import {ReportHome} from './ReportHome';
+import {ReportLibrary} from './ReportLibrary';
 import {WorkspaceBar} from './WorkspaceBar';
 import {ScheduleDraftStore} from './scheduleDrafts';
 
-type View={page:'home'}|{page:'edit';report?:SavedReport}|{page:'run';report:SavedInfo};
+type View={page:'reports'}|{page:'edit';report?:SavedReport}|{page:'run';report:SavedInfo};
 interface Props {catalog:Catalog;client:ReportClient;library:LibraryClient;schedules:ScheduleDraftStore}
 export function ReportWorkspace({catalog,client,library,schedules}:Props) {
-  const [view,setView]=useState<View>({page:'home'});
-  const [location,setLocation]=useState('home');
-  const onHome=()=>{setLocation('home');setView({page:'home'});};
-  const onReports=()=>{setLocation(current=>current==='home'?'all':current);setView({page:'home'});};
+  const [view,setView]=useState<View>({page:'reports'});
+  const [location,setLocation]=useState('all');
+  const onReports=()=>setView({page:'reports'});
   useEffect(()=>{window.scrollTo(0,0);},[view]);
   if(view.page==='edit')return <ReportBuilder catalog={catalog} client={client} initialReport={view.report}
-    folderId={['home','all','trash','folders'].includes(location)?null:location} onHome={onHome} onReports={onReports}/>;
-  if(view.page==='run')return <ReportResults report={view.report} catalog={catalog} library={library} onHome={onHome} onReports={onReports}/>;
-  return <ReportHome location={location} navigate={setLocation} library={library} schedules={schedules} client={client}
+    folderId={['all','trash','folders'].includes(location)?null:location} onReports={onReports}/>;
+  if(view.page==='run')return <ReportResults report={view.report} catalog={catalog} library={library} onReports={onReports}/>;
+  return <ReportLibrary location={location} navigate={setLocation} library={library} schedules={schedules} client={client}
     onNew={()=>setView({page:'edit'})} onEdit={report=>setView({page:'edit',report})} onRun={report=>setView({page:'run',report})}/>;
 }
 
-function ReportResults({report,catalog,library,onHome,onReports}:{report:SavedInfo;catalog:Catalog;library:LibraryClient;onHome():void;onReports():void}) {
+function ReportResults({report,catalog,library,onReports}:{report:SavedInfo;catalog:Catalog;library:LibraryClient;onReports():void}) {
   const [offset,setOffset]=useState(0);
   const [retry,setRetry]=useState(0);
   const [page,setPage]=useState<{offset:number;result:Preview}|null>(null);
@@ -38,7 +37,7 @@ function ReportResults({report,catalog,library,onHome,onReports}:{report:SavedIn
     return ()=>{active=false;};
   },[report,library,offset,retry]);
   const fields=data?.fields.map(id=>catalog.fields.find(field=>field.id===id)!)??[];
-  return <div><WorkspaceBar active="reports" onHome={onHome} onReports={onReports}/><main className="run-main">
+  return <div><WorkspaceBar onReports={onReports}/><main className="run-main">
     <div className="doc-status"><Icon name="grid" size={15}/>Report results</div>
     <h1 ref={title} tabIndex={-1}>{report.name}</h1>
     {error?<div role="alert" className="alert">{error} <button className="text-action" onClick={()=>setRetry(n=>n+1)}>Try again</button></div>:

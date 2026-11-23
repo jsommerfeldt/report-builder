@@ -44,7 +44,7 @@ export function LibraryDialog({item,paths,library,close,done}:Props) {
   }
   const unchanged=report?(report.folderId??'')===parent:folder?folder.name===name.trim() && (folder.parentId??'')===parent:false;
   return <Modal title={title} close={cancel} className="library-dialog"><form onSubmit={submit}>
-    {deleting?<p className="modal-note">{report?<>Move <strong>{report.name}</strong> to Trash? You can restore it from the homepage.</>:
+    {deleting?<p className="modal-note">{report?<>Move <strong>{report.name}</strong> to Trash? You can restore it from Trash in Reports.</>:
       <>Delete <strong>{folder?.name}</strong>? Its reports and subfolders will move up one level.</>}</p>:<>
       {report && <p className="dialog-subject">{report.name}</p>}
       {!report && <label>Folder name<input required autoFocus value={name} maxLength={80} onChange={e=>setName(e.target.value)}/></label>}

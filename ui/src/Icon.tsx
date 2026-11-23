@@ -10,6 +10,7 @@ const paths = {
   folder: 'M3 7a2 2 0 012-2h5l2 2h7a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2z',
   plus: 'M12 5v14 M5 12h14', close: 'M6 6l12 12 M18 6L6 18',
   chevron: 'M8 10l4 4 4-4', arrow: 'M9 5l7 7-7 7', check: 'M5 12l4 4L19 6',
+  sort: 'M8 9l4-4 4 4 M8 15l4 4 4-4',
   save: 'M6 4h12a1 1 0 011 1v15l-7-4-7 4V5a1 1 0 011-1z',
   sales: 'M4 19h16 M6 15v-4 M12 15V5 M18 15V8',
   customer: 'M15.5 8a3.5 3.5 0 11-7 0 3.5 3.5 0 017 0 M4.5 20v-1a7.5 7.5 0 0115 0v1',

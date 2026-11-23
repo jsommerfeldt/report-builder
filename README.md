@@ -4,9 +4,9 @@ A Windows, single-user CSV pilot for composing sales reports. Open **Open Report
 
 ## Use the builder
 
-**Home** shows recently updated reports and folders. Select a recent report to open it in the builder, or choose **Reports** for the full library. **Run** opens a read-only result with 50 rows per page. **Edit** opens the saved fields, filters and sorting in the builder. **New report** starts an empty definition in the current folder.
+The pilot opens to **Reports**. Search by name, choose a **Location** to browse folders or Trash, or sort by **Name** or **Last modified**. Select a report name or **Run** to see a read-only result with 50 rows per page. **Edit** opens the report in the builder. **New report** starts an empty definition in the current folder.
 
-Choose **New folder** on Home or use the plus beside **Folders** in Reports to create a folder or subfolder. Open a folder and choose **Manage folder** to rename or move it. A report's **…** button moves it to another folder or to **Trash**. Restore a report from Trash to return it to its former folder, or to the library root if that folder was removed. If its name has been reused, the restored copy receives a suffix. Choose the trash icon beside a folder or open it and choose **Delete folder**. Confirming moves its reports and subfolders up one level.
+Open **Folders** and use the plus beside its heading to create a folder or subfolder. Open a folder and choose **Manage folder** to rename or move it. A report's **…** button moves it to another folder or to **Trash**. Restore a report from Trash to return it to its former folder, or to the library root if that folder was removed. If its name has been reused, the restored copy receives a suffix. Choose the trash icon beside a folder or choose **Delete folder** in **Manage folder**. Confirming moves its reports and subfolders up one level.
 
 In **Trash**, choose **Delete permanently** and confirm to remove a saved report. This also removes its schedule draft from the browser where you confirm the deletion.
 
@@ -14,7 +14,7 @@ In **Trash**, choose **Delete permanently** and confirm to remove a saved report
 
 1. In **Build Report**, browse Sales, Customers, Products, or Trips in **Columns**, or search for a field. Click fields or drag them into **Selected fields** in **Query**. Drag selected fields to reorder them.
 2. In **Query**, choose **Summary** to total measures such as Sales for each group or **Detail** for individual sales rows. The **?** icon shows examples of both modes. In **Selected fields**, turn on **Sort** for each field to use, and choose **Asc** or **Desc**. **Run preview** displays the first 50 matching rows in **Preview** after sorting.
-3. Choose **Save report** and give the definition a name. Choose **Home** to return to the homepage. Saving an existing report updates its revision. If another tab saved first, reopen that revision before editing again.
+3. Choose **Save report** and give the definition a name. Choose **Reports** to return to the library. Saving an existing report updates its revision. If another tab saved first, reopen that revision before editing again.
 
 With the expanded snapshot active, a new report includes sales for `0001` and `0030`. Use **Sales company** to group or filter by the company on the sale. Reports saved before the expansion still use `0030`. To broaden one, open it, choose **Include both companies** in Query, run the preview, and save the updated definition. An unassigned trip displays blank trip fields.
 
