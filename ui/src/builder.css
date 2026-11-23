@@ -109,7 +109,7 @@
 .pane-header { display: flex; align-items: stretch; justify-content: space-between; flex: none; min-height: 45px; padding: 0 16px; border-bottom: 1px solid var(--line); }
 .pane-header h2 { display: flex; align-items: center; margin-bottom: -1px; padding: 0 1px; border-bottom: 2px solid var(--accent); color: var(--accent-hover); }
 .query-controls { display: grid; grid-template-rows: auto minmax(0, 1fr); min-width: 0; min-height: 0; }
-.query-header, .library-hidden .library-heading { background: var(--accent-subtle); border-bottom: 1px solid var(--build-line); }
+.query-header, .library-hidden .library-heading { border-bottom: 1px solid var(--build-line); }
 .pane-disclosure { display: flex; align-items: center; gap: 4px; min-height: 30px; padding: 0 4px; border-radius: var(--radius); }
 .pane-disclosure:hover, .query-help:hover:enabled { background: var(--surface); color: var(--accent-hover); }
 .pane-disclosure svg { flex: none; }
