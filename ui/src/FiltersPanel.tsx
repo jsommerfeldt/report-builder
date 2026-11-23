@@ -25,8 +25,8 @@ export function FiltersPanel({fields,entities,rules,onChange,lookup,editor,setEd
     next[editor.index] = {...editor.rule, value:editor.rule.op==='blank' ? '' : Array.isArray(value)?value:value.trim()};
     onChange(next); setEditor(null);
   }
-  return <section className="panel filters" aria-label="Filters" data-library-zone={!editor && rules.length<32?'filters':undefined}>
-    <div className="selection-head"><div className="panel-heading"><Icon name="fields"/><h2>Filters</h2><span className="count">{enabled}/{rules.length}</span></div>
+  return <section className="filters" aria-label="Filters" data-library-zone={!editor && rules.length<32?'filters':undefined}>
+    <div className="selection-head"><div className="panel-heading"><h4 className="query-label">Filters</h4><span className="count">{enabled}/{rules.length}</span></div>
       <button type="button" className="text-action" disabled={!rules.length || !!editor}
         onClick={()=>onChange(rules.map(r=>({...r,enabled:!all})))}>{all?'Deselect all':'Select all'}</button></div>
     <div className="configuration-scroll" tabIndex={0} role="group" aria-label="Filter rules">

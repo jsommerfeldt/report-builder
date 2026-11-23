@@ -1,7 +1,7 @@
 import React, {useEffect, useRef, useState} from 'react';
 import {Icon} from './Icon';
 
-const min=200, max=420, initial=278, minReportWidth=500;
+const min=200, max=420, initial=272;
 function stored(key:string) { try { return localStorage.getItem('report-builder.library.'+key); } catch {return null;} }
 function remember(key:string,value:string) { try { localStorage.setItem('report-builder.library.'+key,value); } catch { /* Private browsing can disable storage. */ } }
 function constrain(n:number) {return Math.max(min,Math.min(max,n));}
@@ -12,7 +12,7 @@ export function LibraryLayout({library,children}:{library:React.ReactNode;childr
   const [availableWidth,setAvailableWidth]=useState(()=>document.documentElement.clientWidth);
   const drag=useRef<{x:number; width:number} | null>(null);
   const layout=useRef<HTMLDivElement>(null);
-  const maxWidth=constrain(Math.floor((availableWidth-minReportWidth)/2));
+  const maxWidth=constrain(Math.floor(availableWidth/3));
   const libraryWidth=Math.min(width,maxWidth);
   const layoutStyle={'--library-width':libraryWidth+'px'} as React.CSSProperties;
   useEffect(()=>{
@@ -26,11 +26,11 @@ export function LibraryLayout({library,children}:{library:React.ReactNode;childr
     const next=Math.min(constrain(nextWidth),maxWidth);
     if(next!==libraryWidth)setWidth(next);
   }
-  return <div ref={layout} style={layoutStyle} className={'layout editor-layout'+(hidden?' library-hidden':'')}>
+  return <div ref={layout} style={layoutStyle} className={'editor-layout'+(hidden?' library-hidden':'')}>
     <div className="library-wrap">
       <button className="library-visibility" aria-label={hidden?'Show field library':'Hide field library'} aria-expanded={!hidden} aria-controls="library-contents"
         title={hidden?'Show field library':'Hide field library'} onClick={()=>setHidden(!hidden)}>
-        <Icon name={hidden?'layers':'chevron'} size={16}/><span>{hidden?'Show library':'Hide library'}</span></button>
+        <Icon name={hidden?'layers':'collapse'} size={16}/><span>{hidden?'Show library':'Hide library'}</span></button>
       <div id="library-contents" hidden={hidden}>{library}</div>
       {!hidden && <div className="library-resize" role="separator" tabIndex={0} aria-label="Field library width"
         aria-orientation="vertical" aria-valuemin={min} aria-valuemax={maxWidth} aria-valuenow={libraryWidth}

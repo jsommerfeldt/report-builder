@@ -1,5 +1,5 @@
 import React, {useEffect,useRef,useState} from 'react';
-import {Field, Mode, Preview} from './client';
+import {Field, Preview} from './client';
 import {Icon} from './Icon';
 import {ReorderMotion} from './ReorderMotion';
 
@@ -11,10 +11,10 @@ export function resultCell(value: string | null, field: Field) {
   if (field.kind === 'quantity') return quantity.format(Number(value));
   return value;
 }
-interface Props { data: Preview | null; byId: Record<string, Field>; mode: Mode; stale: boolean; busy: boolean;
+interface Props { data: Preview | null; byId: Record<string, Field>; stale: boolean; busy: boolean; error:string;
   canMove:boolean; move(id:string,anchor:string,after:boolean):void;
-  hasFields: boolean; setMode(mode: Mode): void; run(): void; }
-export function PreviewPane({data, byId, mode, stale, busy, hasFields, setMode, run,canMove,move}: Props) {
+  hasFields: boolean; }
+export function PreviewPane({data,byId,stale,busy,error,hasFields,canMove,move}:Props) {
   const table=useRef<HTMLTableElement>(null);
   const [widths,setWidths]=useState<Record<string,number>>({});
   const drag=useRef<{pointer:number; x:number; id:string; width:number}|null>(null);
@@ -61,15 +61,15 @@ export function PreviewPane({data, byId, mode, stale, busy, hasFields, setMode, 
     const current=measure();
     setWidths(prev=>({...prev,...current,[id]:clamp(current[id]+(e.key==='ArrowRight'?16:-16))}));
   }
-  return <section className="preview panel" aria-label="Results preview">
-    <div className="preview-head"><div className="panel-heading"><Icon name="grid"/><h2>Preview</h2></div>
-      <div className="preview-actions">{manual && <button className="text-action" onClick={()=>setWidths({})}>Auto-fit columns</button>}<div className="segments" aria-label="Report mode">{(['summary','detail'] as const).map(m =>
-        <button key={m} aria-pressed={mode === m} onClick={() => setMode(m)}>{m === 'summary' ? 'Summary' : 'Detail'}</button>)}</div>
-        <button className="run-button" onClick={run} disabled={busy || !hasFields}><Icon name="play" size={13}/>{busy ? 'Running…' : 'Run preview'}</button>
-      </div></div>
-    <div className="result-meta" role="status"><span className={'status-dot ' + (stale ? 'amber' : '')}/>
-      {busy ? 'Reading CSV data…' : stale ? 'Report changed · Run preview to update' : data ? 'Preview ready' : 'Awaiting fields'}
-      {data && <span className="result-count">{data.rows.length.toLocaleString()} of {data.total.toLocaleString()} results</span>}</div>
+  return <section className="preview" aria-label="Results preview">
+    <div className="pane-header preview-head"><h2>Results</h2><div className="preview-actions">
+      {data && manual && <button className="text-action" onClick={()=>setWidths({})}>Auto-fit columns</button>}
+      {data && <span className="result-count" role="status">{data.rows.length.toLocaleString()} of {data.total.toLocaleString()} rows</span>}
+    </div></div>
+    <div className="result-meta" role="status">
+      <span className={'status-dot'+(busy?' loading':stale?' amber':data && !error?' ready':'')}/>
+      {busy?'Running preview…':error?'Preview failed':stale?'Report changed. Run preview to update.':data?'Preview ready':'Preview'}</div>
+    {error && <div className="alert preview-alert" role="alert">{error}{data && ' The table shows the previous preview.'}</div>}
     {data ? <div className="table-scroll" tabIndex={0} aria-label="Preview table"><table ref={table}
       className={manual?'manual-widths':undefined} style={manual?{width:ids.reduce((sum,id)=>sum+width(id),0)}:undefined}>
       {manual && <colgroup>{ids.map(id=><col key={id} style={{width:width(id)}}/>)}</colgroup>}<thead><tr>{data.fields.map(id => {
@@ -108,9 +108,7 @@ export function PreviewPane({data, byId, mode, stale, busy, hasFields, setMode, 
     })}</tr></thead><tbody>{data.total===0 && <tr><td colSpan={data.fields.length}>No rows match the current filters.</td></tr>}{data.rows.map((row,i) => <tr key={i}>{row.map((value,j) => {
       const f=byId[data.fields[j]]; return <td key={f.id} title={value??undefined} className={f.measure ? 'numeric' : ''}>{resultCell(value,f)}</td>;
     })}</tr>)}</tbody></table></div> :
-      <div className="empty-preview"><span className="empty-icon"><Icon name="grid" size={25}/></span><strong>{hasFields ? 'Ready to preview' : 'Choose your first field'}</strong>
-        <span>{hasFields ? 'Run the preview to see your report.' : 'Select a field in the library to begin.'}</span></div>}
-    <div className="preview-foot"><Icon name="layers" size={14}/>{stale ? 'Showing the previous preview.' :
-      mode === 'summary' ? 'Measures are summed by the selected dimensions.' : 'Each row represents one source sales record.'}</div>
+      <div className="empty-preview"><span className="empty-icon"><Icon name="grid" size={26}/></span><strong>{busy?'Running preview':hasFields?'No results to display':'Choose your first field'}</strong>
+        {!busy && <span>{hasFields?'Run preview to see your report.':'Select or drag fields from the dataset into the query.'}</span>}</div>}
   </section>;
 }

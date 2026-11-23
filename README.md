@@ -12,8 +12,8 @@ In **Trash**, choose **Delete permanently** and confirm to remove a saved report
 
 **Schedule** opens a delivery draft for the selected report. Choose a recurrence, local time, time zone and To, Cc and Bcc recipients. One draft per report is saved in this browser profile. Opening Schedule again lets you edit or remove it. Email delivery is inactive.
 
-1. Expand Sales, Customers, or Products, or search to reveal matching fields. All three groups start collapsed. Click or drag fields into the report. Drag selected fields to reorder them.
-2. Choose **Summary** to sum measures by the selected dimensions or **Detail** for individual sales rows. In **Fields**, turn on **Sort** for each field to use, and choose **Asc** or **Desc**. **Run preview** displays the first 50 results after sorting.
+1. Browse Sales, Customers, or Products in **Dataset**, or search for a field. Click fields or drag them into **Fields** in the **Data** pane. Drag selected fields to reorder them.
+2. Choose **Summary** to sum measures by the selected dimensions or **Detail** for individual sales rows. In **Fields**, turn on **Sort** for each field to use, and choose **Asc** or **Desc**. **Run preview** displays the first 50 matching rows in **Results** after sorting.
 3. Choose **Save report** and give the definition a name. Choose **Home** to return to the homepage. Saving an existing report updates its revision. If another tab saved first, reopen that revision before editing again.
 
 **Fields** shows the first three columns. **Show more** reveals the full ordered list. Drag the library divider or focus it and use the left and right arrow keys to resize it. The library also has a hide/show button.

@@ -14,8 +14,8 @@ export function FieldsPanel({fields,order,drop,remove,sort}:Props) {
   const settings=new Map(order.map(item=>[item.field,item]));
   const priorities=order.filter(item=>item.enabled!==false).map((_,i)=>i+1);
   const visible=expanded?fields:fields.slice(0,3);
-  return <section className="selection panel" aria-label="Fields" data-library-zone="fields">
-    <div className="selection-head"><div className="panel-heading"><Icon name="fields"/><h2>Fields</h2><span className="count">{fields.length}</span></div></div>
+  return <section className="selection" aria-label="Fields" data-library-zone="fields">
+    <div className="selection-head"><div className="panel-heading"><h4 className="query-label">Fields</h4><span className="count">{fields.length}</span></div></div>
     <div className="configuration-scroll" tabIndex={0} role="group" aria-label="Field order and sorting">
     {fields.length>0 && <><div className="field-control-grid ordering-groups">
       <strong>Column order</strong><strong>Row ordering</strong></div>
@@ -38,7 +38,7 @@ export function FieldsPanel({fields,order,drop,remove,sort}:Props) {
             if(next>=3)setExpanded(true);
             drop(f.id,'fields',fields[next].id,down);
           }}>
-          <Icon name="grip" size={13}/><span className="column-ordinal">{i+1}</span><span className="chip-symbol"><Icon name={f.entity} size={14}/></span>
+          <Icon name="grip" size={13}/><span className="column-ordinal">{i+1}</span>
           <span className="field-name">{f.label}</span></button>
         <button type="button" className="switch field-sort" role="switch" aria-checked={enabled}
           aria-label={'Sort by '+f.label} title={enabled?'Exclude from row sorting':'Include in row sorting'}
@@ -53,7 +53,7 @@ export function FieldsPanel({fields,order,drop,remove,sort}:Props) {
           onClick={()=>sort({field:f.id,direction:desc?'asc':'desc',enabled:true})}>{desc?'↓ Desc':'↑ Asc'}</button>
         <button type="button" className="remove-field" aria-label={'Remove '+f.label} onClick={()=>remove(f.id)}><Icon name="close" size={12}/></button>
       </div>;
-    })}{!fields.length && <span className="drop-hint">Select or drag fields from the library.</span>}</div>
+    })}{!fields.length && <span className="drop-hint"><Icon name="plus" size={15}/>Select or drop fields here</span>}</div>
     </div>
     {fields.length>3 && <button className="text-action more-fields" aria-expanded={expanded} aria-controls="ordered-fields"
       onClick={()=>setExpanded(!expanded)}>{expanded?'Show less':'Show more ('+(fields.length-3)+')'}</button>}

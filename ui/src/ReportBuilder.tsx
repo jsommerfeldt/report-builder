@@ -8,6 +8,7 @@ import {FilterEditor,FiltersPanel} from './FiltersPanel';
 import {LibraryLayout} from './LibraryLayout';
 import {FieldsPanel} from './FieldsPanel';
 import {DropField} from './useFieldDrag';
+import {WorkspaceBar} from './WorkspaceBar';
 
 function numberSorts(order:Order[]):Order[] {
   let rank=0;
@@ -24,8 +25,8 @@ function previewKey(d:Definition) {
   return definitionKey({...d,fields:[...d.fields].sort()});
 }
 const blank:Definition={version:1,source:'sales',mode:'summary',fields:[]};
-interface BuilderProps {catalog:Catalog; client:ReportClient; initialReport?:SavedReport; folderId?:string|null; onHome?():void}
-export function ReportBuilder({catalog,client,initialReport,folderId,onHome}:BuilderProps) {
+interface BuilderProps {catalog:Catalog; client:ReportClient; initialReport?:SavedReport; folderId?:string|null; onHome?():void; onReports?():void}
+export function ReportBuilder({catalog,client,initialReport,folderId,onHome,onReports}:BuilderProps) {
   const initial = initialReport?.definition ?? (onHome ? blank : catalog.starter);
   const [definition, setDefinition] = useState<Definition>(initial);
   const [title, setTitle] = useState(initialReport?.name ?? (onHome ? 'Untitled report' : 'Sales by state and product'));
@@ -135,39 +136,55 @@ export function ReportBuilder({catalog,client,initialReport,folderId,onHome}:Bui
   }
   const close=() => {if (!working) setDialog(null);};
   return <div className="shell">
-    <header className="appbar editor-bar">
-      <div className="brand"><img src="/assets/mark.svg" width="31" height="31" alt=""/><strong>Report Builder</strong></div>
+    <div className="editor-header">
+    <WorkspaceBar active={onReports?'reports':undefined} onHome={onHome && (()=>{if(discardOK())onHome();})}
+      onReports={onReports && (()=>{if(discardOK())onReports();})}/>
+    <header className="editor-bar">
       <div className="bar-title">
         {renaming ? <form className="title-edit" onSubmit={e=>{e.preventDefault();if(name.trim()){setTitle(name.trim());setRenaming(false);}}}>
           <input autoFocus aria-label="Report title" maxLength={80} required value={name} onFocus={e=>e.target.select()}
             onChange={e=>setName(e.target.value)} onKeyDown={e=>{if(e.key==='Escape'){e.preventDefault();setRenaming(false);}}}/>
           <button className="text-action" disabled={!name.trim()}>Apply title</button><button type="button" className="quiet-btn" onClick={()=>setRenaming(false)}>Cancel</button>
         </form> : <h1><button className="rename-title" title="Rename report" aria-label={'Rename report: '+title} onClick={()=>{setName(title);setRenaming(true);}}>
-          {title}<span aria-hidden="true">✎</span></button></h1>}
-        <p className="doc-status">{dirty ? 'Unsaved changes' : saved ? 'Saved changes' : 'Draft report'}</p>
+          <span>{title}</span><Icon name="edit" size={15}/></button></h1>}
+        <p role="status" className={'doc-status'+(dirty?' unsaved':'')}>{dirty?'Unsaved changes':saved?'Saved':'Draft'}</p>
       </div>
       <div className="editor-actions">
+        {!onHome && <button type="button" className="secondary-btn" onClick={openList}>
+          <Icon name="folder" size={16}/>Saved reports</button>}
         <button type="button" className="primary-btn" disabled={!definition.fields.length || renaming}
           onClick={()=>{setCollision(null);setModalError('');setName(title);setDialog('save');}}>
           <Icon name="save" size={16}/>Save report</button>
-        <button type="button" className="primary-btn" onClick={onHome ? ()=>{if(discardOK())onHome();} : openList}>
-          <Icon name={onHome?'home':'folder'} size={16}/>{onHome?'Home':'Saved reports'}</button>
       </div>
     </header>
+    </div>
     <LibraryLayout library={<FieldLibrary key={editorSession} catalog={catalog} fields={definition.fields} toggle={toggle}
       drop={dropField}/>}>
-    <main>
-      {error && <div className="alert" role="alert">{error}</div>}
-      <div className="configuration"><FieldsPanel key={'fields-'+editorSession} fields={definition.fields.map(id=>byId[id])}
-        order={definition.order??[]} drop={dropField} remove={toggle} sort={changeSort}/>
-      <FiltersPanel key={editorSession} fields={catalog.fields} entities={catalog.entities} lookup={client.values} rules={definition.filters ?? []}
-        editor={filterEditor} setEditor={setFilterEditor} start={startFilter}
-        onChange={filters=>{setDefinition(prev=>({...prev,filters}));setNotice('');setError('');}}/></div>
-      <PreviewPane data={displayData} byId={byId} mode={definition.mode} stale={Boolean(shown && shown.key!==previewKey(definition))}
+    <main className="editor-content">
+      <section className="query-controls" aria-labelledby="report-data">
+        <div className="pane-header"><h2 id="report-data">Data</h2></div>
+        <div className="query-scroll">
+          <div className="query-type"><Icon name="grid" size={18}/><strong>Table</strong></div>
+          <h3 className="query-heading">Query</h3>
+          <h4 className="query-label" id="report-mode">Query mode</h4>
+          <div className="segments" role="group" aria-labelledby="report-mode">{(['summary','detail'] as const).map(mode=>
+            <button key={mode} type="button" aria-pressed={definition.mode===mode}
+              onClick={()=>{setDefinition(prev=>({...prev,mode}));setNotice('');}}>{mode==='summary'?'Summary':'Detail'}</button>)}</div>
+          <p className="mode-hint">{definition.mode==='summary'?'Sum measures by the selected dimensions.':'Show one row per matching sales record.'}</p>
+          <FieldsPanel key={'fields-'+editorSession} fields={definition.fields.map(id=>byId[id])}
+            order={definition.order??[]} drop={dropField} remove={toggle} sort={changeSort}/>
+          <FiltersPanel key={editorSession} fields={catalog.fields} entities={catalog.entities} lookup={client.values} rules={definition.filters??[]}
+            editor={filterEditor} setEditor={setFilterEditor} start={startFilter}
+            onChange={filters=>{setDefinition(prev=>({...prev,filters}));setNotice('');setError('');}}/>
+        </div>
+        <div className="query-footer">
+          <button className="primary-btn" disabled={busy || !definition.fields.length} onClick={()=>void run(definition)}>
+            <Icon name="play" size={15}/>{busy?'Running…':'Run preview'}</button>
+        </div>
+      </section>
+      <PreviewPane data={displayData} byId={byId} stale={Boolean(shown && shown.key!==previewKey(definition))} error={error}
         canMove={sameColumns} move={(id,anchor,after)=>dropField(id,'fields',anchor,after)}
-        busy={busy} hasFields={Boolean(definition.fields.length)} setMode={mode => {setDefinition({...definition,mode});setNotice('');}}
-        run={() => void run(definition)}/>
-      <div className="scope-foot"><span><Icon name="lock" size={13}/>On this device</span><span>{catalog.counts.sales.toLocaleString()} sales records</span></div>
+        busy={busy} hasFields={Boolean(definition.fields.length)}/>
       <p className="sr-only" role="status">{notice}</p>
     </main></LibraryLayout>
     {dialog==='save' && <Modal title={collision?'Replace saved report?':'Save report'} close={close}><form onSubmit={save}>

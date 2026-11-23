@@ -4,6 +4,7 @@ import {Catalog, pilotClient, pilotLibrary, request, RequestError} from './clien
 import {ReportWorkspace} from './ReportWorkspace';
 import {browserScheduleDrafts} from './scheduleDrafts';
 import './theme.css';
+import './builder.css';
 import './workspace.css';
 
 const root=document.getElementById('root');
