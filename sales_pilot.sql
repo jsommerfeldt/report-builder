@@ -27,7 +27,7 @@ WITH pilot_companies AS (
            departmentdescription, commoditydescription, classdescription
     FROM public.dim_products WHERE product_key IN (SELECT product_key FROM pilot_sales)
 ), pilot_trips AS (
-    SELECT trip_key, tripnumber, tripdescription, dispatchdatetime::date AS dispatchdate
+    SELECT trip_key, tripnumber, tripdescription, dispatchdatetime::date AS dispatchdate, dispatchdatetime
     FROM public.dim_trips WHERE trip_key IN (SELECT trip_key FROM pilot_sales)
 ), pilot_joined AS (
     SELECT f.*, c.customer_key AS matched_customer, p.product_key AS matched_product,

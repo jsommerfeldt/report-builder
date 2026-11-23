@@ -7,9 +7,10 @@ import {PreviewPane} from './PreviewPane';
 import {FilterEditor,FiltersPanel} from './FiltersPanel';
 import {LibraryLayout} from './LibraryLayout';
 import {FieldsPanel} from './FieldsPanel';
+import {QueryCard} from './QueryCard';
 import {DropField} from './useFieldDrag';
 import {WorkspaceBar} from './WorkspaceBar';
-import {QueryModeExamples} from './QueryModeExamples';
+import {QUERY_MODE_EXAMPLE_TITLE, QueryModeExamples} from './QueryModeExamples';
 
 function numberSorts(order:Order[]):Order[] {
   let rank=0;
@@ -17,7 +18,11 @@ function numberSorts(order:Order[]):Order[] {
 }
 
 function definitionKey(d:Definition) {
-  return JSON.stringify([d.version,d.source,d.mode,d.fields,(d.filters ?? []).map(r=>[r.field,r.op,r.value,r.enabled]),
+  return JSON.stringify([d.version,d.source,d.mode,d.fields,(d.filters ?? []).map(r=>{
+    const value=r.value;
+    const operand=typeof value==='object' && !Array.isArray(value)?[value.direction,value.amount,value.unit]:value;
+    return [r.field,r.op,operand,r.enabled,r.caseSensitive??false];
+  }),
     d.fields.map(id=>{const o=d.order?.find(item=>item.field===id);return [id,o?.direction??'asc',!!o && o.enabled!==false,o?.priority??null];})]);
 }
 const message = (e: unknown) => e instanceof Error ? e.message : 'The operation failed.';
@@ -51,6 +56,8 @@ export function ReportBuilder({catalog,client,initialReport,folderId,onReports}:
   const generation = useRef(0);
   const modeHelp = useRef<HTMLButtonElement>(null);
   const byId = useMemo(() => Object.fromEntries(catalog.fields.map(f => [f.id, f])) as Record<string,Field>, [catalog]);
+  const groupFields=definition.fields.map(id=>byId[id]).filter(field=>!field.measure);
+  const grouped=definition.mode==='summary';
   const lookup = useCallback((field:string, query:string, offset:number)=>client.values(field,query,offset,definition.version),
     [client,definition.version]);
   const key = definitionKey(definition);
@@ -174,13 +181,6 @@ export function ReportBuilder({catalog,client,initialReport,folderId,onReports}:
               aria-controls="query-contents" onClick={()=>setQueryCollapsed(collapsed=>!collapsed)}>
               <Icon name="chevron" size={16}/>Query
             </button></h3>
-            {!queryCollapsed && <div className="query-mode">
-              <button ref={modeHelp} type="button" className="icon-button query-help" aria-label="Query mode examples" aria-haspopup="dialog"
-                title="Query mode examples" onClick={()=>setDialog('query-mode')}><Icon name="help"/></button>
-              <div className="segments" role="group" aria-label="Query mode">{(['summary','detail'] as const).map(mode=>
-                <button key={mode} type="button" aria-pressed={definition.mode===mode}
-                  onClick={()=>{setDefinition(prev=>({...prev,mode}));setNotice('');}}>{mode==='summary'?'Summary':'Detail'}</button>)}</div>
-            </div>}
           </div>
           <div className="query-body" id="query-contents" hidden={queryCollapsed}>
             <div className="query-scroll">
@@ -189,6 +189,18 @@ export function ReportBuilder({catalog,client,initialReport,folderId,onReports}:
               <FiltersPanel key={editorSession} fields={catalog.fields} entities={catalog.entities} lookup={lookup} rules={definition.filters??[]}
                 editor={filterEditor} setEditor={setFilterEditor} start={startFilter}
                 onChange={filters=>{setDefinition(prev=>({...prev,filters}));setNotice('');setError('');}}/>
+              <QueryCard title="Grouping" icon="group" actions={
+                <button ref={modeHelp} type="button" className="icon-button query-help" aria-label={QUERY_MODE_EXAMPLE_TITLE} aria-haspopup="dialog"
+                  title={QUERY_MODE_EXAMPLE_TITLE} onClick={()=>setDialog('query-mode')}><Icon name="help"/></button>
+              }>
+                <label className="grouping-option"><input type="checkbox" checked={grouped} aria-describedby="grouping-description"
+                  onChange={e=>{
+                    const mode=e.target.checked?'summary':'detail';
+                    setDefinition(prev=>({...prev,mode}));setNotice('');setError('');
+                  }}/>Group rows and total measures</label>
+                <p className="hint grouping-description" id="grouping-description">{!grouped?'One row per sale.':
+                  groupFields.length?'Group by '+groupFields.map(field=>field.label).join(', ')+'.':'One total row when only measures are selected.'}</p>
+              </QueryCard>
             </div>
             <div className="query-footer">
               {catalog.scope.companies && <div className="query-scope">

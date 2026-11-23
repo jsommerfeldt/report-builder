@@ -8,7 +8,7 @@ export function FieldLibrary({catalog, fields, toggle, drop}: {catalog: Catalog;
   drop:DropField}) {
   const {begin,moved}=useFieldDrag(drop);
   const [search, setSearch] = useState('');
-  const [closed, setClosed] = useState<Entity[]>([]);
+  const [open, setOpen] = useState<Entity[]>([]);
   const query = search.trim().toLowerCase();
   const found = catalog.fields.filter(f => (catalog.entities[f.entity] + ' ' + f.label).toLowerCase().includes(query));
   return <div className="library-body">
@@ -16,10 +16,10 @@ export function FieldLibrary({catalog, fields, toggle, drop}: {catalog: Catalog;
       <div className="field-groups">{entityOrder.map(entity => {
         const items = found.filter(f => f.entity === entity);
         if (!items.length) return null;
-        const expanded = Boolean(query) || !closed.includes(entity);
+        const expanded = Boolean(query) || open.includes(entity);
         return <section className={'field-group ' + entity} key={entity}>
-          <button className="group-title" aria-expanded={expanded} onClick={() => setClosed(prev =>
-            prev.includes(entity) ? prev.filter(x => x !== entity) : [...prev, entity])}>
+          <button className="group-title" aria-expanded={expanded} aria-disabled={query?true:undefined}
+            onClick={() => {if(!query)setOpen(prev=>prev.includes(entity)?prev.filter(x=>x!==entity):[...prev,entity]);}}>
             <span className="entity-icon"><Icon name={entity} size={16}/></span>
             <strong>{catalog.entities[entity]}</strong><span className="group-count">{items.length}</span>
             <span className={expanded ? 'twist' : 'twist closed'}><Icon name="chevron" size={15}/></span>
@@ -27,7 +27,8 @@ export function FieldLibrary({catalog, fields, toggle, drop}: {catalog: Catalog;
           {expanded && <div className="field-list">{items.map(f => <label key={f.id} className="field-row"
             onPointerDown={e=>begin(e,f.id)} onClickCapture={e=>{if(moved.current && e.detail>0){e.preventDefault();moved.current=false;}}}>
             <input type="checkbox" checked={fields.includes(f.id)} onChange={() => toggle(f.id)}/>
-            <span className="field-type" aria-hidden="true">{f.measure?'#':f.kind==='date'?<Icon name="date" size={13}/>:'ABC'}</span>
+            <span className="field-type" aria-hidden="true">{f.measure?'#':f.kind==='date'?<Icon name="date" size={13}/>:
+              f.kind==='datetime'?<Icon name="clock" size={13}/>:'ABC'}</span>
             <span>{f.label}</span><span className="tick"><Icon name="check" size={12}/></span>
           </label>)}</div>}
         </section>;

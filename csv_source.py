@@ -3,20 +3,25 @@
 import csv
 import hashlib
 import json
+from datetime import datetime
 from decimal import Decimal
 from pathlib import Path
 
-from model import (BY_ID, COMPANIES, CSV_COLUMNS, FIELDS, LEGACY_COLUMNS, LEGACY_COMPANY, MEASURES,
-                   PREVIEW_LIMIT, RELATIONSHIPS, InvalidDefinition, filter_operand, validate_definition)
+from model import (BY_ID, COMPANIES, CSV_COLUMNS, CSV_COLUMNS_WITH_DATETIME, FIELDS, LEGACY_COLUMNS, LEGACY_COMPANY,
+                   MEASURES, PREVIEW_LIMIT, RELATIONSHIPS, InvalidDefinition, filter_operand, relative_range,
+                   validate_definition)
 
 
-def matches_filter(sources, field, op, expected):
+def matches_filter(sources, field, op, expected, case_sensitive):
     actual = sources[field.entity][field.column]
     if op == "blank":
         return actual is None or actual == ""
     if actual is None:
         return False
-    if field.kind == "text":
+    if op == "relative":
+        start, end = expected
+        return start <= actual < end
+    if field.kind == "text" and not case_sensitive:
         actual = actual.casefold()
     if op == "in":
         return actual in expected
@@ -27,6 +32,12 @@ def matches_filter(sources, field, op, expected):
     if op == "lte":
         return actual <= expected
     return actual == expected
+
+
+def cell_value(value):
+    if isinstance(value, datetime):
+        return value.isoformat(sep=" ")
+    return str(value) if isinstance(value, Decimal) else value
 
 
 def file_hash(path):
@@ -55,7 +66,11 @@ class CsvSnapshot:
         self.version = manifest.get("snapshot_version", 1)
         if self.version not in (1, 2):
             raise ValueError("Unsupported snapshot version.")
-        columns = CSV_COLUMNS if self.version == 2 else LEGACY_COLUMNS
+        self.has_dispatch_time = manifest.get("trip_datetime") is True
+        if self.has_dispatch_time and self.version != 2:
+            raise ValueError("Dispatch timestamps require an expanded snapshot.")
+        columns = CSV_COLUMNS_WITH_DATETIME if self.has_dispatch_time else CSV_COLUMNS if self.version == 2 else LEGACY_COLUMNS
+        self.blank_trip = dict.fromkeys(columns.get("dim_trips", ()))
         relationships = {entity: spec for entity, spec in RELATIONSHIPS.items() if spec[0] in columns}
         fields_by_entity = {"sales": columns["fact_sales"],
                             **{entity: columns[spec[0]] for entity, spec in relationships.items()}}
@@ -78,6 +93,15 @@ class CsvSnapshot:
                 key = row[pk]
                 if not key or key in rows:
                     raise ValueError(f"Invalid or repeated key in {table}.csv.")
+                if entity == "trip" and self.has_dispatch_time:
+                    timestamp = row["dispatchdatetime"]
+                    if timestamp is not None:
+                        timestamp = filter_operand(BY_ID["trip.dispatchdatetime"], timestamp)
+                        if timestamp.date().isoformat() != row["dispatchdate"]:
+                            raise ValueError("A dispatch timestamp does not match its dispatch date.")
+                        row["dispatchdatetime"] = timestamp
+                    elif row["dispatchdate"] is not None:
+                        raise ValueError("Missing timestamp for a trip with a dispatch date.")
                 rows[key] = row
             self.dimensions[entity] = rows
         facts = list(records(folder, "fact_sales", columns["fact_sales"]))
@@ -163,25 +187,30 @@ class CsvSnapshot:
         distinct = {row[field.column] for row in source}
         distinct.discard(None)
         distinct.discard("")
-        values = [format(v, "f") if isinstance(v, Decimal) else v for v in sorted(distinct)]
+        values = [format(v, "f") if isinstance(v, Decimal) else cell_value(v) for v in sorted(distinct)]
         term = query.strip().casefold()
         matches = [v for v in values if term in v.casefold()]
         return {"values": matches[offset:offset+50], "total": len(matches)}
 
-    def preview(self, raw, *, offset=0, limit=PREVIEW_LIMIT):
+    def preview(self, raw, *, offset=0, limit=PREVIEW_LIMIT, now=None):
         definition = self.definition(raw)
         facts = self.scoped_facts(definition["version"])
         fields = [BY_ID[key] for key in definition["fields"]]
         entities = {field.entity for field in fields if field.entity in RELATIONSHIPS}
         active = []
+        now = datetime.now() if now is None else now
         for rule in definition.get("filters", []):
             if rule["enabled"]:
                 field = BY_ID[rule["field"]]
-                if rule["op"] == "in":
-                    operand = frozenset(filter_operand(field, item) for item in rule["value"])
+                op, value = rule["op"], rule["value"]
+                case_sensitive = rule.get("caseSensitive", False)
+                if op == "in":
+                    operand = frozenset(filter_operand(field, item, case_sensitive=case_sensitive) for item in value)
+                elif op == "relative":
+                    operand = relative_range(field, value, now)
                 else:
-                    operand = None if rule["op"] == "blank" else filter_operand(field, rule["value"])
-                active.append((field, rule["op"], operand))
+                    operand = None if op == "blank" else filter_operand(field, value, case_sensitive=case_sensitive)
+                active.append((field, op, operand, case_sensitive))
                 if field.entity in RELATIONSHIPS:
                     entities.add(field.entity)
         dimension_pos = [i for i, field in enumerate(fields) if not field.measure]
@@ -193,12 +222,11 @@ class CsvSnapshot:
         order = [spec for spec in definition.get("order", []) if spec.get("enabled", True)]
         end = None if limit is None else offset + limit
         candidates = facts[offset:end] if detail and not active and not order else facts
-        blank_trip = dict.fromkeys(CSV_COLUMNS["dim_trips"])
         for fact in candidates:
             sources = {"sales": fact}
             for entity in entities:
                 fk = RELATIONSHIPS[entity][1]
-                sources[entity] = blank_trip if entity == "trip" and fact[fk] is None else self.dimensions[entity][fact[fk]]
+                sources[entity] = self.blank_trip if entity == "trip" and fact[fk] is None else self.dimensions[entity][fact[fk]]
             if any(not matches_filter(sources, *rule) for rule in active):
                 continue
             matched += 1
@@ -231,5 +259,5 @@ class CsvSnapshot:
         if not detail or order:
             rows = rows[offset:end]
         return {"fields": definition["fields"], "rows": [
-            [str(value) if isinstance(value, Decimal) else value for value in row] for row in rows
+            [cell_value(value) for value in row] for row in rows
         ], "total": total, "limit": limit, "sourceRows": len(facts)}

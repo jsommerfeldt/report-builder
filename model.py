@@ -1,7 +1,7 @@
 """Report definitions and the pilot's explicit sales relationship catalog."""
 
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, datetime, time, timedelta
 from decimal import Decimal
 import re
 
@@ -18,6 +18,7 @@ CSV_COLUMNS = {
     "dim_products": (*LEGACY_COLUMNS["dim_products"], "departmentdescription", "commoditydescription", "classdescription"),
     "dim_trips": ("trip_key", "tripnumber", "tripdescription", "dispatchdate"),
 }
+CSV_COLUMNS_WITH_DATETIME = {**CSV_COLUMNS, "dim_trips": (*CSV_COLUMNS["dim_trips"], "dispatchdatetime")}
 COMPANIES = ("0001", "0030")
 LEGACY_COMPANY = "0030"
 ENTITIES = {"sales": "Sales", "customer": "Customers", "product": "Products", "trip": "Trips"}
@@ -69,6 +70,7 @@ FIELDS = (
     Field("trip", "tripnumber", "Trip number"),
     Field("trip", "tripdescription", "Trip description"),
     Field("trip", "dispatchdate", "Dispatch date", "date"),
+    Field("trip", "dispatchdatetime", "Dispatch Date and Time", "datetime"),
 )
 BY_ID = {field.id: field for field in FIELDS}
 MEASURES = tuple(field.column for field in FIELDS if field.measure)
@@ -82,7 +84,7 @@ class InvalidDefinition(ValueError):
     pass
 
 
-def filter_operand(field, value):
+def filter_operand(field, value, *, case_sensitive=False):
     if field.measure:
         if not re.fullmatch(r"[+-]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)", value):
             raise InvalidDefinition("Enter a decimal number for " + field.label + ".")
@@ -91,20 +93,51 @@ def filter_operand(field, value):
         try:
             return date.fromisoformat(value).isoformat()
         except ValueError:
-            raise InvalidDefinition("Enter a valid reporting date.") from None
-    return value.casefold()
+            raise InvalidDefinition("Enter a valid date for " + field.label + ".") from None
+    if field.kind == "datetime":
+        try:
+            if not re.fullmatch(r"[0-9]{4}-[0-9]{2}-[0-9]{2}[T ][0-9]{2}:[0-9]{2}(?::[0-9]{2}(?:\.[0-9]{1,6})?)?", value):
+                raise ValueError
+            return datetime.fromisoformat(value)
+        except ValueError:
+            raise InvalidDefinition("Enter a valid local date and time for " + field.label + ".") from None
+    return value if case_sensitive else value.casefold()
+
+
+def relative_range(field, value, now):
+    amount, unit, direction = value["amount"], value["unit"], value["direction"]
+    if unit == "hours":
+        span = timedelta(hours=amount)
+        return (now - span, now) if direction == "last" else (now, now + span)
+    days = amount * (7 if unit == "weeks" else 1)
+    today = now.date()
+    start = today - timedelta(days=days-1) if direction == "last" else today
+    end = start + timedelta(days=days)
+    if field.kind == "datetime":
+        return datetime.combine(start, time.min), datetime.combine(end, time.min)
+    return start.isoformat(), end.isoformat()
 
 
 def validate_filters(rules):
     if not isinstance(rules, list) or len(rules) > 32:
         raise InvalidDefinition("A report supports up to 32 filters.")
     for rule in rules:
-        if not isinstance(rule, dict) or set(rule) != {"field", "op", "value", "enabled"}:
+        if not isinstance(rule, dict) or set(rule) - {"caseSensitive"} != {"field", "op", "value", "enabled"}:
             raise InvalidDefinition("Invalid filter format.")
         key, op, value = rule["field"], rule["op"], rule["value"]
         if not isinstance(key, str) or key not in BY_ID or type(rule["enabled"]) is not bool:
             raise InvalidDefinition("Choose an available filter field.")
         field = BY_ID[key]
+        if "caseSensitive" in rule and (type(rule["caseSensitive"]) is not bool or
+                field.kind != "text" or op not in ("in", "eq", "contains")):
+            raise InvalidDefinition("Match case is available only for text comparisons.")
+        if op == "relative":
+            units = {"date": ("days", "weeks"), "datetime": ("hours", "days", "weeks")}.get(field.kind, ())
+            if (not isinstance(value, dict) or set(value) != {"amount", "unit", "direction"}
+                    or type(value["amount"]) is not int or not 1 <= value["amount"] <= 365
+                    or value["unit"] not in units or value["direction"] not in ("last", "next")):
+                raise InvalidDefinition("Choose a relative period between 1 and 365 for a date or date and time field.")
+            continue
         if op == "in":
             if not isinstance(value, list) or not 1 <= len(value) <= 256:
                 raise InvalidDefinition("Select between 1 and 256 filter values.")

@@ -4,7 +4,7 @@ import csv
 import json
 import tempfile
 import unittest
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
 
@@ -13,7 +13,7 @@ from itsdangerous import URLSafeTimedSerializer
 from app import make_app
 from csv_source import CsvSnapshot, file_hash
 from local_paths import ORIGIN
-from model import CSV_COLUMNS, LEGACY_COLUMNS, InvalidDefinition
+from model import CSV_COLUMNS, CSV_COLUMNS_WITH_DATETIME, LEGACY_COLUMNS, InvalidDefinition
 from report_store import ReportStore
 
 
@@ -72,12 +72,11 @@ class PilotTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "checksum"):
             CsvSnapshot(self.path)
 
-    def test_expanded_scope_and_unassigned_trip(self):
-        saved = ReportStore(self.reports).save({"name": "Legacy sales", "definition": self.d})
-        original_rows = self.snapshot.preview(self.d)["rows"]
+    def expanded_fixture(self, *, with_dispatch_time=False):
         expanded = self.path / "expanded"
         expanded.mkdir()
-        for table, columns in CSV_COLUMNS.items():
+        schema = CSV_COLUMNS_WITH_DATETIME if with_dispatch_time else CSV_COLUMNS
+        for table, columns in schema.items():
             with (expanded / f"{table}.csv").open("w", encoding="utf-8", newline="") as stream:
                 writer = csv.DictWriter(stream, columns, quoting=csv.QUOTE_NOTNULL)
                 writer.writeheader()
@@ -87,8 +86,11 @@ class PilotTest(unittest.TestCase):
                     writer.writerow({**legacy_facts[0], "company_key": "1", "company": "0001",
                                      "trip_key": None, "sales": "20", "creditsales": "0", "shipquantitycseq": "2"})
                 elif table == "dim_trips":
-                    writer.writerow({"trip_key": "7", "tripnumber": "000007", "tripdescription": "Sample trip",
-                                     "dispatchdate": "2026-11-10"})
+                    trip = {"trip_key": "7", "tripnumber": "000007", "tripdescription": "Sample trip",
+                            "dispatchdate": "2026-11-10"}
+                    if with_dispatch_time:
+                        trip["dispatchdatetime"] = "2026-11-10T12:30:22.123456"
+                    writer.writerow(trip)
                 elif table == "dim_customers":
                     writer.writerows({**row, "shippingzip": "00501", "customerregiondescription": "North"}
                                      for row in self.snapshot.dimensions["customer"].values())
@@ -103,10 +105,17 @@ class PilotTest(unittest.TestCase):
         }
         (expanded / "manifest.json").write_text(json.dumps({
             "snapshot_version": 2, "scope": {"companies": ["0001", "0030"]},
-            "sha256": {table: file_hash(expanded / f"{table}.csv") for table in CSV_COLUMNS},
+            "trip_datetime": with_dispatch_time,
+            "sha256": {table: file_hash(expanded / f"{table}.csv") for table in schema},
             "verification": control,
         }), encoding="utf-8")
-        snapshot = CsvSnapshot(expanded)
+        return CsvSnapshot(expanded)
+
+    def test_expanded_scope_and_unassigned_trip(self):
+        saved = ReportStore(self.reports).save({"name": "Legacy sales", "definition": self.d})
+        original_rows = self.snapshot.preview(self.d)["rows"]
+        snapshot = self.expanded_fixture()
+        self.assertNotIn("trip.dispatchdatetime", snapshot.field_ids)
         definition = {**self.d, "version": 2, "fields": ["sales.company", "product.commoditydescription",
                       "customer.customerregiondescription", "trip.tripnumber", "sales.sales"]}
         self.assertEqual(snapshot.preview(definition)["rows"], [
@@ -125,6 +134,62 @@ class PilotTest(unittest.TestCase):
         self.assertEqual(results.status_code, 200)
         self.assertEqual(results.json["rows"], original_rows)
         self.assertEqual(results.json["sourceRows"], 3)
+
+    def test_text_filter_case_sensitivity(self):
+        self.snapshot.dimensions["customer"]["4"]["customername"] = "sample"
+        definition = {**self.d, "mode": "detail", "fields": ["customer.customername"]}
+        for op, value in (("eq", "sample"), ("contains", "sam"), ("in", ["sample"])):
+            with self.subTest(op=op):
+                rule = {"field": "customer.customername", "op": op, "value": value, "enabled": True}
+                self.assertEqual(self.snapshot.preview({**definition, "filters": [rule]})["total"], 3)
+                rule["caseSensitive"] = True
+                self.assertEqual(self.snapshot.preview({**definition, "filters": [rule]})["rows"], [["sample"]])
+                rule["caseSensitive"] = "true"
+                with self.assertRaises(InvalidDefinition):
+                    self.snapshot.preview({**definition, "filters": [rule]})
+
+    def test_relative_date_filters_use_the_run_date(self):
+        rule = {"field": "sales.reporting_date", "op": "relative", "enabled": True,
+                "value": {"direction": "last", "amount": 1, "unit": "days"}}
+        definition = {**self.d, "mode": "detail", "fields": ["sales.reporting_date"], "filters": [rule]}
+        store = ReportStore(self.reports)
+        saved = store.save({"name": "Daily sales", "definition": definition})
+        reopened = store.get(saved["id"])["definition"]
+        self.assertEqual(reopened["filters"], [rule])
+        for day, count in [(9, 2), (10, 1), (11, 0)]:
+            with self.subTest(day=day):
+                self.assertEqual(self.snapshot.preview(reopened, now=datetime(2026, 11, day, 8))["total"], count)
+        rule["value"] = {"direction": "next", "amount": 1, "unit": "weeks"}
+        self.assertEqual(self.snapshot.preview(definition, now=datetime(2026, 11, 9))["total"], 3)
+        for bad in ({"amount": True}, {"amount": 366}, {"unit": "hours"}, {"direction": "bad"}):
+            with self.subTest(bad=bad), self.assertRaises(InvalidDefinition):
+                invalid = {**rule, "value": {**rule["value"], **bad}}
+                self.snapshot.preview({**definition, "filters": [invalid]})
+
+    def test_datetime_filters_with_unassigned_trips(self):
+        snapshot = self.expanded_fixture(with_dispatch_time=True)
+        field = "trip.dispatchdatetime"
+        timestamp = "2026-11-10 12:30:22.123456"
+        self.assertEqual(snapshot.choices({"field": field})["values"], [timestamp])
+        definition = {**self.d, "version": 2, "mode": "detail", "fields": [field]}
+        now = datetime(2026, 11, 10, 13)
+        for op, value, expected in [
+            ("eq", timestamp.replace(" ", "T"), [[timestamp]] * 3),
+            ("in", [timestamp], [[timestamp]] * 3),
+            ("gte", "2026-11-10T13:00", []),
+            ("lte", "2026-11-10T12:30:22.123456", [[timestamp]] * 3),
+            ("blank", "", [[None]]),
+            ("relative", {"direction": "last", "amount": 1, "unit": "hours"}, [[timestamp]] * 3),
+            ("relative", {"direction": "next", "amount": 1, "unit": "hours"}, []),
+            ("relative", {"direction": "next", "amount": 1, "unit": "days"}, [[timestamp]] * 3),
+        ]:
+            with self.subTest(op=op, value=value):
+                rule = {"field": field, "op": op, "value": value, "enabled": True}
+                self.assertEqual(snapshot.preview({**definition, "filters": [rule]}, now=now)["rows"], expected)
+        for invalid in ("2026-11-10T12:30Z", "2026-11-31T12:30", "2026-11-10"):
+            with self.subTest(invalid=invalid), self.assertRaises(InvalidDefinition):
+                rule = {"field": field, "op": "eq", "value": invalid, "enabled": True}
+                snapshot.preview({**definition,"filters": [rule]})
 
     def test_filters_before_grouping_and_in_detail(self):
         rules = [

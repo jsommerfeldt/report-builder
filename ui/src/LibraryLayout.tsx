@@ -29,15 +29,15 @@ export function LibraryLayout({library,children}:{library:React.ReactNode;childr
   }
   return <section ref={layout} style={layoutStyle} className={'build-report'+(hidden?' library-hidden':'')} aria-labelledby="build-report-heading">
     <div className="pane-header build-header"><h2 id="build-report-heading">Build Report</h2></div>
-    <aside className="library-wrap" aria-labelledby="columns-heading">
+    <aside className="library-wrap" aria-labelledby="objects-heading">
       <div className="library-heading">
-        <h3 id="columns-heading"><button type="button" className="pane-disclosure" aria-expanded={!hidden}
+        <h3 id="objects-heading"><button type="button" className="pane-disclosure" aria-expanded={!hidden}
           aria-controls="library-contents" onClick={()=>setHidden(value=>!value)}>
-          <Icon name="chevron" size={16}/>Columns
+          <Icon name="chevron" size={16}/><Icon name="layers" size={16}/>Objects
         </button></h3>
       </div>
       <div id="library-contents" hidden={hidden}>{library}</div>
-      {!hidden && <div className="library-resize" role="separator" tabIndex={0} aria-label="Columns pane width"
+      {!hidden && <div className="library-resize" role="separator" tabIndex={0} aria-label="Objects pane width"
         aria-orientation="vertical" aria-valuemin={min} aria-valuemax={maxWidth} aria-valuenow={libraryWidth}
         title="Drag to resize or use the arrow keys"
         onPointerDown={e=>{if(e.button!==0)return;drag.current={x:e.clientX,width:libraryWidth};e.currentTarget.setPointerCapture(e.pointerId);}}

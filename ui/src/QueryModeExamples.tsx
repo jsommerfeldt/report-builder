@@ -25,8 +25,10 @@ function ModeExample({mode, description, rows, children}: ExampleProps) {
   </section>;
 }
 
+export const QUERY_MODE_EXAMPLE_TITLE = 'Query Mode Example';
+
 export function QueryModeExamples({close}:{close():void}) {
-  return <Modal title="Query mode examples" className="mode-dialog" close={close}>
+  return <Modal title={QUERY_MODE_EXAMPLE_TITLE} className="mode-dialog" close={close}>
     <p className="mode-intro">Both previews use <strong>Shipping state</strong> and <strong>Sales</strong> from the same three sample sales.</p>
     <div className="mode-comparison">
       <ModeExample mode="Detail" description="One row for each sale."

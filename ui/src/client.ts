@@ -1,10 +1,13 @@
 export type Entity = 'sales' | 'customer' | 'product' | 'trip';
 export type Mode = 'summary' | 'detail';
-export type FilterOp = 'eq' | 'contains' | 'gte' | 'lte' | 'blank' | 'in';
-export interface ReportFilter { field: string; op: FilterOp; value: string | string[]; enabled: boolean }
+export type FilterOp = 'eq' | 'contains' | 'gte' | 'lte' | 'blank' | 'in' | 'relative';
+export interface RelativePeriod {amount:number; unit:'hours'|'days'|'weeks'; direction:'last'|'next'}
+export interface ReportFilter {
+  field:string; op:FilterOp; value:string|string[]|RelativePeriod; enabled:boolean; caseSensitive?:boolean;
+}
 export interface Order {field:string; direction:'asc'|'desc'; enabled?:boolean; priority?:number}
 export interface Definition { version: 1|2; source: 'sales'; mode: Mode; fields: string[]; filters?: ReportFilter[]; order?:Order[] }
-export interface Field { id: string; entity: Entity; label: string; kind: 'currency' | 'quantity' | 'date' | 'text'; measure: boolean }
+export interface Field { id: string; entity: Entity; label: string; kind: 'currency' | 'quantity' | 'date' | 'datetime' | 'text'; measure: boolean }
 export interface Catalog {
   entities: Record<Entity, string>; fields: Field[]; counts: Record<Entity, number>;
   scope: {company?: string; companies?: string[]; from: string; through: string}; starter: Definition;

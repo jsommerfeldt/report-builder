@@ -2,6 +2,7 @@ import React,{useState} from 'react';
 import {Field,Order} from './client';
 import {Icon} from './Icon';
 import {DropField,useFieldDrag} from './useFieldDrag';
+import {QueryCard} from './QueryCard';
 
 interface Props {
   fields:Field[]; order:Order[]; drop:DropField;
@@ -14,12 +15,8 @@ export function FieldsPanel({fields,order,drop,remove,sort}:Props) {
   const settings=new Map(order.map(item=>[item.field,item]));
   const priorities=order.filter(item=>item.enabled!==false).map((_,i)=>i+1);
   const visible=expanded?fields:fields.slice(0,3);
-  return <section className="query-card selection" aria-labelledby="selected-fields-heading" data-library-zone="fields">
-    <header className="query-card-heading">
-      <h4 id="selected-fields-heading"><Icon name="grid" size={16}/>Selected fields</h4>
-      <span className="count">{fields.length}</span>
-    </header>
-    <div className="query-card-body">
+  return <QueryCard title="Columns" icon="grid" className="selection" dropZone="fields"
+    actions={<span className="count" aria-label={fields.length+' selected columns'}>{fields.length}</span>}>
     <div className="configuration-scroll" tabIndex={0} role="group" aria-label="Field order and sorting">
     {fields.length>0 && <><div className="field-control-grid ordering-groups">
       <strong>Column Order</strong><strong>Row Order</strong></div>
@@ -61,6 +58,5 @@ export function FieldsPanel({fields,order,drop,remove,sort}:Props) {
     </div>
     {fields.length>3 && <button className="text-action more-fields" aria-expanded={expanded} aria-controls="ordered-fields"
       onClick={()=>setExpanded(!expanded)}>{expanded?'Show less':'Show more ('+(fields.length-3)+')'}</button>}
-    </div>
-  </section>;
+  </QueryCard>;
 }

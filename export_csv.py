@@ -12,8 +12,8 @@ from pathlib import Path
 from urllib.parse import parse_qs, unquote, urlsplit
 
 from csv_source import CsvSnapshot, control_amount, file_hash
-from local_paths import EXPANDED_SNAPSHOT, HERE, LEGACY_SNAPSHOT, SNAPSHOT_POINTER, private_home
-from model import COMPANIES, CSV_COLUMNS, MEASURES
+from local_paths import DATETIME_SNAPSHOT, EXPANDED_SNAPSHOT, HERE, LEGACY_SNAPSHOT, SNAPSHOT_POINTER, private_home
+from model import COMPANIES, CSV_COLUMNS_WITH_DATETIME, MEASURES
 
 SUMMARY_FIELDS = ("sales.company", "product.commoditydescription", "customer.customerregiondescription",
                   "trip.tripnumber", *(f"sales.{measure}" for measure in MEASURES))
@@ -51,7 +51,7 @@ def write_snapshot(folder):
     source_summary = {}
     with ExitStack() as files:
         writers = {}
-        for table, columns in CSV_COLUMNS.items():
+        for table, columns in CSV_COLUMNS_WITH_DATETIME.items():
             stream = files.enter_context((folder / f"{table}.csv").open("x", encoding="utf-8", newline=""))
             writers[table] = csv.DictWriter(stream, fieldnames=columns, quoting=csv.QUOTE_NOTNULL)
             writers[table].writeheader()
@@ -67,7 +67,7 @@ def write_snapshot(folder):
                         if key in source_summary:
                             raise ValueError("Duplicate direct SQL summary group.")
                         source_summary[key] = tuple(control_amount(record[measure]) for measure in MEASURES)
-                    elif table in writers and set(record) == set(CSV_COLUMNS[table]):
+                    elif table in writers and set(record) == set(CSV_COLUMNS_WITH_DATETIME[table]):
                         writers[table].writerow(record)
                     else:
                         raise ValueError("Unexpected warehouse export shape.")
@@ -77,9 +77,9 @@ def write_snapshot(folder):
                 if source.poll() is None:
                     source.kill()
                 source.stdout.close()
-    manifest = {"snapshot_version": 2,
+    manifest = {"snapshot_version": 2, "trip_datetime": True,
                 "scope": {"companies": list(COMPANIES), "from": "2026-11-09", "through": "2026-11-15"},
-                "verification": controls, "sha256": {t: file_hash(folder / f"{t}.csv") for t in CSV_COLUMNS}}
+                "verification": controls, "sha256": {t: file_hash(folder / f"{t}.csv") for t in CSV_COLUMNS_WITH_DATETIME}}
     manifest_file = folder / "manifest.json"
     manifest_file.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
     snapshot = CsvSnapshot(folder)
@@ -109,7 +109,9 @@ def main():
     action = parser.parse_args().action
     home = private_home()
     home.mkdir(parents=True, exist_ok=True)
-    destination = home / (LEGACY_SNAPSHOT if action == "rollback" else EXPANDED_SNAPSHOT)
+    destination = home / (LEGACY_SNAPSHOT if action == "rollback" else DATETIME_SNAPSHOT)
+    if action == "activate" and not destination.exists():
+        destination = home / EXPANDED_SNAPSHOT
     if action == "stage" and not destination.exists():
         # A failed export never becomes the active snapshot. Only this call's
         # temporary parent is cleaned by TemporaryDirectory.
@@ -124,6 +126,8 @@ def main():
     snapshot = CsvSnapshot(destination)
     if snapshot.version != (1 if action == "rollback" else 2):
         raise ValueError("Snapshot version does not match its destination.")
+    if snapshot.has_dispatch_time != (destination.name == DATETIME_SNAPSHOT):
+        raise ValueError("Snapshot columns do not match its destination.")
     if snapshot.version == 2 and not snapshot.verified_summary_groups:
         raise ValueError("The staged snapshot lacks direct SQL summary verification.")
     if action != "stage":
