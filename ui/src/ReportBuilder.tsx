@@ -8,8 +8,10 @@ import {FilterEditor,FiltersPanel} from './FiltersPanel';
 import {LibraryLayout} from './LibraryLayout';
 import {FieldsPanel} from './FieldsPanel';
 import {GroupingPanel} from './GroupingPanel';
-import {DropField} from './useFieldDrag';
+import {Destination,DropField} from './useFieldDrag';
 import {WorkspaceBar} from './WorkspaceBar';
+
+type QuerySection=Destination|'grouping';
 
 function numberSorts(order:Order[]):Order[] {
   let rank=0;
@@ -58,6 +60,7 @@ export function ReportBuilder({catalog,client,initialReport,folderId,onReports}:
   const [editorSession,setEditorSession] = useState(0);
   const [filterEditor,setFilterEditor]=useState<FilterEditor>(null);
   const [queryCollapsed,setQueryCollapsed]=useState(false);
+  const [expandedCards,setExpandedCards]=useState<Partial<Record<QuerySection,boolean>>>({});
   const [fieldInteraction,setFieldInteraction]=useState(false);
   const queryOpen=!queryCollapsed || fieldInteraction;
   const [notice,setNotice] = useState('');
@@ -128,14 +131,28 @@ export function ReportBuilder({catalog,client,initialReport,folderId,onReports}:
     });
     setError('');setNotice('');
   }
+  function cardDisclosure(card:QuerySection) {
+    return {
+      expanded:expandedCards[card]??false,
+      setExpanded:(value:boolean)=>setExpandedCards(prev=>({...prev,[card]:value})),
+    };
+  }
+  function revealDestination(card:Destination) {
+    setQueryCollapsed(false);
+    cardDisclosure(card).setExpanded(true);
+  }
   function startFilter(id:string) {
     const count=definition.filters?.length??0;
-    if(!filterEditor && count<32 && byId[id])setFilterEditor({index:count,rule:{field:id,op:'in',value:[],enabled:true}});
+    if(!filterEditor && count<32 && byId[id]) {
+      revealDestination('filters');
+      setFilterEditor({index:count,rule:{field:id,op:'in',value:[],enabled:true}});
+    }
   }
   const dropField:DropField=(id,zone,anchor,after)=>{
     if(zone==='filters'){startFilter(id);return;}
     if (!byId[id] || id===anchor) return;
     changeFields(placeField(definition.fields,id,anchor,after));
+    revealDestination('fields');
   };
   function moveOutputColumn(id:string,anchor:string,after:boolean) {
     if(id===anchor)return;
@@ -153,7 +170,7 @@ export function ReportBuilder({catalog,client,initialReport,folderId,onReports}:
     if (!discardOK()) return;
     setWorking(true); setModalError('');
     try { const r=await client.open(id);
-      setEditorSession(n=>n+1);setFilterEditor(null);setFieldInteraction(false);
+      setEditorSession(n=>n+1);setFilterEditor(null);setFieldInteraction(false);setExpandedCards({});
       setSaved(r); setTitle(r.name); setBaseTitle(r.name); setRenaming(false); setDefinition(r.definition); setBaseline(definitionKey(r.definition));
       setResult(null); setDialog(null); setNotice('Report opened'); void run(r.definition);
     } catch(e) {setModalError(message(e));} finally {setWorking(false);}
@@ -204,12 +221,13 @@ export function ReportBuilder({catalog,client,initialReport,folderId,onReports}:
           </div>
           <div className="query-body" id="query-contents" hidden={!queryOpen}>
             <div className="query-scroll">
-              <FieldsPanel key={'fields-'+editorSession} fields={columns} outputIds={outputIds}
+              <FieldsPanel key={'fields-'+editorSession} fields={columns} outputIds={outputIds} disclosure={cardDisclosure('fields')}
                 order={definition.order??[]} drop={dropField} remove={toggle} sort={changeSort} showDropTarget={fieldInteraction}/>
               <FiltersPanel key={editorSession} fields={catalog.fields} entities={catalog.entities} lookup={lookup} rules={definition.filters??[]}
+                disclosure={cardDisclosure('filters')}
                 editor={filterEditor} setEditor={setFilterEditor} start={startFilter} showDropTarget={fieldInteraction}
                 onChange={filters=>{setDefinition(prev=>({...prev,filters}));setNotice('');setError('');}}/>
-              <GroupingPanel columns={dimensions} grouped={grouped} groupBy={groupBy} hasOutput={hasOutput}
+              <GroupingPanel columns={dimensions} grouped={grouped} groupBy={groupBy} hasOutput={hasOutput} disclosure={cardDisclosure('grouping')}
                 onModeChange={active=>{setDefinition(prev=>({...prev,mode:active?'summary':'detail'}));setNotice('');setError('');}}
                 onGroupByChange={ids=>{setDefinition(prev=>({...prev,groupBy:ids}));setNotice('');setError('');}}/>
             </div>

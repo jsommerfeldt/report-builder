@@ -3,7 +3,8 @@ import {Catalog,Field,FilterOp,RelativePeriod,ReportClient,ReportFilter} from '.
 import {FieldOptions} from './FieldOptions';
 import {Icon} from './Icon';
 import {ValuePicker} from './ValuePicker';
-import {QueryCard} from './QueryCard';
+import {CardDisclosure,QueryCard} from './QueryCard';
+import {filtersHelp} from './QueryHelp';
 
 const labels:Record<FilterOp,string> = {in:'is any of',eq:'equals',contains:'contains',gte:'at least',lte:'at most',blank:'is blank',relative:'relative to now'};
 const defaultPeriod:RelativePeriod={direction:'last',amount:7,unit:'days'};
@@ -35,8 +36,8 @@ function changeCondition(rule:ReportFilter,op:FilterOp):ReportFilter {
 }
 export type FilterEditor = {index:number;rule:ReportFilter}|null;
 interface Props { fields:Field[]; entities:Catalog['entities']; rules:ReportFilter[]; lookup:ReportClient['values']; onChange(rules:ReportFilter[]):void;
-  editor:FilterEditor;setEditor(value:FilterEditor):void;start(field:string):void;showDropTarget:boolean }
-export function FiltersPanel({fields,entities,rules,onChange,lookup,editor,setEditor,start,showDropTarget}:Props) {
+  editor:FilterEditor;setEditor(value:FilterEditor):void;start(field:string):void;showDropTarget:boolean;disclosure:CardDisclosure }
+export function FiltersPanel({fields,entities,rules,onChange,lookup,editor,setEditor,start,showDropTarget,disclosure}:Props) {
   const enabled = rules.filter(r => r.enabled).length;
   const all = rules.length>0 && enabled === rules.length;
   const editing = editor && fields.find(f=>f.id===editor.rule.field);
@@ -54,27 +55,33 @@ export function FiltersPanel({fields,entities,rules,onChange,lookup,editor,setEd
     onChange(next); setEditor(null);
   }
   return <QueryCard title="Filters" icon="filter" className="filters" dropZone={!editor && rules.length<32?'filters':undefined}
-    showDropTarget={showDropTarget}
-    actions={(editor || rules.length>0) && <div className="filter-status">
-        {editor && <span className="count">Filter draft</span>}
-        {rules.length>0 && <>
-        <span className="count">{enabled} of {rules.length} active</span>
+    showDropTarget={showDropTarget} disclosure={disclosure} help={filtersHelp}
+    actions={editor?<span className="count">Filter draft</span>:
+      <span className="count" aria-label={!rules.length?'No active filters':undefined}>
+        {rules.length?enabled+' of '+rules.length+' active':0}
+      </span>}>
+    {rules.length>0 && <>
+      <div className="ordering-groups filter-toolbar">
+        <strong>Filter Rules</strong>
         <button type="button" className="text-action" disabled={!!editor}
-          onClick={()=>onChange(rules.map(r=>({...r,enabled:!all})))}>{all?'Disable all':'Enable all'}</button></>}
-      </div>}>
+          onClick={()=>onChange(rules.map(r=>({...r,enabled:!all})))}>{all?'Disable all':'Enable all'}</button>
+      </div>
+      <div className="filter-rule-grid field-headings" aria-hidden="true"><span>Field and condition</span><span>Active</span><span/></div>
+    </>}
     <div className="configuration-scroll" tabIndex={0} role="group" aria-label="Filter rules">
     <ul className="filter-list">{rules.map((r,i)=>{
       const f=fields.find(field=>field.id===r.field)!;
-      return <li key={i} className={!r.enabled?'rule-off':''}>
+      return <li key={i} className={'filter-rule-grid'+(!r.enabled?' rule-off':'')}>
+        <button className="filter-content" disabled={!!editor} aria-label={'Edit filter '+(i+1)}
+          onClick={()=>setEditor({index:i,rule:{...r}})}><strong>{f.label}</strong><span>{describe(r,f)}</span></button>
         <button type="button" role="switch" className="switch" aria-checked={r.enabled}
           aria-label={'Enable filter '+(i+1)+' on '+f.label} disabled={!!editor}
           onClick={()=>onChange(rules.map((x,j)=>j===i?{...x,enabled:!x.enabled}:x))}><span/></button>
-        <button className="filter-content" disabled={!!editor} aria-label={'Edit filter '+(i+1)}
-          onClick={()=>setEditor({index:i,rule:{...r}})}><strong>{f.label}</strong><span>{describe(r,f)}</span></button>
         <button className="remove-rule" aria-label={'Remove filter '+(i+1)} disabled={!!editor} onClick={()=>onChange(rules.filter((_,j)=>j!==i))}><Icon name="close" size={14}/></button>
       </li>;
     })}</ul>
     {editor && editing && <form id="filter-editor" className="filter-editor" onSubmit={commit}>
+      <h5 className="ordering-groups filter-toolbar">{editor.index<rules.length?'Edit Filter':'New Filter'}</h5>
       <div><label htmlFor="filter-field">Field</label>
         <select id="filter-field" autoFocus value={editing.id}
           onChange={e=>updateRule({field:e.target.value,op:'in',value:[],enabled:editor.rule.enabled})}>

@@ -1,5 +1,4 @@
 import React from 'react';
-import {Modal} from './Modal';
 
 interface ExampleProps {
   grouped:boolean;
@@ -32,9 +31,8 @@ function ModeExample({grouped,description,columns,rows}:ExampleProps) {
   </section>;
 }
 
-export function QueryModeExamples({close}:{close():void}) {
-  return <Modal title={QUERY_MODE_EXAMPLE_TITLE} className="mode-dialog" close={close}>
-    <div className="mode-comparison">
+export function QueryModeExamples() {
+  return <div className="mode-comparison">
       <ModeExample grouped={false}
         description={<>Clear <strong>Group rows and total measures</strong> to show one row for each sale.</>}
         columns={['Shipping State','Product Description']}
@@ -43,6 +41,5 @@ export function QueryModeExamples({close}:{close():void}) {
         description={<>Turn on grouping. In <strong>Group by</strong>, check <strong>Shipping State</strong> and clear <strong>Product Description</strong> to total sales by state.</>}
         columns={['Shipping State']}
         rows={[[['MN'],100],[['WI'],72.25]]}/>
-    </div>
-  </Modal>;
+  </div>;
 }

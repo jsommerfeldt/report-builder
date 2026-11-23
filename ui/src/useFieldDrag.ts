@@ -63,9 +63,13 @@ export function useFieldDrag(drop:DropField,onInteraction?:(active:boolean)=>voi
     function escape(e:KeyboardEvent) {if(e.key==='Escape')cancel();}
     function finish(p:PointerEvent) {
       if(p.pointerId!==pointer)return;
-      track(p);const name=zone?.dataset.libraryZone,slot=motion?.destination();cleanup();
-      if(name==='filters')drop(id,'filters');
-      if(name==='fields' && slot)drop(id,'fields',slot.anchor,slot.after);
+      track(p);const name=zone?.dataset.libraryZone,slot=motion?.destination();cleanup(false);
+      try {
+        if(name==='filters')drop(id,'filters');
+        if(name==='fields' && slot)drop(id,'fields',slot.anchor,slot.after);
+      } finally {
+        onInteraction?.(false);
+      }
     }
     stop.current=cleanup;window.addEventListener('pointermove',track);window.addEventListener('pointerup',finish);
     window.addEventListener('pointercancel',cancelPointer);window.addEventListener('blur',cancel);window.addEventListener('keydown',escape);
