@@ -8,9 +8,10 @@ interface Props {
 }
 
 export function WorkspaceBar({active,onHome,onReports}:Props) {
-  const brand=<><img src="/assets/mark.svg" width="29" height="29" alt=""/><strong>Report Builder</strong></>;
+  const logo=<img src="/assets/superset-logo-horiz.png" width="300" height="52" alt="Apache Superset"/>;
   return <header className="appbar workspace-bar">
-    {onHome?<button className="brand" onClick={onHome}>{brand}</button>:<div className="brand">{brand}</div>}
+    {onHome?<button type="button" className="brand" aria-label="Apache Superset logo, go to Home" onClick={onHome}>{logo}</button>:
+      <div className="brand">{logo}</div>}
     {onHome && <nav aria-label="Workspace">
       <button aria-current={active==='home'?'page':undefined} onClick={onHome}>Home</button>
       {onReports && <button aria-current={active==='reports'?'page':undefined} onClick={onReports}>Reports</button>}

@@ -38,7 +38,7 @@ export function ReportBuilder({catalog,client,initialReport,folderId,onHome,onRe
   const [result, setResult] = useState<{data:Preview; key:string} | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
-  const [dialog, setDialog] = useState<'save' | 'open' | null>(null);
+  const [dialog, setDialog] = useState<'save' | 'open' | 'query-mode' | null>(null);
   const [name, setName] = useState('');
   const [listing,setListing] = useState<SavedInfo[]>([]);
   const [working,setWorking] = useState(false);
@@ -47,6 +47,7 @@ export function ReportBuilder({catalog,client,initialReport,folderId,onHome,onRe
   const [filterEditor,setFilterEditor]=useState<FilterEditor>(null);
   const [notice,setNotice] = useState('');
   const generation = useRef(0);
+  const modeHelp = useRef<HTMLButtonElement>(null);
   const byId = useMemo(() => Object.fromEntries(catalog.fields.map(f => [f.id, f])) as Record<string,Field>, [catalog]);
   const key = definitionKey(definition);
   const dirty = key !== baseline || title!==baseTitle;
@@ -135,6 +136,10 @@ export function ReportBuilder({catalog,client,initialReport,folderId,onHome,onRe
     } finally {setWorking(false);}
   }
   const close=() => {if (!working) setDialog(null);};
+  function closeModeExamples() {
+    setDialog(null);
+    requestAnimationFrame(()=>modeHelp.current?.focus());
+  }
   return <div className="shell">
     <div className="editor-header">
     <WorkspaceBar active={onReports?'reports':undefined} onHome={onHome && (()=>{if(discardOK())onHome();})}
@@ -158,35 +163,44 @@ export function ReportBuilder({catalog,client,initialReport,folderId,onHome,onRe
       </div>
     </header>
     </div>
-    <LibraryLayout library={<FieldLibrary key={editorSession} catalog={catalog} fields={definition.fields} toggle={toggle}
-      drop={dropField}/>}>
     <main className="editor-content">
-      <section className="query-controls" aria-labelledby="report-data">
-        <div className="pane-header"><h2 id="report-data">Data</h2></div>
-        <div className="query-scroll">
-          <div className="query-type"><Icon name="grid" size={18}/><strong>Table</strong></div>
-          <h3 className="query-heading">Query</h3>
-          <h4 className="query-label" id="report-mode">Query mode</h4>
-          <div className="segments" role="group" aria-labelledby="report-mode">{(['summary','detail'] as const).map(mode=>
-            <button key={mode} type="button" aria-pressed={definition.mode===mode}
-              onClick={()=>{setDefinition(prev=>({...prev,mode}));setNotice('');}}>{mode==='summary'?'Summary':'Detail'}</button>)}</div>
-          <p className="mode-hint">{definition.mode==='summary'?'Sum measures by the selected dimensions.':'Show one row per matching sales record.'}</p>
-          <FieldsPanel key={'fields-'+editorSession} fields={definition.fields.map(id=>byId[id])}
-            order={definition.order??[]} drop={dropField} remove={toggle} sort={changeSort}/>
-          <FiltersPanel key={editorSession} fields={catalog.fields} entities={catalog.entities} lookup={client.values} rules={definition.filters??[]}
-            editor={filterEditor} setEditor={setFilterEditor} start={startFilter}
-            onChange={filters=>{setDefinition(prev=>({...prev,filters}));setNotice('');setError('');}}/>
-        </div>
-        <div className="query-footer">
-          <button className="primary-btn" disabled={busy || !definition.fields.length} onClick={()=>void run(definition)}>
-            <Icon name="play" size={15}/>{busy?'Running…':'Run preview'}</button>
-        </div>
-      </section>
+      <LibraryLayout library={<FieldLibrary key={editorSession} catalog={catalog} fields={definition.fields} toggle={toggle} drop={dropField}/>}>
+        <section className="query-controls" aria-labelledby="query-heading">
+          <div className="query-header">
+            <h3 id="query-heading">Query</h3>
+            <div className="query-mode">
+              <div className="segments" role="group" aria-label="Query mode">{(['summary','detail'] as const).map(mode=>
+                <button key={mode} type="button" aria-pressed={definition.mode===mode}
+                  onClick={()=>{setDefinition(prev=>({...prev,mode}));setNotice('');}}>{mode==='summary'?'Summary':'Detail'}</button>)}</div>
+              <button ref={modeHelp} type="button" className="icon-button query-help" aria-label="Query mode examples" aria-haspopup="dialog"
+                title="Query mode examples" onClick={()=>setDialog('query-mode')}><Icon name="help"/></button>
+            </div>
+          </div>
+          <div className="query-scroll">
+            <FieldsPanel key={'fields-'+editorSession} fields={definition.fields.map(id=>byId[id])}
+              order={definition.order??[]} drop={dropField} remove={toggle} sort={changeSort}/>
+            <FiltersPanel key={editorSession} fields={catalog.fields} entities={catalog.entities} lookup={client.values} rules={definition.filters??[]}
+              editor={filterEditor} setEditor={setFilterEditor} start={startFilter}
+              onChange={filters=>{setDefinition(prev=>({...prev,filters}));setNotice('');setError('');}}/>
+          </div>
+          <div className="query-footer">
+            <button className="primary-btn" disabled={busy || !definition.fields.length} onClick={()=>void run(definition)}>
+              <Icon name="play" size={15}/>{busy?'Running…':'Run preview'}</button>
+          </div>
+        </section>
+      </LibraryLayout>
       <PreviewPane data={displayData} byId={byId} stale={Boolean(shown && shown.key!==previewKey(definition))} error={error}
         canMove={sameColumns} move={(id,anchor,after)=>dropField(id,'fields',anchor,after)}
         busy={busy} hasFields={Boolean(definition.fields.length)}/>
       <p className="sr-only" role="status">{notice}</p>
-    </main></LibraryLayout>
+    </main>
+    {dialog==='query-mode' && <Modal title="Query mode examples" close={closeModeExamples}>
+      <p className="modal-note">Suppose you select Shipping state and Sales for two Minnesota sales of $40 and $60.</p>
+      <dl className="mode-examples">
+        <dt>Summary</dt><dd>One row for Minnesota with $100 in total sales.</dd>
+        <dt>Detail</dt><dd>Two rows for Minnesota, one with $40 and one with $60.</dd>
+      </dl>
+    </Modal>}
     {dialog==='save' && <Modal title={collision?'Replace saved report?':'Save report'} close={close}><form onSubmit={save}>
       {collision ? <p className="modal-note">Replace the saved definition of <strong>{collision.name}</strong> with this report?
         {saved && <> Your previously saved report, <strong>{saved.name}</strong>, will keep its own definition.</>}</p> : <>

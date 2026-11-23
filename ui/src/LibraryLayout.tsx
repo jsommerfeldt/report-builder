@@ -11,13 +11,14 @@ export function LibraryLayout({library,children}:{library:React.ReactNode;childr
   const [width,setWidth]=useState(()=>constrain(Number(stored('width')) || initial));
   const [availableWidth,setAvailableWidth]=useState(()=>document.documentElement.clientWidth);
   const drag=useRef<{x:number; width:number} | null>(null);
-  const layout=useRef<HTMLDivElement>(null);
+  const layout=useRef<HTMLElement>(null);
   const maxWidth=constrain(Math.floor(availableWidth/3));
   const libraryWidth=Math.min(width,maxWidth);
   const layoutStyle={'--library-width':libraryWidth+'px'} as React.CSSProperties;
   useEffect(()=>{
     const observer=new ResizeObserver(([entry])=>setAvailableWidth(entry.contentRect.width));
-    if(layout.current)observer.observe(layout.current);
+    const editor=layout.current?.parentElement;
+    if(editor)observer.observe(editor);
     return ()=>observer.disconnect();
   },[]);
   useEffect(()=>{remember('width',String(width));},[width]);
@@ -26,11 +27,15 @@ export function LibraryLayout({library,children}:{library:React.ReactNode;childr
     const next=Math.min(constrain(nextWidth),maxWidth);
     if(next!==libraryWidth)setWidth(next);
   }
-  return <div ref={layout} style={layoutStyle} className={'editor-layout'+(hidden?' library-hidden':'')}>
-    <div className="library-wrap">
-      <button className="library-visibility" aria-label={hidden?'Show field library':'Hide field library'} aria-expanded={!hidden} aria-controls="library-contents"
-        title={hidden?'Show field library':'Hide field library'} onClick={()=>setHidden(!hidden)}>
-        <Icon name={hidden?'layers':'collapse'} size={16}/><span>{hidden?'Show library':'Hide library'}</span></button>
+  return <section ref={layout} style={layoutStyle} className={'build-report'+(hidden?' library-hidden':'')} aria-labelledby="build-report-heading">
+    <div className="pane-header build-header"><h2 id="build-report-heading">Build Report</h2></div>
+    <aside className="library-wrap" aria-labelledby="source-fields-heading">
+      <div className="library-heading">
+        <h3 id="source-fields-heading">Fields</h3>
+        <button type="button" className="icon-button library-visibility" aria-label={hidden?'Show fields':'Hide fields'} aria-expanded={!hidden}
+          aria-controls="library-contents" title={hidden?'Show fields':'Hide fields'} onClick={()=>setHidden(!hidden)}>
+          <Icon name={hidden?'layers':'collapse'} size={16}/></button>
+      </div>
       <div id="library-contents" hidden={hidden}>{library}</div>
       {!hidden && <div className="library-resize" role="separator" tabIndex={0} aria-label="Field library width"
         aria-orientation="vertical" aria-valuemin={min} aria-valuemax={maxWidth} aria-valuenow={libraryWidth}
@@ -40,5 +45,5 @@ export function LibraryLayout({library,children}:{library:React.ReactNode;childr
         onLostPointerCapture={()=>{drag.current=null;}}
         onKeyDown={e=>{const widths:Record<string,number>={ArrowLeft:libraryWidth-16,ArrowRight:libraryWidth+16,Home:min,End:maxWidth};
           if(e.key in widths){e.preventDefault();resize(widths[e.key]);}}}/>}
-    </div>{children}</div>;
+    </aside>{children}</section>;
 }

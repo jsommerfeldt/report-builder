@@ -194,9 +194,11 @@ def make_app(snapshot, reports, assets: Path, key, origin=ORIGIN):
 
     @app.get("/assets/<name>")
     def asset(name):
-        if name not in ("builder.js", "builder.css", "mark.svg"):
-            abort(404)
-        return send_file(assets / name if name != "mark.svg" else HERE / "ui" / name)
+        if name in ("mark.svg", "superset-logo-horiz.png"):
+            return send_file(HERE / "ui" / name)
+        if name in ("builder.js", "builder.css"):
+            return send_file(assets / name)
+        abort(404)
 
     @app.get("/health")
     def health():

@@ -61,8 +61,8 @@ export function PreviewPane({data,byId,stale,busy,error,hasFields,canMove,move}:
     const current=measure();
     setWidths(prev=>({...prev,...current,[id]:clamp(current[id]+(e.key==='ArrowRight'?16:-16))}));
   }
-  return <section className="preview" aria-label="Results preview">
-    <div className="pane-header preview-head"><h2>Results</h2><div className="preview-actions">
+  return <section className="preview" aria-labelledby="preview-heading">
+    <div className="pane-header preview-head"><h2 id="preview-heading">Preview</h2><div className="preview-actions">
       {data && manual && <button className="text-action" onClick={()=>setWidths({})}>Auto-fit columns</button>}
       {data && <span className="result-count" role="status">{data.rows.length.toLocaleString()} of {data.total.toLocaleString()} rows</span>}
     </div></div>
@@ -109,6 +109,6 @@ export function PreviewPane({data,byId,stale,busy,error,hasFields,canMove,move}:
       const f=byId[data.fields[j]]; return <td key={f.id} title={value??undefined} className={f.measure ? 'numeric' : ''}>{resultCell(value,f)}</td>;
     })}</tr>)}</tbody></table></div> :
       <div className="empty-preview"><span className="empty-icon"><Icon name="grid" size={26}/></span><strong>{busy?'Running preview':hasFields?'No results to display':'Choose your first field'}</strong>
-        {!busy && <span>{hasFields?'Run preview to see your report.':'Select or drag fields from the dataset into the query.'}</span>}</div>}
+        {!busy && <span>{hasFields?'Run preview to see your report.':'Select a field or drag it from Fields into the query.'}</span>}</div>}
   </section>;
 }

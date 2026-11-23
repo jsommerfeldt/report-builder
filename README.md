@@ -12,15 +12,15 @@ In **Trash**, choose **Delete permanently** and confirm to remove a saved report
 
 **Schedule** opens a delivery draft for the selected report. Choose a recurrence, local time, time zone and To, Cc and Bcc recipients. One draft per report is saved in this browser profile. Opening Schedule again lets you edit or remove it. Email delivery is inactive.
 
-1. Browse Sales, Customers, or Products in **Dataset**, or search for a field. Click fields or drag them into **Fields** in the **Data** pane. Drag selected fields to reorder them.
-2. Choose **Summary** to sum measures by the selected dimensions or **Detail** for individual sales rows. In **Fields**, turn on **Sort** for each field to use, and choose **Asc** or **Desc**. **Run preview** displays the first 50 matching rows in **Results** after sorting.
+1. In **Build Report**, browse Sales, Customers, or Products in **Fields**, or search for a field. Click fields or drag them into **Selected fields** in **Query**. Drag selected fields to reorder them.
+2. In **Query**, choose **Summary** to total measures such as Sales for each group or **Detail** for individual sales rows. The **?** icon shows examples of both modes. In **Selected fields**, turn on **Sort** for each field to use, and choose **Asc** or **Desc**. **Run preview** displays the first 50 matching rows in **Preview** after sorting.
 3. Choose **Save report** and give the definition a name. Choose **Home** to return to the homepage. Saving an existing report updates its revision. If another tab saved first, reopen that revision before editing again.
 
-**Fields** shows the first three columns. **Show more** reveals the full ordered list. Drag the library divider or focus it and use the left and right arrow keys to resize it. The library also has a hide/show button.
+**Selected fields** shows the first three columns. **Show more** reveals the full ordered list. Drag the divider beside **Fields**, or focus it and use the left and right arrow keys, to resize the pane. **Fields** also has a hide/show button.
 
 Drag a field by its name or grip to move its output column, or focus it and press the up/down arrows. Use **Priority** to order the enabled sorts independently. Priority **1** sorts first and **2** breaks its ties. Choosing a priority shifts the other ranks automatically. New or re-enabled sorts take the last priority. Disabling a sort remembers its direction and releases its rank. With all sorts off, rows and summary groups follow their first occurrence in the filtered source. Older saved definitions start with the precedence they had under column-based sorting.
 
-Drag a preview header by its label to move the column and its values immediately. The numbered **Column order** list in **Fields** follows that move. A focused header label also supports left and right arrow keys. **Row ordering** uses the separate Sort, Priority, and Direction controls. After adding or removing fields, run the preview to enable header dragging for the new selection.
+Drag a preview header by its label to move the column and its values immediately. The numbered **Column Order** list in **Selected fields** follows that move. A focused header label also supports left and right arrow keys. **Row Order** uses the separate Sort, Priority, and Direction controls. After adding or removing fields, run the preview to enable header dragging for the new selection.
 
 Drag the right edge of any preview column header to widen or narrow it. A focused divider also responds to left and right arrow keys. Widths follow their columns and carry over when rerunning a preview in the same editor session. **Auto-fit columns** restores automatic sizing.
 
@@ -64,3 +64,5 @@ The [Superset integration checkpoint](docs/superset-integration.md) records the 
 - The later Superset integration can supply its catalog and authenticated client, use an authorized query executor and persist Superset dataset IDs with these definitions. Superset-specific publication, Explore, dynamic mapping and row/column policies require testing against the selected fork.
 
 The React baseline follows the upstream [Superset 6.1.0 frontend manifest](https://github.com/apache/superset/blob/6.1.0/superset-frontend/package.json). The standalone host uses the same Python web framework as [Superset's app factory](https://github.com/apache/superset/blob/6.1.0/superset/app.py).
+
+The development pilot's header uses the logo image from the [Apache Superset 6.1.0 frontend](https://github.com/apache/superset/blob/6.1.0/superset-frontend/src/assets/images/superset-logo-horiz.png) under the [Apache License 2.0](ui/superset-logo.LICENSE.txt).

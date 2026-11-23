@@ -14,11 +14,11 @@ export function FieldsPanel({fields,order,drop,remove,sort}:Props) {
   const settings=new Map(order.map(item=>[item.field,item]));
   const priorities=order.filter(item=>item.enabled!==false).map((_,i)=>i+1);
   const visible=expanded?fields:fields.slice(0,3);
-  return <section className="selection" aria-label="Fields" data-library-zone="fields">
-    <div className="selection-head"><div className="panel-heading"><h4 className="query-label">Fields</h4><span className="count">{fields.length}</span></div></div>
+  return <section className="selection" aria-labelledby="selected-fields-heading" data-library-zone="fields">
+    <div className="selection-head"><div className="panel-heading"><h4 className="query-label" id="selected-fields-heading">Selected fields</h4><span className="count">{fields.length}</span></div></div>
     <div className="configuration-scroll" tabIndex={0} role="group" aria-label="Field order and sorting">
     {fields.length>0 && <><div className="field-control-grid ordering-groups">
-      <strong>Column order</strong><strong>Row ordering</strong></div>
+      <strong>Column Order</strong><strong>Row Order</strong></div>
       <div className="field-control-grid field-headings" aria-hidden="true">
       <span>Drag to move</span><span>Sort</span><span>Priority</span><span>Direction</span><span/></div></>}
     <div className="field-stack" id="ordered-fields">{visible.map((f,i)=>{
