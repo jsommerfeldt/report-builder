@@ -10,7 +10,6 @@ function stored(key:string) { try { return localStorage.getItem('report-builder.
 function remember(key:string,value:string) { try { localStorage.setItem('report-builder.library.'+key,value); } catch { /* Private browsing can disable storage. */ } }
 const layoutPrefix=(newReport:boolean)=>newReport?'new-report-':'';
 const edgeGap=8;
-const objectsRailWidth=48;
 const clamp=(value:number,min:number,max:number)=>Math.max(min,Math.min(max,Math.round(value)));
 const resizeEdges={
   'top-left':[-1,-1],top:[0,-1],'top-right':[1,-1],right:[1,0],
@@ -61,16 +60,18 @@ export function LibraryLayout({library,children,newReport,queryVisible,toggleQue
   const [queryHeight,setQueryHeight]=useState(()=>Number(stored(prefix+'query-height'))||0);
   const [queryPosition,setQueryPosition]=useState<{x:number;y:number}|null>(null);
   const [workspace,setWorkspace]=useState(()=>({
-    width:document.documentElement.clientWidth,height:document.documentElement.clientHeight,objectsHeight:0,
+    width:document.documentElement.clientWidth,height:document.documentElement.clientHeight,objectsHeight:0,railWidth:0,
   }));
   const layout=useRef<HTMLElement>(null);
   const objects=useRef<HTMLElement>(null);
+  const rail=useRef<HTMLDivElement>(null);
+  const objectsToggle=useRef<HTMLButtonElement>(null);
   const popup=useRef<HTMLElement>(null);
   const gesture=useRef<(PopupRect & {mode:'move'|ResizeEdge;pointer:number;startX:number;startY:number})|null>(null);
   const compact=workspace.width<=700;
   const maxObjects=Math.max(editorPanes.objects.min,Math.floor(workspace.width*.4));
   const objectsWidth=Math.min(preferred.objects,maxObjects);
-  const leftLimit=objectsCollapsed?objectsRailWidth+edgeGap:edgeGap;
+  const leftLimit=workspace.railWidth+edgeGap;
   const widthLimit=workspace.width-leftLimit-edgeGap;
   const heightLimit=workspace.height-2*edgeGap;
   const minWidth=Math.min(editorPanes.query.min,widthLimit);
@@ -85,12 +86,14 @@ export function LibraryLayout({library,children,newReport,queryVisible,toggleQue
   useEffect(()=>{
     const editor=layout.current?.parentElement;
     const objectPane=objects.current;
-    if(!editor || !objectPane)return;
+    const sidebar=rail.current;
+    if(!editor || !objectPane || !sidebar)return;
     const observer=new ResizeObserver(()=>setWorkspace({
-      width:editor.clientWidth,height:editor.clientHeight,objectsHeight:objectPane.offsetHeight,
+      width:editor.clientWidth,height:editor.clientHeight,objectsHeight:objectPane.offsetHeight,railWidth:sidebar.offsetWidth,
     }));
     observer.observe(editor);
     observer.observe(objectPane);
+    observer.observe(sidebar);
     return ()=>observer.disconnect();
   },[]);
   function resize(pane:EditorPane,value:number) {
@@ -141,20 +144,29 @@ export function LibraryLayout({library,children,newReport,queryVisible,toggleQue
     else resizeQuery(mode,{x,y,width,height},delta[0],delta[1]);
   }
   return <section ref={layout} className="build-report" aria-label="Build Report">
-    <aside ref={objects} id={editorPanes.objects.id} className={'builder-pane library-wrap'+(objectsCollapsed?' is-collapsed':'')}
-      aria-label="Objects" style={{'--pane-width':(objectsCollapsed?objectsRailWidth:objectsWidth)+'px'} as React.CSSProperties}>
-      <div className="builder-pane-heading">
-        <h3><button type="button" className="objects-toggle" aria-expanded={!objectsCollapsed} aria-controls="library-contents"
-          aria-label={objectsCollapsed?'Expand Objects':'Collapse Objects'}
-          title={objectsCollapsed?'Expand Objects':'Collapse Objects'} onClick={toggleObjects}>
-          <Icon name="layers" size={16}/><span className="objects-label">Objects<Icon name="chevron" size={13}/></span>
-        </button></h3>
-        <button ref={queryToggle} type="button" className="secondary-btn query-toggle" aria-haspopup="dialog"
-          aria-controls={editorPanes.query.id} aria-expanded={queryVisible} aria-label="Query" title="Query" onClick={toggleQuery}>
-          <Icon name="fields" size={15}/><span className="objects-label">Query</span>
+    <div ref={rail} className="builder-rail" role="group" aria-label="Builder sidebar">
+      <button ref={objectsToggle} type="button" className="secondary-btn" aria-expanded={!objectsCollapsed}
+        aria-controls={editorPanes.objects.id} aria-label={objectsCollapsed?'Expand Objects':'Collapse Objects'}
+        title={objectsCollapsed?'Expand Objects':'Collapse Objects'} onClick={toggleObjects}>
+        <Icon name="layers" size={16}/>
+      </button>
+      <button ref={queryToggle} type="button" className="secondary-btn" aria-haspopup="dialog"
+        aria-controls={editorPanes.query.id} aria-expanded={queryVisible} aria-label="Query" title="Query" onClick={toggleQuery}>
+        <Icon name="fields" size={15}/>
+      </button>
+    </div>
+    <aside ref={objects} id={editorPanes.objects.id} className="builder-pane library-wrap" hidden={objectsCollapsed}
+      aria-label="Objects" style={{'--pane-width':objectsWidth+'px'} as React.CSSProperties}>
+      <h3 className="builder-pane-heading objects-heading">
+        <button type="button" className="objects-toggle" aria-expanded={!objectsCollapsed} aria-controls="library-contents"
+          title="Collapse Objects" onClick={()=>{
+            toggleObjects();
+            objectsToggle.current?.focus({preventScroll:true});
+          }}>
+          <Icon name="layers" size={16}/>Objects<Icon name="chevron" size={13}/>
         </button>
-      </div>
-      <div id="library-contents" className="library-contents" hidden={objectsCollapsed}>{library}</div>
+      </h3>
+      <div id="library-contents" className="library-contents">{library}</div>
       {!objectsCollapsed && <PaneDivider pane="objects" value={objectsWidth} max={maxObjects} onResize={value=>resize('objects',value)}/>}
     </aside>
     <section ref={popup} id={editorPanes.query.id} className="builder-pane query-controls" role="dialog" aria-labelledby="query-pane-heading"
