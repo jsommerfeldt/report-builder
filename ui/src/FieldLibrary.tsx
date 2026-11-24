@@ -30,12 +30,11 @@ export function FieldLibrary({catalog,fields,selectField,drop,onInteraction,sear
     onKeyDown={e=>{if(e.key==='Escape' && cancelPick(true))e.preventDefault();}}>
       <div className="library-toolbar">
         <label className="search library-search"><Icon name="search" size={15}/><input ref={searchRef} type="search" placeholder="Search fields"
-          aria-label="Find a field" aria-describedby={pickingFilter?'objects-filter-prompt':undefined} value={search}
+          aria-label="Find a field" value={search}
           onChange={e=>{setSearch(e.target.value);setCollapsedMatches([]);}}/></label>
         <button type="button" className="secondary-btn objects-toggle-all" disabled={!groups.length}
           aria-controls="object-field-groups" onClick={toggleAll}>{allExpanded?'Collapse all':'Expand all'}</button>
       </div>
-      {pickingFilter && <p className="hint objects-filter-prompt" id="objects-filter-prompt">Choose a field to filter.</p>}
       <div className="field-groups" id="object-field-groups">{groups.map(({entity,items}) => {
         const expanded = isExpanded(entity);
         return <section className={'field-group ' + entity} key={entity}>
