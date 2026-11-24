@@ -85,6 +85,7 @@ export function ReportBuilder({catalog,client,initialReport,folderId,onReports}:
   const pendingMove=filterEditor?.moveField;
   const [objectPick,setObjectPick]=useState<{destination:Destination;trigger:HTMLButtonElement}|null>(null);
   const objectSearch=useRef<HTMLInputElement>(null);
+  const [objectsCollapsed,setObjectsCollapsed]=useState(false);
   const [queryOpen,setQueryOpen]=useState(false);
   const queryToggle=useRef<HTMLButtonElement>(null);
   const queryClose=useRef<HTMLButtonElement>(null);
@@ -221,6 +222,7 @@ export function ReportBuilder({catalog,client,initialReport,folderId,onReports}:
     requestAnimationFrame(()=>queryToggle.current?.focus({preventScroll:true}));
   }
   function pickObject(destination:Destination,trigger:HTMLButtonElement) {
+    setObjectsCollapsed(false);
     setQueryHint('');
     setObjectPick({destination,trigger});
   }
@@ -353,6 +355,10 @@ export function ReportBuilder({catalog,client,initialReport,folderId,onReports}:
       }
     }}>
       <LibraryLayout newReport={newReport} queryVisible={queryVisible} toggleQuery={toggleQuery} closeQuery={closeQuery}
+        objectsCollapsed={objectsCollapsed} toggleObjects={()=>{
+          if(!objectsCollapsed)setObjectPick(null);
+          setObjectsCollapsed(!objectsCollapsed);
+        }}
         queryToggle={queryToggle} queryClose={queryClose}
         library={<FieldLibrary key={editorSession} catalog={catalog} fields={selectedFields} selectField={selectObjectField}
           searchRef={objectSearch} pickingFilter={objectPick?.destination==='filters'} cancelPick={cancelObjectPick}

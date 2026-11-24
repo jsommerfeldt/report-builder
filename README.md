@@ -21,7 +21,7 @@ With no groups selected, **Totals only** calculates the selected aggregations ac
 
 With the expanded snapshot active, a new report includes sales for `0001` and `0030`. Use **Sales company** to group or filter by the company on the sale. Reports saved before the expansion still use `0030`. To broaden one, open it, choose **Include both companies** in Query, run the preview, and save the updated definition. An unassigned trip displays blank trip fields.
 
-Use **Query** in the **Objects** header to open the query panel over **Preview**. Drag the Query title bar to move it and any edge or corner to resize it. When focused, the move and resize handles also respond to arrow keys. Close Query with the same button, the close icon, or Escape.
+Click **Objects** to collapse it into an icon sidebar. The Objects icon reopens the list, and the Query icon opens the query panel over **Preview** in either layout. Drag the Query title bar to move it and any edge or corner to resize it. When focused, the move and resize handles also respond to arrow keys. Close Query with the same button, the close icon, or Escape.
 
 Drop a field onto **Preview** to see its column header immediately and open Query with **Columns** expanded. Run Preview to load values. Drag a field between **Columns** and **Filters** to move it. For a new filter, **Apply filter** completes the move and **Cancel** restores the column. Moving a field into **Columns** removes all filter rules for that field. Drag a field from **Objects** if you want it in both sections. With a field’s move handle focused, **Shift+Down** moves a column into Filters and **Shift+Up** moves a filtered field into Columns.
 

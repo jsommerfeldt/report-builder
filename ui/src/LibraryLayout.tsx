@@ -10,6 +10,7 @@ function stored(key:string) { try { return localStorage.getItem('report-builder.
 function remember(key:string,value:string) { try { localStorage.setItem('report-builder.library.'+key,value); } catch { /* Private browsing can disable storage. */ } }
 const layoutPrefix=(newReport:boolean)=>newReport?'new-report-':'';
 const edgeGap=8;
+const objectsRailWidth=48;
 const clamp=(value:number,min:number,max:number)=>Math.max(min,Math.min(max,Math.round(value)));
 const resizeEdges={
   'top-left':[-1,-1],top:[0,-1],'top-right':[1,-1],right:[1,0],
@@ -47,9 +48,11 @@ function PaneDivider({pane,max,value,onResize}:DividerProps) {
 interface LayoutProps {
   library:React.ReactNode; children:React.ReactNode; newReport:boolean;
   queryVisible:boolean; toggleQuery():void; closeQuery():void;
+  objectsCollapsed:boolean; toggleObjects():void;
   queryToggle:React.Ref<HTMLButtonElement>; queryClose:React.Ref<HTMLButtonElement>;
 }
-export function LibraryLayout({library,children,newReport,queryVisible,toggleQuery,closeQuery,queryToggle,queryClose}:LayoutProps) {
+export function LibraryLayout({library,children,newReport,queryVisible,toggleQuery,closeQuery,queryToggle,queryClose,
+  objectsCollapsed,toggleObjects}:LayoutProps) {
   const prefix=layoutPrefix(newReport);
   const [preferred,setPreferred]=useState(()=>({
     objects:Math.max(editorPanes.objects.min,Number(stored(prefix+'objects-width'))||editorPanes.objects.initial),
@@ -67,14 +70,17 @@ export function LibraryLayout({library,children,newReport,queryVisible,toggleQue
   const compact=workspace.width<=700;
   const maxObjects=Math.max(editorPanes.objects.min,Math.floor(workspace.width*.4));
   const objectsWidth=Math.min(preferred.objects,maxObjects);
-  const widthLimit=workspace.width-2*edgeGap;
+  const leftLimit=objectsCollapsed?objectsRailWidth+edgeGap:edgeGap;
+  const widthLimit=workspace.width-leftLimit-edgeGap;
   const heightLimit=workspace.height-2*edgeGap;
   const minWidth=Math.min(editorPanes.query.min,widthLimit);
   const minHeight=Math.min(156,Math.max(0,heightLimit));
   const queryWidth=clamp(preferred.query,minWidth,widthLimit);
   const height=queryHeight?clamp(queryHeight,minHeight,heightLimit):undefined;
-  const x=clamp(queryPosition?.x??(compact?edgeGap:objectsWidth+edgeGap),edgeGap,workspace.width-queryWidth-edgeGap);
-  const y=clamp(queryPosition?.y??(compact?workspace.objectsHeight+6:52),edgeGap,workspace.height-(height??minHeight)-edgeGap);
+  const defaultX=objectsCollapsed || compact?leftLimit:objectsWidth+edgeGap;
+  const defaultY=compact && !objectsCollapsed?workspace.objectsHeight+6:52;
+  const x=clamp(queryPosition?.x??defaultX,leftLimit,workspace.width-queryWidth-edgeGap);
+  const y=clamp(queryPosition?.y??defaultY,edgeGap,workspace.height-(height??minHeight)-edgeGap);
   const maxQueryHeight=workspace.height-y-edgeGap;
   useEffect(()=>{
     const editor=layout.current?.parentElement;
@@ -93,13 +99,13 @@ export function LibraryLayout({library,children,newReport,queryVisible,toggleQue
     remember(prefix+pane+'-width',String(value));
   }
   function moveQuery(left:number,top:number,width:number,height:number) {
-    setQueryPosition({x:clamp(left,edgeGap,workspace.width-width-edgeGap),
+    setQueryPosition({x:clamp(left,leftLimit,workspace.width-width-edgeGap),
       y:clamp(top,edgeGap,workspace.height-height-edgeGap)});
   }
   function resizeQuery(edge:ResizeEdge,rect:PopupRect,dx:number,dy:number) {
     const [horizontal,vertical]=resizeEdges[edge];
     const right=rect.x+rect.width, bottom=rect.y+rect.height;
-    const left=horizontal<0?clamp(rect.x+dx,edgeGap,right-minWidth):rect.x;
+    const left=horizontal<0?clamp(rect.x+dx,leftLimit,right-minWidth):rect.x;
     const top=vertical<0?clamp(rect.y+dy,edgeGap,bottom-minHeight):rect.y;
     const nextRight=horizontal>0?clamp(right+dx,left+minWidth,workspace.width-edgeGap):right;
     const nextBottom=vertical>0?clamp(bottom+dy,top+minHeight,workspace.height-edgeGap):bottom;
@@ -135,17 +141,21 @@ export function LibraryLayout({library,children,newReport,queryVisible,toggleQue
     else resizeQuery(mode,{x,y,width,height},delta[0],delta[1]);
   }
   return <section ref={layout} className="build-report" aria-label="Build Report">
-    <aside ref={objects} id={editorPanes.objects.id} className="builder-pane library-wrap" aria-labelledby="objects-pane-heading"
-      style={{'--pane-width':objectsWidth+'px'} as React.CSSProperties}>
+    <aside ref={objects} id={editorPanes.objects.id} className={'builder-pane library-wrap'+(objectsCollapsed?' is-collapsed':'')}
+      aria-label="Objects" style={{'--pane-width':(objectsCollapsed?objectsRailWidth:objectsWidth)+'px'} as React.CSSProperties}>
       <div className="builder-pane-heading">
-        <h3 id="objects-pane-heading"><Icon name="layers" size={16}/>Objects</h3>
+        <h3><button type="button" className="objects-toggle" aria-expanded={!objectsCollapsed} aria-controls="library-contents"
+          aria-label={objectsCollapsed?'Expand Objects':'Collapse Objects'}
+          title={objectsCollapsed?'Expand Objects':'Collapse Objects'} onClick={toggleObjects}>
+          <Icon name="layers" size={16}/><span className="objects-label">Objects<Icon name="chevron" size={13}/></span>
+        </button></h3>
         <button ref={queryToggle} type="button" className="secondary-btn query-toggle" aria-haspopup="dialog"
-          aria-controls={editorPanes.query.id} aria-expanded={queryVisible} onClick={toggleQuery}>
-          <Icon name="fields" size={15}/>Query
+          aria-controls={editorPanes.query.id} aria-expanded={queryVisible} aria-label="Query" title="Query" onClick={toggleQuery}>
+          <Icon name="fields" size={15}/><span className="objects-label">Query</span>
         </button>
       </div>
-      <div id="library-contents" className="library-contents">{library}</div>
-      <PaneDivider pane="objects" value={objectsWidth} max={maxObjects} onResize={value=>resize('objects',value)}/>
+      <div id="library-contents" className="library-contents" hidden={objectsCollapsed}>{library}</div>
+      {!objectsCollapsed && <PaneDivider pane="objects" value={objectsWidth} max={maxObjects} onResize={value=>resize('objects',value)}/>}
     </aside>
     <section ref={popup} id={editorPanes.query.id} className="builder-pane query-controls" role="dialog" aria-labelledby="query-pane-heading"
       hidden={!queryVisible} style={{width:queryWidth,height,maxHeight:maxQueryHeight,insetInlineStart:x,insetBlockStart:y}}>
