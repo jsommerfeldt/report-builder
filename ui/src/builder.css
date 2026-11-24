@@ -349,8 +349,8 @@ button.field-row { width: 100%; text-align: left; }
 .preview-head h2 { gap: 6px; }
 .preview-heading .preview-run.primary-btn {
   align-self: center;
-  width: 32px;
-  min-height: 32px;
+  width: 28px;
+  min-height: 28px;
   padding: 0;
   background: var(--preview-run-fill, var(--danger));
 }

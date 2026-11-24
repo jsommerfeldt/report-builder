@@ -95,7 +95,7 @@ export function PreviewPane({data,outputIds:ids,byId,entities,columnNames,paneRe
         <button type="button" className="primary-btn preview-run" data-current={previewCurrent}
           aria-label="Run preview" aria-describedby="preview-run-status" aria-controls="report-preview"
           aria-busy={busy} title={'Run preview · '+previewStatus} disabled={busy || !canRunPreview}
-          onClick={runPreview}><Icon name="play" size={16}/></button>
+          onClick={runPreview}><Icon name="play" size={14}/></button>
       </div>
       {(manual || data) && <div className="preview-actions">
         {manual && <button className="text-action" onClick={()=>setWidths({})}>Auto-fit columns</button>}
