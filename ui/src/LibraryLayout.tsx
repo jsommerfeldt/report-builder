@@ -156,9 +156,6 @@ export function LibraryLayout({library,children,newReport,queryVisible,toggleQue
     </div>
     <aside ref={objects} id={editorPanes.objects.id} className="builder-pane library-wrap" hidden={objectsCollapsed}
       aria-label="Objects" style={{'--pane-width':objectsWidth+'px'} as React.CSSProperties}>
-      <h3 className="builder-pane-heading objects-heading">
-        <Icon name="layers" size={16}/>Objects
-      </h3>
       <div id="library-contents" className="library-contents">{library}</div>
       {!objectsCollapsed && <PaneDivider pane="objects" value={objectsWidth} max={maxObjects} onResize={value=>resize('objects',value)}/>}
     </aside>

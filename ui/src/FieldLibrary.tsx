@@ -34,7 +34,7 @@ export function FieldLibrary({catalog,fields,selectField,drop,onInteraction,onPr
     if(!e.currentTarget.contains(e.relatedTarget) && (e.relatedTarget || !pressingField.current))cancelPick(false);
   }}
     onKeyDown={e=>{if(e.key==='Escape' && cancelPick(true))e.preventDefault();}}>
-      <div className="library-toolbar">
+      <div className="builder-pane-heading library-toolbar">
         <label className="search library-search"><Icon name="search" size={15}/><input ref={searchRef} type="search" placeholder="Search fields"
           aria-label="Find a field" value={search}
           onChange={e=>{setSearch(e.target.value);setCollapsedMatches([]);}}/></label>
