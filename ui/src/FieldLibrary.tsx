@@ -1,4 +1,4 @@
-import React, {useState} from 'react';
+import React, {useRef,useState} from 'react';
 import {Catalog, Entity} from './client';
 import {entityOrder} from './FieldOptions';
 import {DropField, useFieldDrag} from './useFieldDrag';
@@ -8,7 +8,11 @@ export function FieldLibrary({catalog,fields,selectField,drop,onInteraction,sear
   catalog:Catalog; fields:string[]; selectField(id:string):void; drop:DropField; onInteraction(active:boolean):void;
   searchRef:React.RefObject<HTMLInputElement>; pickingFilter:boolean; cancelPick(returnFocus:boolean):boolean;
 }) {
-  const {begin,moved}=useFieldDrag(drop,onInteraction);
+  const pressingField=useRef(false);
+  const {begin,moved}=useFieldDrag(drop,active=>{
+    pressingField.current=active;
+    onInteraction(active);
+  });
   const [search, setSearch] = useState('');
   const [open, setOpen] = useState<Entity[]>([]);
   const [collapsedMatches,setCollapsedMatches]=useState<Entity[]>([]);
@@ -26,7 +30,9 @@ export function FieldLibrary({catalog,fields,selectField,drop,onInteraction,sear
     const update=query?setCollapsedMatches:setOpen;
     update(previous=>previous.includes(entity)?previous.filter(key=>key!==entity):[...previous,entity]);
   }
-  return <div className="library-body" onBlur={e=>{if(!e.currentTarget.contains(e.relatedTarget))cancelPick(false);}}
+  return <div className="library-body" onBlur={e=>{
+    if(!e.currentTarget.contains(e.relatedTarget) && (e.relatedTarget || !pressingField.current))cancelPick(false);
+  }}
     onKeyDown={e=>{if(e.key==='Escape' && cancelPick(true))e.preventDefault();}}>
       <div className="library-toolbar">
         <label className="search library-search"><Icon name="search" size={15}/><input ref={searchRef} type="search" placeholder="Search fields"

@@ -1,4 +1,4 @@
-import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
+import React, {useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState} from 'react';
 import {Aggregation, Catalog, Collision, ColumnNames, Definition, Field, Order, Preview, ReportClient, ReportFilter,
   RequestError, SavedInfo, SavedReport, sourceColumn} from './client';
 import {Modal} from './Modal';
@@ -6,7 +6,7 @@ import {FieldLibrary} from './FieldLibrary';
 import {Icon} from './Icon';
 import {PreviewPane} from './PreviewPane';
 import {FilterEditor,FiltersPanel,newFilterRule} from './FiltersPanel';
-import {LibraryLayout} from './LibraryLayout';
+import {EditorPane, editorPanes, LibraryLayout, useEditorPanes} from './LibraryLayout';
 import {FieldsPanel} from './FieldsPanel';
 import {Destination,DropField} from './useFieldDrag';
 import {WorkspaceBar} from './WorkspaceBar';
@@ -77,10 +77,12 @@ export function ReportBuilder({catalog,client,initialReport,folderId,onReports}:
   const [filterEditor,setFilterEditor]=useState<FilterEditor>(null);
   const [objectPick,setObjectPick]=useState<{destination:Destination;trigger:HTMLButtonElement}|null>(null);
   const objectSearch=useRef<HTMLInputElement>(null);
-  const [queryCollapsed,setQueryCollapsed]=useState(false);
+  const {compact,drawer,objectsOpen,queryOpen,setOpen}=useEditorPanes(newReport);
+  const headings={objects:useRef<HTMLButtonElement>(null),query:useRef<HTMLButtonElement>(null)};
+  const reopen={objects:useRef<HTMLButtonElement>(null),query:useRef<HTMLButtonElement>(null)};
   const [expandedCards,setExpandedCards]=useState<Partial<Record<Destination,boolean>>>(()=>newReport?{fields:true}:{});
   const [fieldInteraction,setFieldInteraction]=useState(false);
-  const queryOpen=!queryCollapsed || fieldInteraction;
+  const queryVisible=queryOpen || (!compact && objectsOpen && fieldInteraction);
   const [notice,setNotice] = useState('');
   const generation = useRef(0);
   const byId = useMemo(() => Object.fromEntries(catalog.fields.map(f => [f.id, f])) as Record<string,Field>, [catalog]);
@@ -113,6 +115,11 @@ export function ReportBuilder({catalog,client,initialReport,folderId,onReports}:
     finally { if (ticket === generation.current) setBusy(false); }
   }
   useEffect(() => { if(initial.fields.length)void run(initial); return () => { generation.current++; }; }, [initial,client]);
+  useLayoutEffect(()=>{
+    if(!objectPick || !objectsOpen)return;
+    objectSearch.current?.focus();
+    objectSearch.current?.select();
+  },[objectPick,objectsOpen]);
   useEffect(() => {
     if (!dirty) return;
     const warn=(e:BeforeUnloadEvent) => { e.preventDefault(); e.returnValue=''; };
@@ -193,13 +200,29 @@ export function ReportBuilder({catalog,client,initialReport,folderId,onReports}:
     };
   }
   function revealDestination(card:Destination) {
-    setQueryCollapsed(false);
+    setOpen('query',true);
     cardDisclosure(card).setExpanded(true);
+  }
+  function showPane(pane:EditorPane) {
+    setOpen(pane,true);
+    requestAnimationFrame(()=>headings[pane].current?.focus({preventScroll:true}));
+  }
+  function closePane(pane:EditorPane) {
+    if(pane==='objects')setObjectPick(null);
+    setOpen(pane,false);
+    requestAnimationFrame(()=>reopen[pane].current?.focus({preventScroll:true}));
+  }
+  function pickObject(destination:Destination,trigger:HTMLButtonElement) {
+    setObjectPick({destination,trigger});
+    setOpen('objects',true);
   }
   function cancelObjectPick(returnFocus:boolean) {
     if(!objectPick)return false;
     setObjectPick(null);
-    if(returnFocus)objectPick.trigger.focus();
+    if(returnFocus){
+      setOpen('query',true);
+      requestAnimationFrame(()=>objectPick.trigger.focus({preventScroll:true}));
+    }
     return true;
   }
   function startFilter(id:string) {
@@ -219,7 +242,12 @@ export function ReportBuilder({catalog,client,initialReport,folderId,onReports}:
     revealDestination('fields');
   };
   function selectObjectField(id:string) {
-    if(objectPick)dropField(id,objectPick.destination);
+    if(objectPick){
+      dropField(id,objectPick.destination);
+      if(compact && objectPick.destination==='fields'){
+        requestAnimationFrame(()=>headings.query.current?.focus({preventScroll:true}));
+      }
+    }
     else toggle(id);
   }
   function moveOutputColumn(id:string,anchor:string,after:boolean) {
@@ -282,45 +310,45 @@ export function ReportBuilder({catalog,client,initialReport,folderId,onReports}:
       </div>
     </header>
     </div>
-    <main className="editor-content">
-      <LibraryLayout newReport={newReport} searchRef={objectSearch} focusRequest={objectPick}
+    <main className="editor-content" onKeyDown={e=>{
+      if(compact && drawer && e.key==='Escape' && !e.defaultPrevented && !(e.target as HTMLElement).closest('dialog')){
+        e.preventDefault();
+        closePane(drawer);
+      }
+    }}>
+      <LibraryLayout newReport={newReport} objectsOpen={objectsOpen} queryOpen={queryVisible} close={closePane} headings={headings}
         library={<FieldLibrary key={editorSession} catalog={catalog} fields={definition.fields} selectField={selectObjectField}
           searchRef={objectSearch} pickingFilter={objectPick?.destination==='filters'} cancelPick={cancelObjectPick}
           drop={dropField} onInteraction={setFieldInteraction}/>}>
-        <section className={'query-controls'+(queryOpen?'':' query-collapsed')} aria-labelledby="query-heading">
-          <div className="query-header">
-            <h3 id="query-heading"><button type="button" className="pane-disclosure" aria-expanded={queryOpen}
-              aria-controls="query-contents" onClick={()=>setQueryCollapsed(collapsed=>!collapsed)}>
-              <Icon name="chevron" size={16}/>Query
-            </button></h3>
+        <div className="query-body" id={editorPanes.query.contents}>
+          <div className="query-scroll">
+            <FieldsPanel key={'fields-'+editorSession} fields={columns} outputIds={outputIds} disclosure={cardDisclosure('fields')}
+              entities={catalog.entities} columnNames={definition.columnNames} rename={renameColumn}
+              onAdd={e=>pickObject('fields',e.currentTarget)}
+              order={definition.order??[]} drop={dropField} remove={toggle} sort={changeSort} showDropTarget={fieldInteraction}
+              groupBy={groupBy} summary={grouped} canSummarize={summaryIds.length>0} onSummaryChange={setSummary}
+              aggregations={definition.aggregations} onAggregationChange={changeAggregation}/>
+            <FiltersPanel key={editorSession} fields={catalog.fields} entities={catalog.entities} lookup={lookup} rules={definition.filters??[]}
+              columnNames={definition.columnNames} rename={renameColumn} disclosure={cardDisclosure('filters')}
+              editor={filterEditor} setEditor={setFilterEditor} showDropTarget={fieldInteraction}
+              onAdd={e=>pickObject('filters',e.currentTarget)} onChange={changeFilters}/>
           </div>
-          <div className="query-body" id="query-contents" hidden={!queryOpen}>
-            <div className="query-scroll">
-              <FieldsPanel key={'fields-'+editorSession} fields={columns} outputIds={outputIds} disclosure={cardDisclosure('fields')}
-                entities={catalog.entities} columnNames={definition.columnNames} rename={renameColumn}
-                onAdd={e=>setObjectPick({destination:'fields',trigger:e.currentTarget})}
-                order={definition.order??[]} drop={dropField} remove={toggle} sort={changeSort} showDropTarget={fieldInteraction}
-                groupBy={groupBy} summary={grouped} canSummarize={summaryIds.length>0} onSummaryChange={setSummary}
-                aggregations={definition.aggregations} onAggregationChange={changeAggregation}/>
-              <FiltersPanel key={editorSession} fields={catalog.fields} entities={catalog.entities} lookup={lookup} rules={definition.filters??[]}
-                columnNames={definition.columnNames} rename={renameColumn}
-                disclosure={cardDisclosure('filters')}
-                editor={filterEditor} setEditor={setFilterEditor} showDropTarget={fieldInteraction}
-                onAdd={e=>setObjectPick({destination:'filters',trigger:e.currentTarget})}
-                onChange={changeFilters}/>
-            </div>
-            <div className="query-footer">
-              {catalog.scope.companies && <div className="query-scope">
-                <span>{definition.version===1?'Sales scope · 0030':'Sales scope · '+catalog.scope.companies.join(', ')}</span>
-                {definition.version===1 && <button type="button" className="text-action"
-                  onClick={()=>{setDefinition(prev=>({...prev,version:2}));setNotice('');}}>Include both companies</button>}
-              </div>}
-            </div>
+          <div className="query-footer">
+            {catalog.scope.companies && <div className="query-scope">
+              <span>{definition.version===1?'Sales scope · 0030':'Sales scope · '+catalog.scope.companies.join(', ')}</span>
+              {definition.version===1 && <button type="button" className="text-action"
+                onClick={()=>{setDefinition(prev=>({...prev,version:2}));setNotice('');}}>Include both companies</button>}
+            </div>}
           </div>
-        </section>
+        </div>
       </LibraryLayout>
       <PreviewPane data={displayData} byId={byId} stale={Boolean(shown && shown.key!==previewKey(definition,outputIds))} error={error}
         entities={catalog.entities} columnNames={definition.columnNames} run={()=>void run(definition)} canMove={sameColumns} move={moveOutputColumn}
+        paneActions={(Object.keys(editorPanes) as EditorPane[]).filter(pane=>!(pane==='objects'?objectsOpen:queryVisible)).map(pane=>{
+          const {icon,id,label}=editorPanes[pane];
+          return <button key={pane} ref={reopen[pane]} type="button" className="secondary-btn" aria-controls={id}
+            aria-expanded="false" onClick={()=>showPane(pane)}><Icon name={icon} size={15}/>Show {label}</button>;
+        })}
         busy={busy} hasFields={Boolean(definition.fields.length)} hasOutput={hasOutput}/>
       <p className="sr-only" role="status">{notice}</p>
     </main>

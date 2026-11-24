@@ -1,87 +1,118 @@
-import React, {useEffect, useLayoutEffect, useRef, useState} from 'react';
+import React, {useEffect, useRef, useState} from 'react';
 import {Icon} from './Icon';
 
-const min=480, initial=624;
-const minShare=32, maxShare=54, initialShare=44;
+export const editorPanes={
+  objects:{id:'objects-pane',contents:'library-contents',label:'Objects',icon:'layers',initial:240,min:200},
+  query:{id:'query-pane',contents:'query-contents',label:'Query',icon:'fields',initial:450,min:400},
+} as const;
+export type EditorPane=keyof typeof editorPanes;
+const compactLayout='(max-width: 900px)';
+const minimumPreviewWidth=280;
 function stored(key:string) { try { return localStorage.getItem('report-builder.library.'+key); } catch {return null;} }
 function remember(key:string,value:string) { try { localStorage.setItem('report-builder.library.'+key,value); } catch { /* Private browsing can disable storage. */ } }
+const layoutPrefix=(newReport:boolean)=>newReport?'new-report-':'';
 
-interface DividerProps {
-  className:string; label:string; controls:string; min:number; max:number; value:number;
-  step:number; dragScale?:number; valueText?:string; onResize(value:number):void;
+export function useEditorPanes(newReport:boolean) {
+  const prefix=layoutPrefix(newReport);
+  const [compact,setCompact]=useState(()=>window.matchMedia(compactLayout).matches);
+  const [drawer,setDrawer]=useState<EditorPane|null>(null);
+  const [desktop,setDesktop]=useState(()=>({objects:stored(prefix+'hidden')!=='true',query:true}));
+  useEffect(()=>{
+    const media=window.matchMedia(compactLayout);
+    function change() {setCompact(media.matches);setDrawer(null);}
+    media.addEventListener('change',change);
+    return ()=>media.removeEventListener('change',change);
+  },[]);
+  useEffect(()=>{remember(prefix+'hidden',String(!desktop.objects));},[prefix,desktop.objects]);
+  function setOpen(pane:EditorPane,open:boolean) {
+    if(compact)setDrawer(current=>open?pane:current===pane?null:current);
+    else setDesktop(current=>({...current,[pane]:open}));
+  }
+  return {compact,drawer,setOpen,objectsOpen:compact?drawer==='objects':desktop.objects,
+    queryOpen:compact?drawer==='query':desktop.query};
 }
 
-function PaneDivider({className,label,controls,min,max,value,step,dragScale=1,valueText,onResize}:DividerProps) {
+interface DividerProps {
+  pane:EditorPane; max:number; value:number; onResize(value:number):void;
+}
+
+function PaneDivider({pane,max,value,onResize}:DividerProps) {
+  const {id,label,min}=editorPanes[pane];
   const drag=useRef<{x:number; value:number} | null>(null);
   function resize(next:number) {
     onResize(Math.max(min, Math.min(Math.round(next),max)));
   }
-  return <div className={className} role="separator" tabIndex={0} aria-label={label} aria-controls={controls}
-    aria-orientation="vertical" aria-valuemin={min} aria-valuemax={max} aria-valuenow={value} aria-valuetext={valueText}
+  return <div className="pane-resize" role="separator" tabIndex={0} aria-label={label+' pane width'} aria-controls={id}
+    aria-orientation="vertical" aria-valuemin={min} aria-valuemax={max} aria-valuenow={value} aria-valuetext={value+' pixels'}
     title="Drag to resize or use the arrow keys"
     onPointerDown={e=>{
       if(e.button!==0 || !e.isPrimary)return;
       drag.current={x:e.clientX,value};
       e.currentTarget.setPointerCapture(e.pointerId);
     }}
-    onPointerMove={e=>{if(drag.current)resize(drag.current.value+(e.clientX-drag.current.x)*dragScale);}}
+    onPointerMove={e=>{if(drag.current)resize(drag.current.value+e.clientX-drag.current.x);}}
     onLostPointerCapture={()=>{drag.current=null;}}
     onKeyDown={e=>{
-      const stops:Record<string,number>={ArrowLeft:value-step,ArrowRight:value+step,Home:min,End:max};
+      const stops:Record<string,number>={ArrowLeft:value-16,ArrowRight:value+16,Home:min,End:max};
       if(e.key in stops){e.preventDefault();resize(stops[e.key]);}
     }}/>;
 }
 
-export function LibraryLayout({library,children,newReport,searchRef,focusRequest}:{
-  library:React.ReactNode;children:React.ReactNode;newReport:boolean;
-  searchRef:React.RefObject<HTMLInputElement>;focusRequest:{trigger:HTMLButtonElement}|null;
+function PaneHeading({pane,buttonRef,close}:{
+  pane:EditorPane;buttonRef:React.Ref<HTMLButtonElement>;close():void;
 }) {
-  const prefix=newReport?'new-report-':'';
-  const [hidden,setHidden]=useState(()=>{const pref=stored(prefix+'hidden');return pref===null?window.matchMedia('(max-width:900px)').matches:pref==='true';});
-  const [width,setWidth]=useState(()=>Number(stored(prefix+'build-width')) || null);
+  const {id,label,icon,contents}=editorPanes[pane];
+  return <div className="builder-pane-heading"><h3 id={id+'-heading'}>
+    <button ref={buttonRef} type="button" className="pane-disclosure" title={'Hide '+label} aria-expanded="true"
+      aria-controls={contents} onClick={close}>
+      <Icon name="chevron" size={16}/><Icon name={icon} size={16}/>{label}
+    </button>
+  </h3></div>;
+}
+
+interface LayoutProps {
+  library:React.ReactNode; children:React.ReactNode; newReport:boolean;
+  objectsOpen:boolean; queryOpen:boolean; close(pane:EditorPane):void;
+  headings:Record<EditorPane,React.Ref<HTMLButtonElement>>;
+}
+export function LibraryLayout({library,children,newReport,objectsOpen,queryOpen,close,headings}:LayoutProps) {
+  const prefix=layoutPrefix(newReport);
+  const [preferred,setPreferred]=useState(()=>({
+    objects:Math.max(editorPanes.objects.min,Number(stored(prefix+'objects-width'))||editorPanes.objects.initial),
+    query:Math.max(editorPanes.query.min,Number(stored(prefix+'query-width'))||editorPanes.query.initial),
+  }));
   const [availableWidth,setAvailableWidth]=useState(()=>document.documentElement.clientWidth);
-  const [objectsShare,setObjectsShare]=useState(()=>Math.max(minShare,Math.min(maxShare,Number(stored(prefix+'objects-share')) || (newReport?36:initialShare))));
   const layout=useRef<HTMLElement>(null);
-  const maxWidth=Math.max(min,Math.floor(availableWidth*.72));
-  const buildWidth=Math.max(min,Math.min(width??(newReport?maxWidth:initial),maxWidth));
-  const layoutStyle={
-    '--build-width':buildWidth+'px',
-    '--objects-share':objectsShare+'fr',
-    '--query-share':(100-objectsShare)+'fr',
-  } as React.CSSProperties;
+  // Give each pane a stable cap so changing its neighbour leaves its width alone.
+  const minimumEditorWidth=editorPanes.objects.min+editorPanes.query.min;
+  const budget=Math.max(minimumEditorWidth,Math.floor(availableWidth)-minimumPreviewWidth);
+  const maxObjects=Math.floor(budget*editorPanes.objects.min/minimumEditorWidth);
+  const maxQuery=budget-maxObjects;
+  const objectsWidth=Math.min(preferred.objects,maxObjects);
+  const queryWidth=Math.min(preferred.query,maxQuery);
   useEffect(()=>{
     const observer=new ResizeObserver(([entry])=>setAvailableWidth(entry.contentRect.width));
     const editor=layout.current?.parentElement;
     if(editor)observer.observe(editor);
     return ()=>observer.disconnect();
   },[]);
-  useEffect(()=>{if(width!==null)remember(prefix+'build-width',String(width));},[prefix,width]);
-  useEffect(()=>{remember(prefix+'objects-share',String(objectsShare));},[prefix,objectsShare]);
-  useEffect(()=>{remember(prefix+'hidden',String(hidden));},[prefix,hidden]);
-  useLayoutEffect(()=>{
-    if(!focusRequest)return;
-    setHidden(false);
-    const frame=requestAnimationFrame(()=>{
-      searchRef.current?.focus();
-      searchRef.current?.select();
-    });
-    return ()=>cancelAnimationFrame(frame);
-  },[focusRequest,searchRef]);
-  return <section id="build-report-pane" ref={layout} style={layoutStyle} className={'build-report'+(hidden?' library-hidden':'')} aria-label="Build Report">
-    <aside id="objects-pane" className="library-wrap" aria-labelledby="objects-heading">
-      <div className="library-heading">
-        <h3 id="objects-heading"><button type="button" className="pane-disclosure" aria-expanded={!hidden}
-          aria-controls="library-contents" onClick={()=>setHidden(value=>!value)}>
-          <Icon name="chevron" size={16}/><Icon name="layers" size={16}/>Objects
-        </button></h3>
-      </div>
-      <div id="library-contents" hidden={hidden}>{library}</div>
-      <PaneDivider className="split-resize" label="Objects and Query split" controls="objects-pane"
-        min={minShare} max={maxShare} value={objectsShare} step={1} dragScale={100/(buildWidth-1)}
-        valueText={objectsShare+'% Objects, '+(100-objectsShare)+'% Query'} onResize={setObjectsShare}/>
+  function resize(pane:EditorPane,value:number) {
+    if(value===(pane==='objects'?objectsWidth:queryWidth))return;
+    setPreferred(current=>({...current,[pane]:value}));
+    remember(prefix+pane+'-width',String(value));
+  }
+  return <section ref={layout} className="build-report" aria-label="Build Report" hidden={!objectsOpen && !queryOpen}>
+    <aside id={editorPanes.objects.id} className="builder-pane library-wrap" aria-labelledby="objects-pane-heading"
+      hidden={!objectsOpen} style={{'--pane-width':objectsWidth+'px'} as React.CSSProperties}>
+      <PaneHeading pane="objects" buttonRef={headings.objects} close={()=>close('objects')}/>
+      <div id={editorPanes.objects.contents} className="library-contents">{library}</div>
+      <PaneDivider pane="objects" value={objectsWidth} max={maxObjects} onResize={value=>resize('objects',value)}/>
     </aside>
-    {children}
-    <PaneDivider className="build-resize" label="Build Report pane width" controls="build-report-pane"
-      min={min} max={maxWidth} value={buildWidth} step={16} onResize={next=>{if(next!==buildWidth)setWidth(next);}}/>
+    <section id={editorPanes.query.id} className="builder-pane query-controls" aria-labelledby="query-pane-heading"
+      hidden={!queryOpen} style={{'--pane-width':queryWidth+'px'} as React.CSSProperties}>
+      <PaneHeading pane="query" buttonRef={headings.query} close={()=>close('query')}/>
+      {children}
+      <PaneDivider pane="query" value={queryWidth} max={maxQuery} onResize={value=>resize('query',value)}/>
+    </section>
   </section>;
 }

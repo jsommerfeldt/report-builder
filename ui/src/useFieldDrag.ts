@@ -74,7 +74,7 @@ export function useFieldDrag(drop:DropField,onInteraction?:(active:boolean)=>voi
     stop.current=cleanup;window.addEventListener('pointermove',track);window.addEventListener('pointerup',finish);
     window.addEventListener('pointercancel',cancelPointer);window.addEventListener('blur',cancel);window.addEventListener('keydown',escape);
     if(onInteraction) {
-      // Opening Query can move the Objects divider while the original field is pressed.
+      // Keep the original field press when Query opens temporarily.
       source.setPointerCapture(pointer);
       source.addEventListener('lostpointercapture',cancelPointer);
       onInteraction(true);
