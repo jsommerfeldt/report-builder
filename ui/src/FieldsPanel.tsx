@@ -53,11 +53,14 @@ export function FieldsPanel({fields,outputIds,order,drop,onAdd,remove,sort,showD
           <Icon name="grip" size={13}/><span className="column-ordinal">{i+1}</span>
           <span className="field-name"><span className="field-label">{f.label}</span>
             {!included && <small className="hint field-hidden">Hidden by grouping</small>}</span></button>
-        {f.measure ? <select className="field-aggregation" aria-label={'Aggregation for '+f.label}
-          title="Applies when Group or Totals only is on" value={aggregations?.[f.id]??'sum'}
-          onChange={e=>onAggregationChange(f.id,e.target.value as Aggregation)}>
-          {Object.entries(aggregationLabels).map(([value,label])=><option key={value} value={value}>{label}</option>)}
-        </select> : <button type="button" className="switch field-group-switch" role="switch" aria-checked={grouped}
+        {f.measure ? <div className="aggregation-control">
+          <select className="field-aggregation" aria-label={'Aggregation for '+f.label}
+            title="Applies when Group or Totals only is on" value={aggregations?.[f.id]??'sum'}
+            onChange={e=>onAggregationChange(f.id,e.target.value as Aggregation)}>
+            {Object.entries(aggregationLabels).map(([value,label])=><option key={value} value={value}>{label}</option>)}
+          </select>
+          <Icon name="chevron" size={14}/>
+        </div> : <button type="button" className="switch field-group-switch" role="switch" aria-checked={grouped}
           aria-label={'Group by '+f.label} title={'Group rows by '+f.label}
           onClick={()=>onGroupChange(f.id,!grouped)}><span/></button>}
         <button type="button" className="switch field-sort" role="switch" aria-checked={enabled} disabled={!included}
