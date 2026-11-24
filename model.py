@@ -83,6 +83,7 @@ FIELDS = (
 )
 BY_ID = {field.id: field for field in FIELDS}
 MEASURES = tuple(field.column for field in FIELDS if field.measure)
+AGGREGATIONS = ("sum", "avg", "min", "max", "count")
 PREVIEW_LIMIT = 50
 STARTER = {"version": 1, "source": "sales", "mode": "summary",
            "fields": ["customer.shippingstate", "product.productnumber", "sales.sales", "sales.shipquantitycseq"],
@@ -166,7 +167,8 @@ def validate_filters(rules):
 
 
 def validate_definition(value):
-    if not isinstance(value, dict) or set(value) - {"filters", "order", "groupBy"} != {"version", "source", "mode", "fields"}:
+    if (not isinstance(value, dict)
+            or set(value) - {"filters", "order", "groupBy", "aggregations"} != {"version", "source", "mode", "fields"}):
         raise InvalidDefinition("The report definition has an unsupported format.")
     if type(value["version"]) is not int or value["version"] not in (1, 2) or value["source"] != "sales":
         raise InvalidDefinition("The report source or definition version is unavailable.")
@@ -190,6 +192,15 @@ def validate_definition(value):
         if result["mode"] == "summary" and not group_by and len(dimensions) == len(ids):
             raise InvalidDefinition("Choose a column to group by or add a measure.")
         result["groupBy"] = list(group_by)
+    if "aggregations" in value:
+        aggregations = value["aggregations"]
+        if not isinstance(aggregations, dict) or any(
+            key not in ids or not BY_ID[key].measure or method not in AGGREGATIONS
+            for key, method in aggregations.items()
+        ):
+            raise InvalidDefinition("Choose a supported aggregation for each selected numeric column.")
+        if aggregations:
+            result["aggregations"] = dict(aggregations)
     if "order" in value:
         order = value["order"]
         if not isinstance(order, list) or len(order) > len(ids):

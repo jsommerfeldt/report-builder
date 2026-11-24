@@ -1,5 +1,5 @@
 import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
-import {Catalog, Collision, Definition, Field, Order, Preview, ReportClient, RequestError, SavedInfo, SavedReport} from './client';
+import {Aggregation, Catalog, Collision, Definition, Field, Order, Preview, ReportClient, RequestError, SavedInfo, SavedReport} from './client';
 import {Modal} from './Modal';
 import {FieldLibrary} from './FieldLibrary';
 import {Icon} from './Icon';
@@ -28,12 +28,13 @@ function definitionKey(d:Definition) {
     const operand=typeof value==='object' && !Array.isArray(value)?[value.direction,value.amount,value.unit]:value;
     return [r.field,r.op,operand,r.enabled,r.caseSensitive??false];
   }),
-    d.fields.map(id=>{const o=d.order?.find(item=>item.field===id);return [id,o?.direction??'asc',!!o && o.enabled!==false,o?.priority??null];})]);
+    d.fields.map(id=>{const o=d.order?.find(item=>item.field===id);return [id,o?.direction??'asc',!!o && o.enabled!==false,o?.priority??null,d.aggregations?.[id]??'sum'];})]);
 }
 const message = (e: unknown) => e instanceof Error ? e.message : 'The operation failed.';
 // Moving output columns only rearranges the cells in an already computed result.
 function previewKey(d:Definition,outputIds:string[]) {
-  return definitionKey({...d,fields:[...outputIds].sort(),groupBy:undefined});
+  return definitionKey({...d,fields:[...outputIds].sort(),groupBy:undefined,
+    aggregations:d.mode==='summary'?d.aggregations:undefined});
 }
 interface BuilderProps {catalog:Catalog; client:ReportClient; initialReport?:SavedReport; folderId?:string|null; onReports?():void}
 export function ReportBuilder({catalog,client,initialReport,folderId,onReports}:BuilderProps) {
@@ -108,6 +109,7 @@ export function ReportBuilder({catalog,client,initialReport,folderId,onReports}:
       const groupBy=prev.groupBy?.filter(id=>fields.includes(id));
       const mode=groupBy?.length===0 && !fields.some(id=>byId[id].measure)?'detail':prev.mode;
       return {...prev,fields,groupBy,mode,
+        aggregations:prev.aggregations && Object.fromEntries(Object.entries(prev.aggregations).filter(([id])=>fields.includes(id))),
         order:prev.order && numberSorts(prev.order.filter(o=>fields.includes(o.field)))};
     });
     setNotice('');setError('');
@@ -133,6 +135,15 @@ export function ReportBuilder({catalog,client,initialReport,folderId,onReports}:
   }
   function setGrouping(mode:Definition['mode'],groupBy:string[]) {
     setDefinition(prev=>({...prev,mode,groupBy}));
+    setNotice('');setError('');
+  }
+  function changeAggregation(id:string,method:Aggregation) {
+    setDefinition(prev=>{
+      const aggregations={...prev.aggregations};
+      if(method==='sum')delete aggregations[id];
+      else aggregations[id]=method;
+      return {...prev,aggregations};
+    });
     setNotice('');setError('');
   }
   function toggleGroup(id:string,active:boolean) {
@@ -242,6 +253,7 @@ export function ReportBuilder({catalog,client,initialReport,folderId,onReports}:
               <FieldsPanel key={'fields-'+editorSession} fields={columns} outputIds={outputIds} disclosure={cardDisclosure('fields')}
                 order={definition.order??[]} drop={dropField} remove={toggle} sort={changeSort} showDropTarget={fieldInteraction}
                 groupBy={grouped?groupBy:[]} totalsOnly={grouped && !groupBy.length}
+                aggregations={definition.aggregations} onAggregationChange={changeAggregation}
                 onGroupChange={toggleGroup} onTotalsChange={active=>setGrouping(active?'summary':'detail',[])}/>
               <FiltersPanel key={editorSession} fields={catalog.fields} entities={catalog.entities} lookup={lookup} rules={definition.filters??[]}
                 disclosure={cardDisclosure('filters')}

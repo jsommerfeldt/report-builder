@@ -37,7 +37,7 @@ def matches_filter(sources, field, op, expected, case_sensitive):
 def cell_value(value):
     if isinstance(value, datetime):
         return value.isoformat(sep=" ")
-    return str(value) if isinstance(value, Decimal) else value
+    return str(value) if isinstance(value, (Decimal, int)) else value
 
 
 def file_hash(path):
@@ -226,7 +226,10 @@ class CsvSnapshot:
                 if field.entity in RELATIONSHIPS:
                     entities.add(field.entity)
         dimension_pos = [i for i, field in enumerate(fields) if not field.measure]
-        measure_pos = [i for i, field in enumerate(fields) if field.measure]
+        aggregations = {} if detail else definition.get("aggregations", {})
+        measures = [(i, aggregations.get(field.id, "sum")) for i, field in enumerate(fields) if field.measure]
+        count_positions = [i for i, method in measures if method == "count"]
+        average_positions = [i for i, method in measures if method == "avg"]
         rows = []
         groups = {}
         matched = 0
@@ -249,17 +252,37 @@ class CsvSnapshot:
                 continue
             key = tuple(values[index] for index in dimension_pos)
             if key not in groups:
-                groups[key] = values
-            else:
-                target = groups[key]
-                for index in measure_pos:
-                    if values[index] is not None:
-                        target[index] = (target[index] or Decimal(0)) + values[index]
+                for index in count_positions:
+                    values[index] = int(values[index] is not None)
+                groups[key] = values, {index: int(values[index] is not None) for index in average_positions}
+                continue
+            target, average_counts = groups[key]
+            for index, method in measures:
+                value = values[index]
+                if value is None:
+                    continue
+                if method == "count":
+                    target[index] += 1
+                    continue
+                if method == "avg":
+                    average_counts[index] += 1
+                if method in ("sum", "avg"):
+                    target[index] = (target[index] or Decimal(0)) + value
+                elif target[index] is None:
+                    target[index] = value
+                elif method == "min":
+                    target[index] = min(target[index], value)
+                else:
+                    target[index] = max(target[index], value)
         if detail:
             total = matched if active else len(facts)
         else:
             # Groups keep the first matching fact's position until an enabled field sorts them.
-            rows = list(groups.values())
+            for values, average_counts in groups.values():
+                for index, count in average_counts.items():
+                    if count:
+                        values[index] /= count
+                rows.append(values)
             total = len(groups)
         # Stable sorts from the last priority to the first. NULL stays last in both directions.
         for spec in reversed(order):
@@ -271,4 +294,5 @@ class CsvSnapshot:
             rows = rows[offset:end]
         return {"fields": output_ids, "rows": [
             [cell_value(value) for value in row] for row in rows
-        ], "total": total, "limit": limit, "sourceRows": len(facts)}
+        ], "total": total, "limit": limit, "sourceRows": len(facts),
+            **({"aggregations": aggregations} if aggregations else {})}

@@ -1,5 +1,5 @@
 import React,{useState} from 'react';
-import {Field,Order} from './client';
+import {Aggregation,aggregationLabels,Aggregations,Field,Order} from './client';
 import {Icon} from './Icon';
 import {DropField,useFieldDrag} from './useFieldDrag';
 import {CardDisclosure,QueryCard} from './QueryCard';
@@ -8,20 +8,21 @@ import {columnsHelp} from './QueryHelp';
 interface Props {
   fields:Field[]; outputIds:string[]; order:Order[]; drop:DropField; showDropTarget:boolean; disclosure:CardDisclosure;
   remove(id:string):void; sort(setting:Order):void;
-  groupBy:string[]; totalsOnly:boolean;
+  groupBy:string[]; totalsOnly:boolean; aggregations?:Aggregations;
   onGroupChange(id:string,value:boolean):void; onTotalsChange(value:boolean):void;
+  onAggregationChange(id:string,value:Aggregation):void;
 }
 
 export function FieldsPanel({fields,outputIds,order,drop,remove,sort,showDropTarget,disclosure,
-  groupBy,totalsOnly,onGroupChange,onTotalsChange}:Props) {
-  const [expanded,setExpanded]=useState(false);
+  groupBy,totalsOnly,onGroupChange,onTotalsChange,aggregations,onAggregationChange}:Props) {
+  const [expanded,setExpanded]=useState(true);
   const {begin}=useFieldDrag(drop);
   const settings=new Map(order.map(item=>[item.field,item]));
   const priorities=order.filter(item=>item.enabled!==false).map((_,i)=>i+1);
   const visible=expanded?fields:fields.slice(0,3);
   return <QueryCard title="Columns" icon="grid" className="selection" dropZone="fields" showDropTarget={showDropTarget}
     disclosure={disclosure} help={columnsHelp}>
-    <div className="configuration-scroll" tabIndex={0} role="group" aria-label="Field order and sorting">
+    <div className="configuration-scroll" tabIndex={0} role="group" aria-label="Column order, grouping and sorting">
     {fields.length>0 && <div className="field-control-grid field-headings" aria-hidden="true">
       <span>Column Order</span><span>Group</span><span>Sort</span><span>Priority</span><span>Direction</span><span/>
     </div>}
@@ -45,10 +46,15 @@ export function FieldsPanel({fields,outputIds,order,drop,remove,sort,showDropTar
             drop(f.id,'fields',fields[next].id,down);
           }}>
           <Icon name="grip" size={13}/><span className="column-ordinal">{i+1}</span>
-          <span className="field-name">{f.label}{!included && <small className="hint field-hidden">Hidden by grouping</small>}</span></button>
-        <button type="button" className="switch field-group-switch" role="switch" aria-checked={grouped} disabled={f.measure}
-          aria-label={'Group by '+f.label} title={f.measure?'Measures are totaled within each group':'Group rows by '+f.label}
-          onClick={()=>onGroupChange(f.id,!grouped)}><span/></button>
+          <span className="field-name"><span className="field-label">{f.label}</span>
+            {!included && <small className="hint field-hidden">Hidden by grouping</small>}</span></button>
+        {f.measure ? <select className="field-aggregation" aria-label={'Aggregation for '+f.label}
+          title="Applies when Group or Totals only is on" value={aggregations?.[f.id]??'sum'}
+          onChange={e=>onAggregationChange(f.id,e.target.value as Aggregation)}>
+          {Object.entries(aggregationLabels).map(([value,label])=><option key={value} value={value}>{label}</option>)}
+        </select> : <button type="button" className="switch field-group-switch" role="switch" aria-checked={grouped}
+          aria-label={'Group by '+f.label} title={'Group rows by '+f.label}
+          onClick={()=>onGroupChange(f.id,!grouped)}><span/></button>}
         <button type="button" className="switch field-sort" role="switch" aria-checked={enabled} disabled={!included}
           aria-label={'Sort by '+f.label} title={enabled?'Exclude from row sorting':'Include in row sorting'}
           onClick={()=>sort({field:f.id,direction,enabled:!enabled})}><span/></button>

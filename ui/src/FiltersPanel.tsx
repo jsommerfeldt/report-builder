@@ -1,4 +1,4 @@
-import React, {useRef} from 'react';
+import React, {useLayoutEffect,useRef} from 'react';
 import {Catalog,Field,FilterOp,RelativePeriod,ReportClient,ReportFilter} from './client';
 import {FieldOptions} from './FieldOptions';
 import {Icon} from './Icon';
@@ -45,6 +45,31 @@ export function FiltersPanel({fields,entities,rules,onChange,lookup,editor,setEd
   const all = rules.every(r=>r.enabled);
   const editing = editor && fields.find(f=>f.id===editor.rule.field);
   const addButton=useRef<HTMLButtonElement>(null);
+  const formRef=useRef<HTMLFormElement>(null);
+  const editorIndex=editor?.index;
+  const editorField=editor?.rule.field;
+  const editorCondition=editor?.rule.op;
+  useLayoutEffect(()=>{
+    if(disclosure.expanded && editorIndex!==undefined){
+      formRef.current?.querySelector('select')?.focus({preventScroll:true});
+    }
+  },[disclosure.expanded,editorIndex]);
+  useLayoutEffect(()=>{
+    if(!disclosure.expanded || editorIndex===undefined)return;
+    const card=formRef.current?.closest<HTMLElement>('.query-card');
+    const query=card?.closest<HTMLElement>('.query-scroll');
+    if(!card || !query)return;
+    if(getComputedStyle(query).overflowY==='visible'){
+      card.scrollIntoView({block:'nearest'});
+      return;
+    }
+    const viewport=query.getBoundingClientRect();
+    const bounds=card.getBoundingClientRect();
+    const padding=parseFloat(getComputedStyle(query).paddingTop);
+    if(bounds.top<viewport.top || bounds.bottom>viewport.bottom){
+      query.scrollTop+=bounds.top-viewport.top-padding;
+    }
+  },[disclosure.expanded,editorIndex,editorField,editorCondition]);
   const value=editor?.rule.value;
   const relative=value!==undefined && isPeriod(value)?value:null;
   const valid=relative?Number.isInteger(relative.amount) && relative.amount>=1 && relative.amount<=365:
@@ -65,10 +90,10 @@ export function FiltersPanel({fields,entities,rules,onChange,lookup,editor,setEd
   return <QueryCard title="Filters" icon="filter" className="filters" dropZone={!editor && rules.length<32?'filters':undefined}
     showDropTarget={showDropTarget} disclosure={disclosure} help={filtersHelp}
     status={editor && !disclosure.expanded && !showDropTarget?'Filter draft':undefined}>
-    {editor ? <form id="filter-editor" className="filter-editor" onSubmit={commit}>
+    {editor ? <form id="filter-editor" ref={formRef} className="filter-editor" onSubmit={commit}>
       <h5>{editor.index<rules.length?'Edit Filter':'New Filter'}</h5>
       <div className="filter-control"><label htmlFor="filter-field">Field</label>
-        <select id="filter-field" autoFocus required value={editor.rule.field}
+        <select id="filter-field" required value={editor.rule.field}
           onChange={e=>updateRule(newFilterRule(fields.find(field=>field.id===e.target.value),editor.rule.enabled))}>
           <option value="" disabled>Choose a field</option>
           <FieldOptions fields={fields} entities={entities}/>

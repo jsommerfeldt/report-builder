@@ -106,20 +106,41 @@ class PilotTest(unittest.TestCase):
         detail = self.snapshot.preview({**dimension_only, "mode": "detail"})
         self.assertEqual(detail["rows"], [["MN"], ["MN"], ["~NO"]])
 
+    def test_numeric_aggregations(self):
+        state, sales, cases = "customer.shippingstate", "sales.sales", "sales.shipquantitycseq"
+        query = {**self.d, "fields": [state, sales, cases], "groupBy": [state],
+                 "order": [{"field": sales, "direction": "desc"}]}
+        for method, expected in (("sum", "12.10"), ("avg", "6.05"), ("min", "-2.10"), ("max", "14.20"), ("count", "2")):
+            with self.subTest(method=method):
+                aggregations = {sales: method}
+                report = {**query, "aggregations": aggregations}
+                result = self.snapshot.preview(report)
+                self.assertEqual(result["aggregations"], aggregations)
+                self.assertEqual(result["rows"], [["MN", expected, "1.2501"],
+                                                   ["~NO", "0" if method == "count" else None, None]])
+                totals = self.snapshot.preview({**report, "groupBy": []})
+                self.assertEqual(totals["rows"], [[expected, "1.2501"]])
+        for invalid in (None, [sales, "sum"], {sales: ["sum"]}, {sales: "median"}, {state: "count"},
+                        {"sales.creditsales": "sum"}):
+            with self.subTest(invalid=invalid), self.assertRaises(InvalidDefinition):
+                self.snapshot.preview({**query, "aggregations": invalid})
+
     def test_grouping_persists_and_runs_from_the_report_library(self):
         client = self.client()
         self.sign_in(client)
         post = {"base_url": ORIGIN, "headers": {"Origin": ORIGIN}}
         state, sales = "customer.shippingstate", "sales.sales"
-        definition = {**self.d, "groupBy": [state]}
+        definition = {**self.d, "groupBy": [state], "aggregations": {sales: "count"}}
         created = client.post("/api/reports", json={"name": "Sales by state", "definition": definition}, **post)
         self.assertEqual(created.status_code, 201)
         url = "/api/reports/" + created.json["id"]
         opened = client.get(url, base_url=ORIGIN)
         self.assertEqual(opened.json["definition"]["groupBy"], [state])
+        self.assertEqual(opened.json["definition"]["aggregations"], {sales: "count"})
         results = client.get(url + "/results?revision=1", base_url=ORIGIN)
         self.assertEqual(results.json["fields"], [state, sales, "sales.shipquantitycseq"])
-        self.assertEqual(results.json["rows"][0], ["MN", "12.10", "1.2501"])
+        self.assertEqual(results.json["rows"][0], ["MN", "2", "1.2501"])
+        self.assertEqual(results.json["aggregations"], {sales: "count"})
         detail = {**definition, "mode": "detail"}
         updated = client.put(url, json={"name": "Sales by state", "definition": detail, "revision": 1}, **post)
         self.assertEqual(updated.status_code, 200)
@@ -127,6 +148,8 @@ class PilotTest(unittest.TestCase):
         results = client.get(url + "/results?revision=2", base_url=ORIGIN)
         self.assertEqual(results.json["fields"], self.d["fields"])
         self.assertEqual(results.json["total"], 3)
+        self.assertEqual(results.json["rows"][0][2], "14.20")
+        self.assertNotIn("aggregations", results.json)
 
     def test_snapshot_integrity(self):
         with (self.path / "fact_sales.csv").open("a", encoding="utf-8") as f:

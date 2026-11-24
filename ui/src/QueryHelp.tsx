@@ -8,7 +8,7 @@ export const columnsHelp={
     <p>Select fields in <strong>Objects</strong> or drag them into <strong>Columns</strong>.</p>
     <dl>
       <div><dt>Column Order</dt><dd>Drag <strong>Shipping State</strong> above <strong>Sales</strong> to show the state first. The up and down arrow keys also move a focused column.</dd></div>
-      <div><dt>Group</dt><dd>Turn on <strong>Group</strong> for each column that defines a group. Measures are totaled for each group. With no groups selected, <strong>Totals only</strong> shows a single total row for the selected measures.</dd></div>
+      <div><dt>Group</dt><dd>Turn on <strong>Group</strong> for each column that defines a group. For each numeric column, choose <strong>Sum</strong>, <strong>Average</strong>, <strong>Minimum</strong>, <strong>Maximum</strong>, or <strong>Count</strong>. Count counts values and skips blanks. With no groups selected, <strong>Totals only</strong> applies the same calculations across all matching rows.</dd></div>
       <div><dt>Sort, Priority, and Direction</dt><dd>Turn on <strong>Sort</strong> for <strong>Sales</strong> and choose <strong>Desc</strong> to show the largest sales first. Priority 1 sorts first. Priority 2 breaks its ties.</dd></div>
     </dl>
   </div>

@@ -1,15 +1,19 @@
 import React, {useEffect,useRef,useState} from 'react';
-import {Field, Preview} from './client';
+import {Aggregation, aggregationLabels, Field, Preview} from './client';
 import {Icon} from './Icon';
 import {ReorderMotion} from './ReorderMotion';
 
 const dollars = new Intl.NumberFormat('en-US', {style:'currency', currency:'USD'});
 const quantity = new Intl.NumberFormat('en-US', {maximumFractionDigits:4});
-export function resultCell(value: string | null, field: Field) {
+export function resultCell(value: string | null, field: Field, aggregation?:Aggregation) {
   if (value === null || value === '') return <span className="empty-value" aria-label="Blank">—</span>;
+  if (aggregation === 'count') return quantity.format(Number(value));
   if (field.kind === 'currency') return dollars.format(Number(value));
   if (field.kind === 'quantity') return quantity.format(Number(value));
   return value;
+}
+export function resultLabel(field:Field, aggregation?:Aggregation) {
+  return aggregation && aggregation!=='sum'?aggregationLabels[aggregation]+' of '+field.label:field.label;
 }
 interface Props { data: Preview | null; byId: Record<string, Field>; stale: boolean; busy: boolean; error:string;
   canMove:boolean; move(id:string,anchor:string,after:boolean):void;
@@ -49,7 +53,8 @@ export function PreviewPane({data,byId,stale,busy,error,hasFields,hasOutput,canM
   }
   const ids=data?.fields??[];
   const manual=ids.some(id=>widths[id]!==undefined);
-  const width=(id:string)=>widths[id]??Math.max(135,(byId[id].label.length+6)*8);
+  const label=(id:string)=>resultLabel(byId[id],data?.aggregations?.[id]);
+  const width=(id:string)=>widths[id]??Math.max(135,(label(id).length+6)*8);
   const clamp=(n:number)=>Math.max(72,Math.min(2000,Math.round(n)));
   function measure() {
     const headers=Array.from(table.current?.tHead?.rows[0]?.cells??[]);
@@ -85,12 +90,12 @@ export function PreviewPane({data,byId,stale,busy,error,hasFields,hasOutput,canM
           cancelMove();
           if(canMove && slot?.anchor)move(start.id,slot.anchor,slot.after);
         }} onLostPointerCapture={cancelMove}>
-        <button type="button" disabled={!canMove} className="column-label header-grip" aria-label={'Move preview column '+field.label}
+        <button type="button" disabled={!canMove} className="column-label header-grip" aria-label={'Move preview column '+label(id)}
           title="Drag to move this column, or use the left and right arrow keys" onKeyDown={e=>{
             if(e.key!=='ArrowLeft' && e.key!=='ArrowRight')return;
             e.preventDefault();const right=e.key==='ArrowRight',other=ids[ids.indexOf(id)+(right?1:-1)];
             if(other)move(id,other,right);
-          }}><Icon name="grip" size={12}/>{field.label}</button>
+          }}><Icon name="grip" size={12}/>{label(id)}</button>
         <span className="column-resize" role="separator" tabIndex={0} aria-orientation="vertical" aria-label={'Resize '+field.label}
           aria-valuemin={72} aria-valuemax={2000} aria-valuenow={width(id)} aria-valuetext={manual?width(id)+' pixels':'Automatic width'}
           title="Drag to resize, or use the left and right arrow keys" onKeyDown={e=>resizeKey(e,id)}
@@ -106,7 +111,8 @@ export function PreviewPane({data,byId,stale,busy,error,hasFields,hasOutput,canM
           }}
           onLostPointerCapture={()=>{drag.current=null;}}/></th>;
     })}</tr></thead><tbody>{data.total===0 && <tr><td colSpan={data.fields.length}>No rows match the current filters.</td></tr>}{data.rows.map((row,i) => <tr key={i}>{row.map((value,j) => {
-      const f=byId[data.fields[j]]; return <td key={f.id} title={value??undefined} className={f.measure ? 'numeric' : ''}>{resultCell(value,f)}</td>;
+      const f=byId[data.fields[j]]; return <td key={f.id} title={value??undefined} className={f.measure ? 'numeric' : ''}>
+        {resultCell(value,f,data.aggregations?.[f.id])}</td>;
     })}</tr>)}</tbody></table></div> :
       <div className="empty-preview"><span className="empty-icon"><Icon name="grid" size={26}/></span><strong>{busy?'Running preview':hasFields?'No results to display':'Choose your first field'}</strong>
         {!busy && <span>{hasOutput?'Run preview to see your report.':hasFields?'Choose a column to group by or add a measure.':
