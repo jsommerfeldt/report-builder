@@ -43,7 +43,6 @@ interface Props { fields:Field[]; entities:Catalog['entities']; rules:ReportFilt
   columnNames?:ColumnNames; rename(field:Field,trigger:HTMLButtonElement):void;
   editor:FilterEditor;setEditor(value:FilterEditor):void;onAdd:React.MouseEventHandler<HTMLButtonElement>;showDropTarget:boolean;disclosure:CardDisclosure }
 export function FiltersPanel({fields,entities,rules,onChange,lookup,editor,setEditor,onAdd,showDropTarget,disclosure,columnNames,rename}:Props) {
-  const all = rules.every(r=>r.enabled);
   const editing = editor && fields.find(f=>f.id===editor.rule.field);
   const addButton=useRef<HTMLButtonElement>(null);
   const formRef=useRef<HTMLFormElement>(null);
@@ -143,8 +142,6 @@ export function FiltersPanel({fields,entities,rules,onChange,lookup,editor,setEd
         <button type="submit" className="primary-btn" disabled={!editing || (editor.rule.op!=='blank' && !valid)}>Apply filter</button>
       </div>
     </form> : <div className="filter-overview">
-      {rules.length>1 && <button type="button" className="secondary-btn filter-bulk"
-        onClick={()=>onChange(rules.map(r=>({...r,enabled:!all})))}>{all?'Disable all':'Enable all'}</button>}
       {rules.length>0 && <ul className="filter-list" aria-label="Filter rules">{rules.map((r,i)=>{
         const f=fields.find(field=>field.id===r.field)!;
         const name=columnNames?.[f.id]??f.label;

@@ -202,7 +202,6 @@ button.field-row { width: 100%; text-align: left; }
 .query-add:hover:enabled { background: var(--accent-subtle); border-color: var(--accent); }
 .more-fields { margin-top: 4px; }
 .filter-overview { display: grid; gap: 8px; }
-.filter-bulk { justify-self: end; }
 .filter-rule-grid { display: grid; grid-template-columns: minmax(0, 1fr) 23px 34px 23px; align-items: center; gap: 4px; padding: 3px 5px; }
 .filter-rule-grid .switch { justify-self: center; }
 .filter-list li { min-height: 34px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--raised); }
