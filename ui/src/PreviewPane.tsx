@@ -23,11 +23,11 @@ export function resultLabel(field:Field, aggregation?:Aggregation, name?:string)
   return aggregation && aggregation!=='sum'?aggregationLabels[aggregation]+' of '+field.label:field.label;
 }
 interface Props { data: Preview | null; outputIds:string[]; byId: Record<string, Field>; busy: boolean; error:string;
-  entities:Catalog['entities']; columnNames?:ColumnNames;
+  entities:Catalog['entities']; columnNames?:ColumnNames; paneRef:React.Ref<HTMLElement>;
   rename(field:Field,name:string):void;
   move(id:string,anchor:string,after:boolean):void;
   hasFields: boolean; }
-export function PreviewPane({data,outputIds:ids,byId,entities,columnNames,busy,error,hasFields,move,rename}:Props) {
+export function PreviewPane({data,outputIds:ids,byId,entities,columnNames,paneRef,busy,error,hasFields,move,rename}:Props) {
   const table=useRef<HTMLTableElement>(null);
   const [widths,setWidths]=useState<Record<string,number>>({});
   const drag=useRef<{pointer:number; x:number; id:string; width:number}|null>(null);
@@ -86,7 +86,7 @@ export function PreviewPane({data,outputIds:ids,byId,entities,columnNames,busy,e
     const current=measure();
     setWidths(prev=>({...prev,...current,[id]:clamp(current[id]+(e.key==='ArrowRight'?16:-16))}));
   }
-  return <section className="preview" id="report-preview" aria-labelledby="preview-heading" data-library-zone="preview">
+  return <section ref={paneRef} className="preview" id="report-preview" aria-labelledby="preview-heading" data-library-zone="preview">
     <div className="pane-header preview-head"><h2 id="preview-heading"><Icon name="grid" size={16}/>Preview</h2><div className="preview-actions">
       {manual && <button className="text-action" onClick={()=>setWidths({})}>Auto-fit columns</button>}
       {data && <span className="result-count" role="status">{data.rows.length.toLocaleString()} of {data.total.toLocaleString()} rows</span>}

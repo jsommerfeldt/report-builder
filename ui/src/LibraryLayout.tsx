@@ -3,7 +3,7 @@ import {Icon} from './Icon';
 
 const editorPanes={
   objects:{id:'objects-pane',label:'Objects',initial:248,min:240},
-  query:{id:'query-pane',label:'Query',initial:472,min:456,initialHeight:580},
+  query:{id:'query-pane',label:'Query',initial:472,min:456},
 } as const;
 type EditorPane=keyof typeof editorPanes;
 function stored(key:string) { try { return localStorage.getItem('report-builder.library.'+key); } catch {return null;} }
@@ -49,10 +49,11 @@ interface LayoutProps {
   queryVisible:boolean; toggleQuery():void; closeQuery():void;
   objectsCollapsed:boolean; toggleObjects():void;
   queryToggle:React.Ref<HTMLButtonElement>; queryClose:React.Ref<HTMLButtonElement>;
+  previewPane:React.RefObject<HTMLElement>;
   previewRun:{run():void; disabled:boolean; busy:boolean; current:boolean};
 }
 export function LibraryLayout({library,children,newReport,queryVisible,toggleQuery,closeQuery,queryToggle,queryClose,
-  objectsCollapsed,toggleObjects,previewRun}:LayoutProps) {
+  objectsCollapsed,toggleObjects,previewPane,previewRun}:LayoutProps) {
   const prefix=layoutPrefix(newReport);
   const [preferred,setPreferred]=useState(()=>({
     objects:Math.max(editorPanes.objects.min,Number(stored(prefix+'objects-width'))||editorPanes.objects.initial),
@@ -61,7 +62,7 @@ export function LibraryLayout({library,children,newReport,queryVisible,toggleQue
   const [queryHeight,setQueryHeight]=useState(()=>Number(stored(prefix+'query-height'))||0);
   const [queryPosition,setQueryPosition]=useState<{x:number;y:number}|null>(null);
   const [workspace,setWorkspace]=useState(()=>({
-    width:document.documentElement.clientWidth,height:document.documentElement.clientHeight,objectsHeight:0,railWidth:0,
+    width:document.documentElement.clientWidth,height:document.documentElement.clientHeight,objectsHeight:0,railWidth:0,previewHeight:0,
   }));
   const layout=useRef<HTMLElement>(null);
   const objects=useRef<HTMLElement>(null);
@@ -73,29 +74,32 @@ export function LibraryLayout({library,children,newReport,queryVisible,toggleQue
   const objectsWidth=Math.min(preferred.objects,maxObjects);
   const leftLimit=workspace.railWidth+edgeGap;
   const widthLimit=workspace.width-leftLimit-edgeGap;
-  const heightLimit=workspace.height-2*edgeGap;
+  const heightLimit=Math.max(0,workspace.height-2*edgeGap);
   const minWidth=Math.min(editorPanes.query.min,widthLimit);
-  const minHeight=Math.min(156,Math.max(0,heightLimit));
+  const minHeight=Math.min(156,heightLimit);
   const queryWidth=clamp(preferred.query,minWidth,widthLimit);
-  const height=queryHeight?clamp(queryHeight,minHeight,heightLimit):undefined;
+  const height=queryHeight?clamp(queryHeight,minHeight,heightLimit):Math.min(heightLimit,Math.round(workspace.previewHeight*.8));
   const defaultX=compact?leftLimit:workspace.width-queryWidth-28;
   const defaultY=compact?(objectsCollapsed?52:workspace.objectsHeight+6):workspace.height*.23;
   const x=clamp(queryPosition?.x??defaultX,leftLimit,workspace.width-queryWidth-edgeGap);
-  const y=clamp(queryPosition?.y??defaultY,edgeGap,workspace.height-(height??minHeight)-edgeGap);
+  const y=clamp(queryPosition?.y??defaultY,edgeGap,workspace.height-height-edgeGap);
   const maxQueryHeight=workspace.height-y-edgeGap;
   useEffect(()=>{
     const editor=layout.current?.parentElement;
     const objectPane=objects.current;
     const sidebar=rail.current;
-    if(!editor || !objectPane || !sidebar)return;
+    const preview=previewPane.current;
+    if(!editor || !objectPane || !sidebar || !preview)return;
     const observer=new ResizeObserver(()=>setWorkspace({
       width:editor.clientWidth,height:editor.clientHeight,objectsHeight:objectPane.offsetHeight,railWidth:sidebar.offsetWidth,
+      previewHeight:preview.offsetHeight,
     }));
     observer.observe(editor);
     observer.observe(objectPane);
     observer.observe(sidebar);
+    observer.observe(preview);
     return ()=>observer.disconnect();
-  },[]);
+  },[previewPane]);
   function resize(pane:EditorPane,value:number) {
     if(value===(pane==='objects'?objectsWidth:queryWidth))return;
     setPreferred(current=>({...current,[pane]:value}));
@@ -167,7 +171,7 @@ export function LibraryLayout({library,children,newReport,queryVisible,toggleQue
       {!objectsCollapsed && <PaneDivider pane="objects" value={objectsWidth} max={maxObjects} onResize={value=>resize('objects',value)}/>}
     </aside>
     <section ref={popup} id={editorPanes.query.id} className="builder-pane query-controls" role="dialog" aria-labelledby="query-pane-heading"
-      hidden={!queryVisible} style={{width:queryWidth,height:height??editorPanes.query.initialHeight,maxHeight:maxQueryHeight,insetInlineStart:x,insetBlockStart:y}}>
+      hidden={!queryVisible} style={{width:queryWidth,height,maxHeight:maxQueryHeight,insetInlineStart:x,insetBlockStart:y}}>
       <div className="builder-pane-heading">
         <div className="query-title-bar" onPointerDown={e=>startGesture('move',e)} onPointerMove={trackGesture} onLostPointerCapture={stopGesture}>
           <h3 id="query-pane-heading"><Icon name="fields" size={16}/>Query</h3>

@@ -88,6 +88,7 @@ export function ReportBuilder({catalog,client,initialReport,folderId,onReports}:
   const [queryOpen,setQueryOpen]=useState(false);
   const queryToggle=useRef<HTMLButtonElement>(null);
   const queryClose=useRef<HTMLButtonElement>(null);
+  const previewPane=useRef<HTMLElement>(null);
   const [expandedCards,setExpandedCards]=useState<Partial<Record<Destination,boolean>>>(()=>newReport?{fields:true}:{});
   const [pickedField,setPickedField]=useState<{source:DragSource;id:string}|null>(null);
   const [queryHint,setQueryHint]=useState('');
@@ -343,6 +344,7 @@ export function ReportBuilder({catalog,client,initialReport,folderId,onReports}:
       }
     }}>
       <LibraryLayout newReport={newReport} queryVisible={queryVisible} toggleQuery={toggleQuery} closeQuery={closeQuery}
+        previewPane={previewPane}
         previewRun={{run:()=>void run(definition),disabled:busy || !hasOutput || !!pendingMove,busy,current:previewCurrent}}
         objectsCollapsed={objectsCollapsed} toggleObjects={()=>{
           if(!objectsCollapsed)setObjectPick(null);
@@ -378,7 +380,7 @@ export function ReportBuilder({catalog,client,initialReport,folderId,onReports}:
           </div>
         </div>
       </LibraryLayout>
-      <PreviewPane data={displayData} outputIds={outputIds} byId={byId} error={error}
+      <PreviewPane paneRef={previewPane} data={displayData} outputIds={outputIds} byId={byId} error={error}
         entities={catalog.entities} columnNames={definition.columnNames} move={moveOutputColumn}
         rename={renameColumn} busy={busy} hasFields={Boolean(definition.fields.length)}/>
       <p className="sr-only" role="status">{notice}</p>
