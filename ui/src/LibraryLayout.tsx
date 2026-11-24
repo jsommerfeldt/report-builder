@@ -65,7 +65,6 @@ export function LibraryLayout({library,children,newReport,queryVisible,toggleQue
   const layout=useRef<HTMLElement>(null);
   const objects=useRef<HTMLElement>(null);
   const rail=useRef<HTMLDivElement>(null);
-  const objectsToggle=useRef<HTMLButtonElement>(null);
   const popup=useRef<HTMLElement>(null);
   const gesture=useRef<(PopupRect & {mode:'move'|ResizeEdge;pointer:number;startX:number;startY:number})|null>(null);
   const compact=workspace.width<=700;
@@ -145,7 +144,7 @@ export function LibraryLayout({library,children,newReport,queryVisible,toggleQue
   }
   return <section ref={layout} className="build-report" aria-label="Build Report">
     <div ref={rail} className="builder-rail" role="group" aria-label="Builder sidebar">
-      <button ref={objectsToggle} type="button" className="secondary-btn" aria-expanded={!objectsCollapsed}
+      <button type="button" className="secondary-btn" aria-expanded={!objectsCollapsed}
         aria-controls={editorPanes.objects.id} aria-label={objectsCollapsed?'Expand Objects':'Collapse Objects'}
         title={objectsCollapsed?'Expand Objects':'Collapse Objects'} onClick={toggleObjects}>
         <Icon name="layers" size={16}/>
@@ -158,13 +157,7 @@ export function LibraryLayout({library,children,newReport,queryVisible,toggleQue
     <aside ref={objects} id={editorPanes.objects.id} className="builder-pane library-wrap" hidden={objectsCollapsed}
       aria-label="Objects" style={{'--pane-width':objectsWidth+'px'} as React.CSSProperties}>
       <h3 className="builder-pane-heading objects-heading">
-        <button type="button" className="objects-toggle" aria-expanded={!objectsCollapsed} aria-controls="library-contents"
-          title="Collapse Objects" onClick={()=>{
-            toggleObjects();
-            objectsToggle.current?.focus({preventScroll:true});
-          }}>
-          <Icon name="layers" size={16}/>Objects<Icon name="chevron" size={13}/>
-        </button>
+        <Icon name="layers" size={16}/>Objects
       </h3>
       <div id="library-contents" className="library-contents">{library}</div>
       {!objectsCollapsed && <PaneDivider pane="objects" value={objectsWidth} max={maxObjects} onResize={value=>resize('objects',value)}/>}

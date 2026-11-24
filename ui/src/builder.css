@@ -67,10 +67,7 @@
 .builder-pane-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: var(--pane-heading-height); padding: 0 12px; color: var(--accent-hover); border-bottom: 1px solid var(--build-line); }
 .builder-pane-heading h3, .objects-heading, .pane-header h2 { font-size: 14px; font-weight: 600; }
 .builder-pane-heading h3 { display: flex; align-items: center; gap: 6px; }
-.objects-heading { align-items: stretch; padding: 0; }
-.objects-toggle { display: flex; align-items: center; gap: 6px; width: 100%; padding: 0 16px; }
-.objects-toggle:hover { background: var(--surface); }
-.objects-toggle:focus-visible { outline-offset: -2px; }
+.objects-heading { justify-content: flex-start; gap: 6px; padding-inline: 16px; }
 .builder-rail {
   display: flex;
   flex: none;
@@ -82,6 +79,7 @@
   background: var(--build-bg);
   border-inline-end: 1px solid var(--build-line);
 }
+.builder-rail:has(+ .library-wrap:not([hidden])) { border-inline-end-color: transparent; }
 .builder-rail .secondary-btn { width: 32px; height: 32px; min-height: 0; padding: 0; color: var(--accent-hover); }
 .builder-rail .secondary-btn[aria-expanded=true] { background: var(--accent-subtle); border-color: var(--build-line); }
 .query-help { flex: none; color: var(--accent-hover); }
