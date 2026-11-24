@@ -81,7 +81,15 @@
 }
 .builder-rail:has(+ .library-wrap:not([hidden])) { border-inline-end-color: transparent; }
 .builder-rail .secondary-btn { width: 32px; height: 32px; min-height: 0; padding: 0; color: var(--accent-hover); }
-.builder-rail .secondary-btn[aria-expanded=true] { background: var(--accent-subtle); border-color: var(--build-line); }
+.builder-rail .secondary-btn[aria-expanded=true] {
+  color: var(--surface);
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
+}
+.builder-rail .secondary-btn[aria-expanded=true]:hover {
+  background: var(--accent);
+  border-color: var(--accent);
+}
 .query-help { flex: none; color: var(--accent-hover); }
 .pane-resize {
   position: absolute;
