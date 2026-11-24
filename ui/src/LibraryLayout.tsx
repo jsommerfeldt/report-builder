@@ -77,8 +77,8 @@ export function LibraryLayout({library,children,newReport,queryVisible,toggleQue
   const minHeight=Math.min(156,Math.max(0,heightLimit));
   const queryWidth=clamp(preferred.query,minWidth,widthLimit);
   const height=queryHeight?clamp(queryHeight,minHeight,heightLimit):undefined;
-  const defaultX=objectsCollapsed || compact?leftLimit:objectsWidth+edgeGap;
-  const defaultY=compact && !objectsCollapsed?workspace.objectsHeight+6:52;
+  const defaultX=compact?leftLimit:workspace.width-queryWidth-28;
+  const defaultY=compact?(objectsCollapsed?52:workspace.objectsHeight+6):workspace.height*.23;
   const x=clamp(queryPosition?.x??defaultX,leftLimit,workspace.width-queryWidth-edgeGap);
   const y=clamp(queryPosition?.y??defaultY,edgeGap,workspace.height-(height??minHeight)-edgeGap);
   const maxQueryHeight=workspace.height-y-edgeGap;
