@@ -91,8 +91,8 @@ export function ReportBuilder({catalog,client,initialReport,folderId,onReports}:
   const [expandedCards,setExpandedCards]=useState<Partial<Record<Destination,boolean>>>(()=>newReport?{fields:true}:{});
   const [pickedField,setPickedField]=useState<{source:DragSource;id:string}|null>(null);
   const [queryHint,setQueryHint]=useState('');
-  const [fieldDragging,setFieldDragging]=useState(false);
-  const queryVisible=queryOpen || fieldDragging;
+  const [previewDropActive,setPreviewDropActive]=useState(false);
+  const queryVisible=queryOpen && !previewDropActive;
   const [notice,setNotice] = useState('');
   const generation = useRef(0);
   const byId = useMemo(() => Object.fromEntries(catalog.fields.map(f => [f.id, f])) as Record<string,Field>, [catalog]);
@@ -108,14 +108,12 @@ export function ReportBuilder({catalog,client,initialReport,folderId,onReports}:
   const key = definitionKey(definition);
   const dirty = key !== baseline || title!==baseTitle;
   const shown = hasOutput ? result : null;
-  const sameColumns=!!shown && shown.data.fields.length===outputIds.length &&
-    outputIds.every(id=>shown.data.fields.includes(id));
   const displayData=useMemo(()=>{
-    if(!shown || !sameColumns)return shown?.data??null;
+    if(!shown)return null;
     const original=shown.data;
     const indexes=outputIds.map(id=>original.fields.indexOf(id));
-    return {...original,fields:outputIds,rows:original.rows.map(row=>indexes.map(i=>row[i]))};
-  },[shown,sameColumns,outputIds]);
+    return {...original,fields:outputIds,rows:original.rows.map(row=>indexes.map(i=>i<0?null:row[i]))};
+  },[shown,outputIds]);
 
   async function run(d:Definition) {
     const ticket = ++generation.current;
@@ -303,7 +301,7 @@ export function ReportBuilder({catalog,client,initialReport,folderId,onReports}:
     if (!discardOK()) return;
     setWorking(true); setModalError('');
     try { const r=await client.open(id);
-      setEditorSession(n=>n+1);setFilterEditor(null);setObjectPick(null);setPickedField(null);setFieldDragging(false);setQueryHint('');
+      setEditorSession(n=>n+1);setFilterEditor(null);setObjectPick(null);setPickedField(null);setPreviewDropActive(false);setQueryHint('');
       setQueryOpen(false);setExpandedCards({});
       setSaved(r); setTitle(r.name); setBaseTitle(r.name); setRenaming(false); setDefinition(r.definition); setBaseline(definitionKey(r.definition));
       setResult(null); setDialog(null); setNotice('Report opened'); void run(r.definition);
@@ -358,20 +356,20 @@ export function ReportBuilder({catalog,client,initialReport,folderId,onReports}:
         queryToggle={queryToggle} queryClose={queryClose}
         library={<FieldLibrary key={editorSession} catalog={catalog} fields={selectedFields} selectField={selectObjectField}
           searchRef={objectSearch} pickingFilter={objectPick?.destination==='filters'} cancelPick={cancelObjectPick}
-          drop={dropField} onInteraction={id=>trackField('objects',id)} onDrag={setFieldDragging}/>}>
+          drop={dropField} onInteraction={id=>trackField('objects',id)} onPreviewHover={setPreviewDropActive}/>}>
         <div className="query-body" id="query-contents">
           <div className="query-scroll">
             {queryHint && <p className="query-drag-hint" role="status">{queryHint}</p>}
             <FieldsPanel key={'fields-'+editorSession} fields={columns} outputIds={outputIds} disclosure={cardDisclosure('fields')}
               entities={catalog.entities} columnNames={definition.columnNames} rename={renameColumn}
               onAdd={e=>pickObject('fields',e.currentTarget)}
-              order={definition.order??[]} drop={dropField} onInteraction={id=>trackField('fields',id)}
+              order={definition.order??[]} drop={dropField} onInteraction={id=>trackField('fields',id)} onPreviewHover={setPreviewDropActive}
               remove={toggle} sort={changeSort} showDropTarget={pickedField?.source==='objects' || pickedField?.source==='filters'}
               groupBy={groupBy} summary={grouped} canSummarize={summaryIds.length>0} onSummaryChange={setSummary}
               aggregations={definition.aggregations} onAggregationChange={changeAggregation}/>
             <FiltersPanel key={editorSession} fields={catalog.fields} entities={catalog.entities} lookup={lookup} rules={definition.filters??[]}
               columnNames={definition.columnNames} rename={renameColumn} disclosure={cardDisclosure('filters')}
-              editor={filterEditor} setEditor={setFilterEditor} drop={dropField} onInteraction={id=>trackField('filters',id)}
+              editor={filterEditor} setEditor={setFilterEditor} drop={dropField} onInteraction={id=>trackField('filters',id)} onPreviewHover={setPreviewDropActive}
               outputFields={definition.fields} incomingColumn={pickedField?.source==='fields'?pickedField.id:undefined}
               showDropTarget={pickedField?.source==='objects' || pickedField?.source==='fields'}
               onAdd={e=>pickObject('filters',e.currentTarget)} onChange={changeFilters}/>
@@ -385,9 +383,9 @@ export function ReportBuilder({catalog,client,initialReport,folderId,onReports}:
           </div>
         </div>
       </LibraryLayout>
-      <PreviewPane data={displayData} byId={byId} stale={Boolean(shown && shown.key!==previewKey(definition,outputIds))} error={error}
-        entities={catalog.entities} columnNames={definition.columnNames} run={()=>void run(definition)} canMove={sameColumns} move={moveOutputColumn}
-        busy={busy} pendingFilterMove={!!pendingMove} hasFields={Boolean(definition.fields.length)} hasOutput={hasOutput}/>
+      <PreviewPane data={displayData} outputIds={outputIds} byId={byId} stale={Boolean(shown && shown.key!==previewKey(definition,outputIds))} error={error}
+        entities={catalog.entities} columnNames={definition.columnNames} run={()=>void run(definition)} move={moveOutputColumn}
+        busy={busy} pendingFilterMove={!!pendingMove} hasFields={Boolean(definition.fields.length)}/>
       <p className="sr-only" role="status">{notice}</p>
     </main>
     {columnRename && <Modal title="Rename column" close={closeColumnRename}><form onSubmit={e=>{

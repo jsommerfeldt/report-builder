@@ -5,7 +5,7 @@ export type Destination='fields'|'filters';
 export type DragSource='objects'|Destination;
 export type DropField=(id:string,zone:Destination|'preview',source:DragSource,anchor?:string,after?:boolean)=>void;
 
-export function useFieldDrag(drop:DropField,dragSource:DragSource,onInteraction?:(field:string|null)=>void,onDrag?:(active:boolean)=>void) {
+export function useFieldDrag(drop:DropField,dragSource:DragSource,onInteraction:(field:string|null)=>void,onPreviewHover:(active:boolean)=>void) {
   const stop=useRef<(notify?:boolean)=>void>(()=>{});
   const moved=useRef(false);
   useEffect(()=>()=>stop.current(false),[]);
@@ -18,6 +18,7 @@ export function useFieldDrag(drop:DropField,dragSource:DragSource,onInteraction?
     const grip=origin?y-origin.getBoundingClientRect().top:null;
     let zone:HTMLElement|null=null,motion:ReorderMotion|null=null;
     let scrollFrame=0;
+    let previewHover=false;
     function leave(settle:boolean) {
       cancelAnimationFrame(scrollFrame);
       motion?.finish(settle);motion=null;
@@ -36,6 +37,16 @@ export function useFieldDrag(drop:DropField,dragSource:DragSource,onInteraction?
     function paint(x:number,y:number) {
       const target=document.elementFromPoint(x,y)?.closest<HTMLElement>('[data-library-zone]')??null;
       const hit=dragSource==='filters' && target?.dataset.libraryZone==='filters'?null:target;
+      // An open Query must stay available as a field crosses the gap from Objects.
+      const query=dragSource==='objects' && hit?.dataset.libraryZone==='preview'
+        ? document.querySelector('#query-pane:not([hidden])')?.getBoundingClientRect()
+        : undefined;
+      const approachingQuery=query && x<=query.right && y<=query.bottom && (x<query.left || y<query.top);
+      const nextPreviewHover=hit?.dataset.libraryZone==='preview' && !approachingQuery;
+      if(nextPreviewHover!==previewHover){
+        previewHover=nextPreviewHover;
+        onPreviewHover(previewHover);
+      }
       if(hit!==zone){
         leave(false);zone=hit;
         if(zone?.dataset.libraryZone==='fields'){
@@ -54,10 +65,7 @@ export function useFieldDrag(drop:DropField,dragSource:DragSource,onInteraction?
     }
     function track(p:PointerEvent) {
       if(p.pointerId!==pointer || (!moved.current && Math.hypot(p.clientX-x,p.clientY-y)<5))return;
-      if(!moved.current){
-        moved.current=true;
-        onDrag?.(true);
-      }
+      moved.current=true;
       paint(p.clientX,p.clientY);
       cancelAnimationFrame(scrollFrame);
       scrollFrame=requestAnimationFrame(()=>scrollTargets(p.clientX,p.clientY));
@@ -69,8 +77,8 @@ export function useFieldDrag(drop:DropField,dragSource:DragSource,onInteraction?
       source.removeEventListener('lostpointercapture',cancelPointer);
       window.removeEventListener('keydown',escape);stop.current=()=>{};
       if(notify){
-        onInteraction?.(null);
-        onDrag?.(false);
+        onInteraction(null);
+        onPreviewHover(false);
       }
     }
     function cancel() {moved.current=true;cleanup();}
@@ -84,18 +92,16 @@ export function useFieldDrag(drop:DropField,dragSource:DragSource,onInteraction?
         if(name==='fields' && (slot || dragSource==='filters'))drop(id,'fields',dragSource,slot?.anchor,slot?.after);
         if(name==='preview')drop(id,'preview',dragSource);
       } finally {
-        onInteraction?.(null);
-        onDrag?.(false);
+        onInteraction(null);
+        onPreviewHover(false);
       }
     }
     stop.current=cleanup;window.addEventListener('pointermove',track);window.addEventListener('pointerup',finish);
     window.addEventListener('pointercancel',cancelPointer);window.addEventListener('blur',cancel);window.addEventListener('keydown',escape);
-    if(onInteraction) {
-      // Keep the original field press if Query opens during the drag.
-      source.setPointerCapture(pointer);
-      source.addEventListener('lostpointercapture',cancelPointer);
-      onInteraction(id);
-    }
+    // Keep tracking the field when a drop target changes the layout.
+    source.setPointerCapture(pointer);
+    source.addEventListener('lostpointercapture',cancelPointer);
+    onInteraction(id);
   }
   return {begin,moved};
 }

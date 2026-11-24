@@ -42,12 +42,12 @@ function changeCondition(rule:ReportFilter,op:FilterOp):ReportFilter {
 export type FilterEditor = {index:number;rule:ReportFilter;moveField?:string;overlapField?:string}|null;
 interface Props { fields:Field[]; entities:Catalog['entities']; rules:ReportFilter[]; lookup:ReportClient['values']; onChange(rules:ReportFilter[]):void;
   columnNames?:ColumnNames; rename(field:Field,trigger:HTMLButtonElement):void;
-  drop:DropField; onInteraction(field:string|null):void; outputFields:string[]; incomingColumn?:string;
+  drop:DropField; onInteraction(field:string|null):void; onPreviewHover(active:boolean):void; outputFields:string[]; incomingColumn?:string;
   editor:FilterEditor;setEditor(value:FilterEditor):void;onAdd:React.MouseEventHandler<HTMLButtonElement>;showDropTarget:boolean;disclosure:CardDisclosure }
 export function FiltersPanel({fields,entities,rules,onChange,lookup,editor,setEditor,onAdd,showDropTarget,disclosure,columnNames,rename,
-  drop,onInteraction,outputFields,incomingColumn}:Props) {
+  drop,onInteraction,onPreviewHover,outputFields,incomingColumn}:Props) {
   const editing = editor && fields.find(f=>f.id===editor.rule.field);
-  const {begin,moved}=useFieldDrag(drop,'filters',onInteraction);
+  const {begin,moved}=useFieldDrag(drop,'filters',onInteraction,onPreviewHover);
   const blocked=(field:Field)=>outputFields.includes(field.id) && editor?.overlapField!==field.id &&
     !rules.some(rule=>rule.field===field.id);
   const canReceive=!editor && (rules.length<32 || rules.some(rule=>rule.field===incomingColumn));

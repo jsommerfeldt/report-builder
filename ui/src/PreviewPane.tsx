@@ -20,11 +20,11 @@ export function resultLabel(field:Field, aggregation?:Aggregation, name?:string)
   if(aggregation==='unique')return 'Unique count of '+field.label;
   return aggregation && aggregation!=='sum'?aggregationLabels[aggregation]+' of '+field.label:field.label;
 }
-interface Props { data: Preview | null; byId: Record<string, Field>; stale: boolean; busy: boolean; error:string;
+interface Props { data: Preview | null; outputIds:string[]; byId: Record<string, Field>; stale: boolean; busy: boolean; error:string;
   entities:Catalog['entities']; columnNames?:ColumnNames; run():void;
-  canMove:boolean; move(id:string,anchor:string,after:boolean):void;
-  hasFields: boolean; hasOutput:boolean; pendingFilterMove:boolean; }
-export function PreviewPane({data,byId,entities,columnNames,run,stale,busy,error,hasFields,hasOutput,pendingFilterMove,canMove,move}:Props) {
+  move(id:string,anchor:string,after:boolean):void;
+  hasFields: boolean; pendingFilterMove:boolean; }
+export function PreviewPane({data,outputIds:ids,byId,entities,columnNames,run,stale,busy,error,hasFields,pendingFilterMove,move}:Props) {
   const table=useRef<HTMLTableElement>(null);
   const [widths,setWidths]=useState<Record<string,number>>({});
   const drag=useRef<{pointer:number; x:number; id:string; width:number}|null>(null);
@@ -32,11 +32,12 @@ export function PreviewPane({data,byId,entities,columnNames,run,stale,busy,error
   function cancelMove(){
     moving.current?.motion?.finish(true);moving.current=null;
   }
+  const canMove=ids.length>1;
   useEffect(()=>{
     const key=(e:KeyboardEvent)=>{if(e.key==='Escape')cancelMove();};
     window.addEventListener('keydown',key);window.addEventListener('blur',cancelMove);
     return ()=>{window.removeEventListener('keydown',key);window.removeEventListener('blur',cancelMove);cancelMove();};
-  },[data?.fields,canMove]);
+  },[ids,canMove]);
   function trackHeader(e:React.PointerEvent,scrollEdges:boolean) {
     const start=moving.current,t=table.current;
     if(!start || start.pointer!==e.pointerId || !t?.tHead || !t.parentElement)return;
@@ -57,7 +58,6 @@ export function PreviewPane({data,byId,entities,columnNames,run,stale,busy,error
     }
     start.motion.update(e.clientX,e.clientY);
   }
-  const ids=data?.fields??[];
   const manual=ids.length>0 && ids.every(id=>widths[id]!==undefined);
   const label=(id:string)=>resultLabel(byId[id],data?.aggregations?.[id],columnNames?.[id]);
   const clamp=(n:number)=>Math.max(72,Math.min(2000,Math.round(n)));
@@ -73,22 +73,22 @@ export function PreviewPane({data,byId,entities,columnNames,run,stale,busy,error
   }
   return <section className="preview" aria-labelledby="preview-heading" data-library-zone="preview">
     <div className="pane-header preview-head"><h2 id="preview-heading"><Icon name="grid" size={16}/>Preview</h2><div className="preview-actions">
-      {data && manual && <button className="text-action" onClick={()=>setWidths({})}>Auto-fit columns</button>}
+      {manual && <button className="text-action" onClick={()=>setWidths({})}>Auto-fit columns</button>}
       {data && <span className="result-count" role="status">{data.rows.length.toLocaleString()} of {data.total.toLocaleString()} rows</span>}
-      <button type="button" className="primary-btn" disabled={busy || !hasOutput || pendingFilterMove} onClick={run}>
+      <button type="button" className="primary-btn" disabled={busy || !ids.length || pendingFilterMove} onClick={run}>
         <Icon name="play" size={15}/>{busy?'Running…':'Run preview'}
       </button>
     </div></div>
-    <div className="result-meta" role="status">{(busy || data || error) && <>
+    <div className="result-meta" role="status">{(busy || data || error || ids.length>0) && <>
       <span className={'status-dot'+(busy?' loading':stale?' amber':data && !error?' ready':'')}/>
-      {busy?'Running preview…':error?'Preview failed':stale?'Report changed. Run preview to update.':'Preview ready'}</>}</div>
+      {busy?'Running preview…':error?'Preview failed':stale?'Report changed. Run preview to update.':data?'Preview ready':'Run preview to load rows.'}</>}</div>
     {error && <div className="alert preview-alert" role="alert">{error}{data && ' The table shows the previous preview.'}</div>}
-    {data ? <div className="table-scroll" tabIndex={0} aria-label="Preview table"><table ref={table}
+    {ids.length>0 ? <div className="table-scroll" tabIndex={0} aria-label="Preview table"><table ref={table}
       className={manual?'manual-widths':undefined} style={manual?{width:ids.reduce((sum,id)=>sum+widths[id],0)}:undefined}>
-      {manual && <colgroup>{ids.map(id=><col key={id} style={{width:widths[id]}}/>)}</colgroup>}<thead><tr>{data.fields.map(id => {
+      {manual && <colgroup>{ids.map(id=><col key={id} style={{width:widths[id]}}/>)}</colgroup>}<thead><tr>{ids.map(id => {
       const field=byId[id];
       const source=sourceColumn(field,entities);
-      return <th scope="col" key={id} data-preview-field={id} title={source} className={numericResult(field,data.aggregations?.[id])?'numeric':''}
+      return <th scope="col" key={id} data-preview-field={id} title={source} className={numericResult(field,data?.aggregations?.[id])?'numeric':''}
         onPointerDown={e=>{
           if(!canMove || !e.isPrimary || e.button!==0)return;
           moving.current={pointer:e.pointerId,x:e.clientX,id,grip:e.clientX-e.currentTarget.getBoundingClientRect().left,motion:null};
@@ -121,12 +121,12 @@ export function PreviewPane({data,byId,entities,columnNames,run,stale,busy,error
             const updated=clamp(start.width+e.clientX-start.x);setWidths(prev=>({...prev,[start.id]:updated}));
           }}
           onLostPointerCapture={()=>{drag.current=null;}}/></th>;
-    })}</tr></thead><tbody>{data.total===0 && <tr><td colSpan={data.fields.length}>No rows match the current filters.</td></tr>}{data.rows.map((row,i) => <tr key={i}>{row.map((value,j) => {
-      const f=byId[data.fields[j]]; return <td key={f.id} title={value??undefined} className={numericResult(f,data.aggregations?.[f.id])?'numeric':''}>
+    })}</tr></thead><tbody>{data?.total===0 && <tr><td colSpan={ids.length}>No rows match the current filters.</td></tr>}{data?.rows.map((row,i) => <tr key={i}>{row.map((value,j) => {
+      const f=byId[ids[j]]; return <td key={f.id} title={value??undefined} className={numericResult(f,data.aggregations?.[f.id])?'numeric':''}>
         {resultCell(value,f,data.aggregations?.[f.id])}</td>;
     })}</tr>)}</tbody></table></div> :
       <div className="empty-preview"><span className="empty-icon"><Icon name="grid" size={26}/></span><strong>{busy?'Running preview':hasFields?'No results to display':'Choose your first field'}</strong>
-        {!busy && <span>{hasOutput?'Run preview to see your report.':hasFields?'Choose a column to group by or add a measure.':
-          'Select a field in Objects or drag it into Query.'}</span>}</div>}
+        {!busy && <span>{hasFields?'Choose a column to group by or add a measure.':
+          'Select a field in Objects or drag it here.'}</span>}</div>}
   </section>;
 }

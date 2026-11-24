@@ -11,6 +11,7 @@ interface Props {
   fields:Field[]; outputIds:string[]; order:Order[]; drop:DropField; showDropTarget:boolean; disclosure:CardDisclosure;
   onAdd:React.MouseEventHandler<HTMLButtonElement>;
   onInteraction(field:string|null):void;
+  onPreviewHover(active:boolean):void;
   columnNames?:ColumnNames; entities:Catalog['entities']; rename(field:Field,trigger:HTMLButtonElement):void;
   remove(id:string):void; sort(setting:Order):void;
   groupBy:string[]; summary:boolean; canSummarize:boolean; aggregations?:Definition['aggregations'];
@@ -18,10 +19,10 @@ interface Props {
   onAggregationChange(id:string,value:Aggregation|'none'):void;
 }
 
-export function FieldsPanel({fields,outputIds,order,drop,onInteraction,onAdd,remove,sort,showDropTarget,disclosure,columnNames,entities,rename,
+export function FieldsPanel({fields,outputIds,order,drop,onInteraction,onPreviewHover,onAdd,remove,sort,showDropTarget,disclosure,columnNames,entities,rename,
   groupBy,summary,canSummarize,onSummaryChange,aggregations,onAggregationChange}:Props) {
   const [expanded,setExpanded]=useState(true);
-  const {begin}=useFieldDrag(drop,'fields',onInteraction);
+  const {begin}=useFieldDrag(drop,'fields',onInteraction,onPreviewHover);
   const settings=new Map(order.map(item=>[item.field,item]));
   const priorities=order.filter(item=>item.enabled!==false).map((_,i)=>i+1);
   const visible=expanded?fields:fields.slice(0,3);
