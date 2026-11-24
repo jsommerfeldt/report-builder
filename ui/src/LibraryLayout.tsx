@@ -32,8 +32,8 @@ function PaneDivider({className,label,controls,min,max,value,step,dragScale=1,va
     }}/>;
 }
 
-export function LibraryLayout({library,headerAction,children,newReport,searchRef,focusRequest}:{
-  library:React.ReactNode;headerAction:React.ReactNode;children:React.ReactNode;newReport:boolean;
+export function LibraryLayout({library,children,newReport,searchRef,focusRequest}:{
+  library:React.ReactNode;children:React.ReactNode;newReport:boolean;
   searchRef:React.RefObject<HTMLInputElement>;focusRequest:{trigger:HTMLButtonElement}|null;
 }) {
   const prefix=newReport?'new-report-':'';
@@ -67,8 +67,7 @@ export function LibraryLayout({library,headerAction,children,newReport,searchRef
     });
     return ()=>cancelAnimationFrame(frame);
   },[focusRequest,searchRef]);
-  return <section id="build-report-pane" ref={layout} style={layoutStyle} className={'build-report'+(hidden?' library-hidden':'')} aria-labelledby="build-report-heading">
-    <div className="pane-header build-header"><h2 id="build-report-heading">Build Report</h2>{headerAction}</div>
+  return <section id="build-report-pane" ref={layout} style={layoutStyle} className={'build-report'+(hidden?' library-hidden':'')} aria-label="Build Report">
     <aside id="objects-pane" className="library-wrap" aria-labelledby="objects-heading">
       <div className="library-heading">
         <h3 id="objects-heading"><button type="button" className="pane-disclosure" aria-expanded={!hidden}

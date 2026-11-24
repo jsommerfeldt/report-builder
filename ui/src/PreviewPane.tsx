@@ -1,5 +1,5 @@
 import React, {useEffect,useRef,useState} from 'react';
-import {Aggregation, aggregationLabels, Field, Preview} from './client';
+import {Aggregation, aggregationLabels, Catalog, ColumnNames, Field, Preview, sourceColumn} from './client';
 import {Icon} from './Icon';
 import {ReorderMotion} from './ReorderMotion';
 
@@ -15,14 +15,16 @@ export function resultCell(value: string | null, field: Field, aggregation?:Aggr
   if (field.kind === 'quantity') return quantity.format(Number(value));
   return value;
 }
-export function resultLabel(field:Field, aggregation?:Aggregation) {
+export function resultLabel(field:Field, aggregation?:Aggregation, name?:string) {
+  if(name)return name;
   if(aggregation==='unique')return 'Unique count of '+field.label;
   return aggregation && aggregation!=='sum'?aggregationLabels[aggregation]+' of '+field.label:field.label;
 }
 interface Props { data: Preview | null; byId: Record<string, Field>; stale: boolean; busy: boolean; error:string;
+  entities:Catalog['entities']; columnNames?:ColumnNames; run():void;
   canMove:boolean; move(id:string,anchor:string,after:boolean):void;
   hasFields: boolean; hasOutput:boolean; }
-export function PreviewPane({data,byId,stale,busy,error,hasFields,hasOutput,canMove,move}:Props) {
+export function PreviewPane({data,byId,entities,columnNames,run,stale,busy,error,hasFields,hasOutput,canMove,move}:Props) {
   const table=useRef<HTMLTableElement>(null);
   const [widths,setWidths]=useState<Record<string,number>>({});
   const drag=useRef<{pointer:number; x:number; id:string; width:number}|null>(null);
@@ -56,9 +58,8 @@ export function PreviewPane({data,byId,stale,busy,error,hasFields,hasOutput,canM
     start.motion.update(e.clientX,e.clientY);
   }
   const ids=data?.fields??[];
-  const manual=ids.some(id=>widths[id]!==undefined);
-  const label=(id:string)=>resultLabel(byId[id],data?.aggregations?.[id]);
-  const width=(id:string)=>widths[id]??Math.max(135,(label(id).length+6)*8);
+  const manual=ids.length>0 && ids.every(id=>widths[id]!==undefined);
+  const label=(id:string)=>resultLabel(byId[id],data?.aggregations?.[id],columnNames?.[id]);
   const clamp=(n:number)=>Math.max(72,Math.min(2000,Math.round(n)));
   function measure() {
     const headers=Array.from(table.current?.tHead?.rows[0]?.cells??[]);
@@ -71,18 +72,23 @@ export function PreviewPane({data,byId,stale,busy,error,hasFields,hasOutput,canM
     setWidths(prev=>({...prev,...current,[id]:clamp(current[id]+(e.key==='ArrowRight'?16:-16))}));
   }
   return <section className="preview" aria-labelledby="preview-heading">
-    <div className="pane-header preview-head"><h2 id="preview-heading">Preview</h2><div className="preview-actions">
+    <div className="pane-header preview-head"><h2 id="preview-heading"><Icon name="grid" size={16}/>Preview</h2><div className="preview-actions">
       {data && manual && <button className="text-action" onClick={()=>setWidths({})}>Auto-fit columns</button>}
       {data && <span className="result-count" role="status">{data.rows.length.toLocaleString()} of {data.total.toLocaleString()} rows</span>}
+      <button type="button" className="primary-btn" disabled={busy || !hasOutput} onClick={run}>
+        <Icon name="play" size={15}/>{busy?'Running…':'Run preview'}
+      </button>
     </div></div>
     <div className="result-meta" role="status">{(busy || data || error) && <>
       <span className={'status-dot'+(busy?' loading':stale?' amber':data && !error?' ready':'')}/>
       {busy?'Running preview…':error?'Preview failed':stale?'Report changed. Run preview to update.':'Preview ready'}</>}</div>
     {error && <div className="alert preview-alert" role="alert">{error}{data && ' The table shows the previous preview.'}</div>}
     {data ? <div className="table-scroll" tabIndex={0} aria-label="Preview table"><table ref={table}
-      className={manual?'manual-widths':undefined} style={manual?{width:ids.reduce((sum,id)=>sum+width(id),0)}:undefined}>
-      {manual && <colgroup>{ids.map(id=><col key={id} style={{width:width(id)}}/>)}</colgroup>}<thead><tr>{data.fields.map(id => {
-      const field=byId[id]; return <th scope="col" key={id} data-preview-field={id} className={numericResult(field,data.aggregations?.[id])?'numeric':''}
+      className={manual?'manual-widths':undefined} style={manual?{width:ids.reduce((sum,id)=>sum+widths[id],0)}:undefined}>
+      {manual && <colgroup>{ids.map(id=><col key={id} style={{width:widths[id]}}/>)}</colgroup>}<thead><tr>{data.fields.map(id => {
+      const field=byId[id];
+      const source=sourceColumn(field,entities);
+      return <th scope="col" key={id} data-preview-field={id} title={source} className={numericResult(field,data.aggregations?.[id])?'numeric':''}
         onPointerDown={e=>{
           if(!canMove || !e.isPrimary || e.button!==0)return;
           moving.current={pointer:e.pointerId,x:e.clientX,id,grip:e.clientX-e.currentTarget.getBoundingClientRect().left,motion:null};
@@ -95,13 +101,14 @@ export function PreviewPane({data,byId,stale,busy,error,hasFields,hasOutput,canM
           if(canMove && slot?.anchor)move(start.id,slot.anchor,slot.after);
         }} onLostPointerCapture={cancelMove}>
         <button type="button" disabled={!canMove} className="column-label header-grip" aria-label={'Move preview column '+label(id)}
-          title="Drag to move this column, or use the left and right arrow keys" onKeyDown={e=>{
+          onKeyDown={e=>{
             if(e.key!=='ArrowLeft' && e.key!=='ArrowRight')return;
             e.preventDefault();const right=e.key==='ArrowRight',other=ids[ids.indexOf(id)+(right?1:-1)];
             if(other)move(id,other,right);
           }}><Icon name="grip" size={12}/>{label(id)}</button>
-        <span className="column-resize" role="separator" tabIndex={0} aria-orientation="vertical" aria-label={'Resize '+field.label}
-          aria-valuemin={72} aria-valuemax={2000} aria-valuenow={width(id)} aria-valuetext={manual?width(id)+' pixels':'Automatic width'}
+        <span className="column-resize" role="separator" tabIndex={0} aria-orientation="vertical" aria-label={'Resize '+label(id)}
+          aria-valuemin={72} aria-valuemax={2000} aria-valuenow={manual?widths[id]:undefined}
+          aria-valuetext={manual?widths[id]+' pixels':'Automatic width'}
           title="Drag to resize, or use the left and right arrow keys" onKeyDown={e=>resizeKey(e,id)}
           onPointerDown={e=>{
             if(e.button!==0 || !e.isPrimary)return;

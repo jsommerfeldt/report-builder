@@ -1,5 +1,5 @@
 import React,{useEffect,useRef,useState} from 'react';
-import {Catalog,LibraryClient,Preview,ReportClient,SavedInfo,SavedReport} from './client';
+import {Catalog,LibraryClient,Preview,ReportClient,SavedInfo,SavedReport,sourceColumn} from './client';
 import {ReportBuilder} from './ReportBuilder';
 import {numericResult,resultCell,resultLabel} from './PreviewPane';
 import {Icon} from './Icon';
@@ -46,7 +46,9 @@ function ReportResults({report,catalog,library,onReports}:{report:SavedInfo;cata
           {data.total>0 && <div className="pages"><span role="status">{(offset+1).toLocaleString()}–{(offset+data.rows.length).toLocaleString()} of {data.total.toLocaleString()}</span>
             <button className="icon-button" aria-label="Previous page" disabled={offset===0} onClick={()=>setOffset(Math.max(0,offset-data.limit))}><Icon name="back" size={16}/></button>
             <button className="icon-button" aria-label="Next page" disabled={offset+data.rows.length>=data.total} onClick={()=>setOffset(offset+data.limit)}><Icon name="arrow" size={16}/></button></div>}</div>
-        <div className="table-scroll" tabIndex={0} aria-label="Results table"><table><thead><tr>{fields.map(f=><th scope="col" key={f.id} className={numericResult(f,data.aggregations?.[f.id])?'numeric':''}>{resultLabel(f,data.aggregations?.[f.id])}</th>)}</tr></thead>
+        <div className="table-scroll" tabIndex={0} aria-label="Results table"><table><thead><tr>{fields.map(f=><th scope="col" key={f.id}
+          title={sourceColumn(f,catalog.entities)} className={numericResult(f,data.aggregations?.[f.id])?'numeric':''}>
+          {resultLabel(f,data.aggregations?.[f.id],data.columnNames?.[f.id])}</th>)}</tr></thead>
           <tbody>{data.rows.map((values,i)=><tr key={offset+i}>{values.map((v,j)=><td key={fields[j].id} className={numericResult(fields[j],data.aggregations?.[fields[j].id])?'numeric':''}>{resultCell(v,fields[j],data.aggregations?.[fields[j].id])}</td>)}</tr>)}
             {!data.rows.length && <tr><td colSpan={fields.length}>No rows match the saved filters.</td></tr>}</tbody></table></div>
       </section>}

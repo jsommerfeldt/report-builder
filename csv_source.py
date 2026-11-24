@@ -302,7 +302,8 @@ class CsvSnapshot:
             rows = present + [row for row in rows if row[pos] is None]
         if not detail or order:
             rows = rows[offset:end]
+        names = {key: name for key, name in definition.get("columnNames", {}).items() if key in output_ids}
         return {"fields": output_ids, "rows": [
             [cell_value(value) for value in row] for row in rows
         ], "total": total, "limit": limit, "sourceRows": len(facts),
-            **({"aggregations": aggregations} if aggregations else {})}
+            **({"aggregations": aggregations} if aggregations else {}), **({"columnNames": names} if names else {})}

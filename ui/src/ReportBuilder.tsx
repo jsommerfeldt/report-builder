@@ -1,5 +1,6 @@
 import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
-import {Aggregation, Catalog, Collision, Definition, Field, Order, Preview, ReportClient, RequestError, SavedInfo, SavedReport} from './client';
+import {Aggregation, Catalog, Collision, ColumnNames, Definition, Field, Order, Preview, ReportClient, ReportFilter,
+  RequestError, SavedInfo, SavedReport, sourceColumn} from './client';
 import {Modal} from './Modal';
 import {FieldLibrary} from './FieldLibrary';
 import {Icon} from './Icon';
@@ -28,12 +29,13 @@ function definitionKey(d:Definition) {
     const operand=typeof value==='object' && !Array.isArray(value)?[value.direction,value.amount,value.unit]:value;
     return [r.field,r.op,operand,r.enabled,r.caseSensitive??false];
   }),
-    d.fields.map(id=>{const o=d.order?.find(item=>item.field===id);return [id,o?.direction??'asc',!!o && o.enabled!==false,o?.priority??null,d.aggregations?.[id]??'sum'];})]);
+    d.fields.map(id=>{const o=d.order?.find(item=>item.field===id);return [id,o?.direction??'asc',!!o && o.enabled!==false,o?.priority??null,d.aggregations?.[id]??'sum'];}),
+    Object.entries(d.columnNames??{}).sort()]);
 }
 const message = (e: unknown) => e instanceof Error ? e.message : 'The operation failed.';
-// Moving output columns only rearranges the cells in an already computed result.
+// Display names and output column order do not change the calculated rows.
 function previewKey(d:Definition,outputIds:string[]) {
-  return definitionKey({...d,fields:[...outputIds].sort(),groupBy:undefined,
+  return definitionKey({...d,fields:[...outputIds].sort(),groupBy:undefined,columnNames:undefined,
     aggregations:d.mode==='summary'?d.aggregations:undefined});
 }
 function includesDimension(d:Definition,id:string) {
@@ -45,12 +47,18 @@ function summaryFields(d:Definition,byId:Record<string,Field>) {
 function withOutputMode(d:Definition,byId:Record<string,Field>):Definition {
   return d.mode==='summary' && d.fields.length>0 && !summaryFields(d,byId).length?{...d,mode:'detail'}:d;
 }
+function namesInUse(names:ColumnNames|undefined,fields:string[],filters:ReportFilter[]|undefined) {
+  if(!names)return undefined;
+  const used=new Set([...fields,...(filters??[]).map(rule=>rule.field)]);
+  return Object.fromEntries(Object.entries(names).filter(([id])=>used.has(id)));
+}
 interface BuilderProps {catalog:Catalog; client:ReportClient; initialReport?:SavedReport; folderId?:string|null; onReports?():void}
 export function ReportBuilder({catalog,client,initialReport,folderId,onReports}:BuilderProps) {
   const blank=useMemo<Definition>(()=>({version:catalog.starter.version,source:'sales',mode:'summary',fields:[]}),[catalog.starter.version]);
   const initial = initialReport?.definition ?? (onReports ? blank : catalog.starter);
   const newReport=Boolean(onReports && !initialReport);
   const [definition, setDefinition] = useState<Definition>(initial);
+  const [columnRename,setColumnRename]=useState<{field:Field; value:string; trigger:HTMLButtonElement}|null>(null);
   const [title, setTitle] = useState(initialReport?.name ?? (onReports ? 'Untitled report' : 'Sales by state and product'));
   const [baseTitle,setBaseTitle]=useState(title);
   const [renaming,setRenaming]=useState(false);
@@ -116,10 +124,35 @@ export function ReportBuilder({catalog,client,initialReport,folderId,onReports}:
       const groupBy=prev.groupBy && fields.filter(id=>
         includesDimension(prev,id) || (!prev.fields.includes(id) && !byId[id].measure));
       return withOutputMode({...prev,fields,groupBy,
+        columnNames:namesInUse(prev.columnNames,fields,prev.filters),
         aggregations:prev.aggregations && Object.fromEntries(Object.entries(prev.aggregations).filter(([id])=>fields.includes(id))),
         order:prev.order && numberSorts(prev.order.filter(o=>fields.includes(o.field)))},byId);
     });
     setNotice('');setError('');
+  }
+  function changeFilters(filters:ReportFilter[]) {
+    setDefinition(prev=>({...prev,filters,columnNames:namesInUse(prev.columnNames,prev.fields,filters)}));
+    setNotice('');setError('');
+  }
+  function renameColumn(field:Field,trigger:HTMLButtonElement) {
+    setColumnRename({field,trigger,value:definition.columnNames?.[field.id]??field.label});
+  }
+  function closeColumnRename() {
+    const trigger=columnRename?.trigger;
+    setColumnRename(null);
+    requestAnimationFrame(()=>trigger?.focus({preventScroll:true}));
+  }
+  function applyColumnName(nextName:string) {
+    if(!columnRename)return;
+    const {field}=columnRename;
+    const value=nextName.trim();
+    setDefinition(prev=>{
+      const columnNames={...prev.columnNames};
+      if(value===field.label)delete columnNames[field.id];
+      else columnNames[field.id]=value;
+      return {...prev,columnNames};
+    });
+    closeColumnRename();
   }
   function toggle(id:string) {
     changeFields(definition.fields.includes(id) ? definition.fields.filter(f => f !== id) : [...definition.fields,id]);
@@ -254,10 +287,7 @@ export function ReportBuilder({catalog,client,initialReport,folderId,onReports}:
       <LibraryLayout newReport={newReport} searchRef={objectSearch} focusRequest={objectPick}
         library={<FieldLibrary key={editorSession} catalog={catalog} fields={definition.fields} selectField={selectObjectField}
           searchRef={objectSearch} pickingFilter={objectPick?.destination==='filters'} cancelPick={cancelObjectPick}
-          drop={dropField} onInteraction={setFieldInteraction}/>}
-        headerAction={<button type="button" className="primary-btn" disabled={busy || !hasOutput} onClick={()=>void run(definition)}>
-          <Icon name="play" size={15}/>{busy?'Running…':'Run preview'}
-        </button>}>
+          drop={dropField} onInteraction={setFieldInteraction}/>}>
         <section className={'query-controls'+(queryOpen?'':' query-collapsed')} aria-labelledby="query-heading">
           <div className="query-header">
             <h3 id="query-heading"><button type="button" className="pane-disclosure" aria-expanded={queryOpen}
@@ -268,15 +298,17 @@ export function ReportBuilder({catalog,client,initialReport,folderId,onReports}:
           <div className="query-body" id="query-contents" hidden={!queryOpen}>
             <div className="query-scroll">
               <FieldsPanel key={'fields-'+editorSession} fields={columns} outputIds={outputIds} disclosure={cardDisclosure('fields')}
+                entities={catalog.entities} columnNames={definition.columnNames} rename={renameColumn}
                 onAdd={e=>setObjectPick({destination:'fields',trigger:e.currentTarget})}
                 order={definition.order??[]} drop={dropField} remove={toggle} sort={changeSort} showDropTarget={fieldInteraction}
                 groupBy={groupBy} summary={grouped} canSummarize={summaryIds.length>0} onSummaryChange={setSummary}
                 aggregations={definition.aggregations} onAggregationChange={changeAggregation}/>
               <FiltersPanel key={editorSession} fields={catalog.fields} entities={catalog.entities} lookup={lookup} rules={definition.filters??[]}
+                columnNames={definition.columnNames} rename={renameColumn}
                 disclosure={cardDisclosure('filters')}
                 editor={filterEditor} setEditor={setFilterEditor} showDropTarget={fieldInteraction}
                 onAdd={e=>setObjectPick({destination:'filters',trigger:e.currentTarget})}
-                onChange={filters=>{setDefinition(prev=>({...prev,filters}));setNotice('');setError('');}}/>
+                onChange={changeFilters}/>
             </div>
             <div className="query-footer">
               {catalog.scope.companies && <div className="query-scope">
@@ -289,10 +321,26 @@ export function ReportBuilder({catalog,client,initialReport,folderId,onReports}:
         </section>
       </LibraryLayout>
       <PreviewPane data={displayData} byId={byId} stale={Boolean(shown && shown.key!==previewKey(definition,outputIds))} error={error}
-        canMove={sameColumns} move={moveOutputColumn}
+        entities={catalog.entities} columnNames={definition.columnNames} run={()=>void run(definition)} canMove={sameColumns} move={moveOutputColumn}
         busy={busy} hasFields={Boolean(definition.fields.length)} hasOutput={hasOutput}/>
       <p className="sr-only" role="status">{notice}</p>
     </main>
+    {columnRename && <Modal title="Rename column" close={closeColumnRename}><form onSubmit={e=>{
+      e.preventDefault();
+      if(columnRename.value.trim())applyColumnName(columnRename.value);
+    }}>
+      <label className="input-label" htmlFor="column-name">Column name</label>
+      <input className="name-input" id="column-name" required maxLength={80}
+        ref={input=>{if(input)input.autofocus=true;}} onFocus={e=>e.target.select()}
+        value={columnRename.value} onChange={e=>setColumnRename({...columnRename,value:e.target.value})}/>
+      <p className="modal-note">{sourceColumn(columnRename.field,catalog.entities)}</p>
+      <footer>
+        {definition.columnNames?.[columnRename.field.id] && <button type="button" className="text-action"
+          onClick={()=>applyColumnName(columnRename.field.label)}>Use original name</button>}
+        <button type="button" className="secondary-btn" onClick={closeColumnRename}>Cancel</button>
+        <button type="submit" className="primary-btn" disabled={!columnRename.value.trim()}>Apply name</button>
+      </footer>
+    </form></Modal>}
     {dialog==='save' && <Modal title={collision?'Replace saved report?':'Save report'} close={close}><form onSubmit={save}>
       {collision ? <p className="modal-note">Replace the saved definition of <strong>{collision.name}</strong> with this report?
         {saved && <> Your previously saved report, <strong>{saved.name}</strong>, will keep its own definition.</>}</p> : <>

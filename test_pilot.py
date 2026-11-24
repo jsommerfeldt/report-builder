@@ -186,6 +186,27 @@ class PilotTest(unittest.TestCase):
         detail = self.snapshot.preview({**definition, "mode": "detail"})
         self.assertEqual(detail["rows"], [["14.20"], ["-2.10"], [None]])
 
+    def test_report_column_names_persist_without_changing_results(self):
+        client = self.client()
+        self.sign_in(client)
+        post = {"base_url": ORIGIN, "headers": {"Origin": ORIGIN}}
+        state, city = "customer.shippingstate", "customer.shippingcity"
+        names = {state: "Ship to State", city: "Ship to City"}
+        definition = {**self.d, "filters": [{"field": city, "op": "eq", "value": "Duluth", "enabled": True}]}
+        created = client.post("/api/reports", json={
+            "name": "Renamed columns", "definition": {**definition, "columnNames": {**names, state: " Ship to State "}}
+        }, **post)
+        self.assertEqual(created.status_code, 201)
+        url = "/api/reports/" + created.json["id"]
+        opened = client.get(url, base_url=ORIGIN)
+        self.assertEqual(opened.json["definition"]["columnNames"], names)
+        results = client.get(url + "/results?revision=1", base_url=ORIGIN)
+        self.assertEqual(results.json["columnNames"], {state: names[state]})
+        self.assertEqual(results.json["rows"], self.snapshot.preview(definition)["rows"])
+        for invalid in ([names], {"trip.tripnumber": "Trip"}, {state: ""}, {state: 12}, {state: "x" * 81}):
+            with self.subTest(invalid=invalid), self.assertRaises(InvalidDefinition):
+                self.snapshot.preview({**definition, "columnNames": invalid})
+
     def test_snapshot_integrity(self):
         with (self.path / "fact_sales.csv").open("a", encoding="utf-8") as f:
             f.write("\n")

@@ -177,7 +177,8 @@ def summary_fields(definition):
 
 def validate_definition(value):
     if (not isinstance(value, dict)
-            or set(value) - {"filters", "order", "groupBy", "aggregations"} != {"version", "source", "mode", "fields"}):
+            or set(value) - {"filters", "order", "groupBy", "aggregations", "columnNames"}
+            != {"version", "source", "mode", "fields"}):
         raise InvalidDefinition("The report definition has an unsupported format.")
     if type(value["version"]) is not int or value["version"] not in (1, 2) or value["source"] != "sales":
         raise InvalidDefinition("The report source or definition version is unavailable.")
@@ -191,6 +192,17 @@ def validate_definition(value):
     result = {"version": value["version"], "source": "sales", "mode": value["mode"], "fields": list(ids)}
     if "filters" in value:
         result["filters"] = validate_filters(value["filters"])
+    if "columnNames" in value:
+        names = value["columnNames"]
+        available = set(ids) | {rule["field"] for rule in result.get("filters", ())}
+        if not isinstance(names, dict) or any(
+            key not in available or not isinstance(name, str) or not 1 <= len(name.strip()) <= 80
+            or re.search(r"[\x00-\x1f\x7f]", name)
+            for key, name in names.items()
+        ):
+            raise InvalidDefinition("Enter a name of 1 to 80 characters for a column used in the report.")
+        if names:
+            result["columnNames"] = {key: name.strip() for key, name in names.items()}
     if "groupBy" in value:
         group_by = value["groupBy"]
         dimensions = {key for key in ids if not BY_ID[key].measure}

@@ -1,5 +1,5 @@
 import React,{useState} from 'react';
-import {Aggregation,aggregationLabels,Definition,Field,Order} from './client';
+import {Aggregation,aggregationLabels,Catalog,ColumnNames,Definition,Field,Order,sourceColumn} from './client';
 import {Icon} from './Icon';
 import {DropField,useFieldDrag} from './useFieldDrag';
 import {CardDisclosure,QueryCard} from './QueryCard';
@@ -11,13 +11,14 @@ const dimensionOptions:Aggregation[]=['first','last','unique'];
 interface Props {
   fields:Field[]; outputIds:string[]; order:Order[]; drop:DropField; showDropTarget:boolean; disclosure:CardDisclosure;
   onAdd:React.MouseEventHandler<HTMLButtonElement>;
+  columnNames?:ColumnNames; entities:Catalog['entities']; rename(field:Field,trigger:HTMLButtonElement):void;
   remove(id:string):void; sort(setting:Order):void;
   groupBy:string[]; summary:boolean; canSummarize:boolean; aggregations?:Definition['aggregations'];
   onSummaryChange(value:boolean):void;
   onAggregationChange(id:string,value:Aggregation|'none'|''):void;
 }
 
-export function FieldsPanel({fields,outputIds,order,drop,onAdd,remove,sort,showDropTarget,disclosure,
+export function FieldsPanel({fields,outputIds,order,drop,onAdd,remove,sort,showDropTarget,disclosure,columnNames,entities,rename,
   groupBy,summary,canSummarize,onSummaryChange,aggregations,onAggregationChange}:Props) {
   const [expanded,setExpanded]=useState(true);
   const {begin}=useFieldDrag(drop);
@@ -32,19 +33,21 @@ export function FieldsPanel({fields,outputIds,order,drop,onAdd,remove,sort,showD
       </button>
     </div> : <div className="configuration-scroll" tabIndex={0} role="group" aria-label="Column order, grouping and sorting">
     <div className="field-control-grid field-headings" aria-hidden="true">
-      <span>Column Order</span><span>Aggregate</span><span>Sort</span><span>Priority</span><span>Direction</span><span/>
+      <span>Column Order</span><span>Aggregate</span><span>Sort</span><span>Priority</span><span>Direction</span><span/><span/>
     </div>
     <div className="field-stack" id="ordered-fields">{visible.map((f,i)=>{
       const setting=settings.get(f.id);
       const enabled=!!setting && setting.enabled!==false;
       const included=outputIds.includes(f.id);
       const method=aggregations?.[f.id];
+      const label=columnNames?.[f.id]??f.label;
+      const source=sourceColumn(f,entities);
       const excluded=!f.measure && !method && !groupBy.includes(f.id);
       const direction=setting?.direction??'asc';
       const desc=direction==='desc';
       return <div className={'field-control-grid field-line '+f.entity} key={f.id} data-column={f.id}>
-        <button type="button" className="move-field" aria-label={'Move '+f.label+', column '+(i+1)}
-          title={'Drag '+f.label+' or use the up and down arrow keys'}
+        <button type="button" className="move-field" aria-label={'Move '+label+', column '+(i+1)}
+          title={source}
           onPointerDown={e=>begin(e,f.id)} onKeyDown={e=>{
             const up=e.key==='ArrowUp'||(e.altKey && e.key==='ArrowLeft');
             const down=e.key==='ArrowDown'||(e.altKey && e.key==='ArrowRight');
@@ -55,9 +58,9 @@ export function FieldsPanel({fields,outputIds,order,drop,onAdd,remove,sort,showD
             drop(f.id,'fields',fields[next].id,down);
           }}>
           <Icon name="grip" size={13}/><span className="column-ordinal">{i+1}</span>
-          <span className="field-name"><span className="field-label">{f.label}</span>
+          <span className="field-name"><span className="field-label">{label}</span>
             {!included && <small className="hint field-hidden">Hidden by grouping</small>}</span></button>
-        <select className="field-grouping" aria-label={'Aggregation for '+f.label}
+        <select className="field-grouping" aria-label={'Aggregation for '+label}
           title={f.measure?'Choose a calculation or keep this column for detail rows':'Leave blank to group by this column'}
           value={method??(f.measure?'sum':excluded?'excluded':'')}
           onChange={e=>onAggregationChange(f.id,e.target.value as Aggregation|'none'|'')}>
@@ -67,17 +70,19 @@ export function FieldsPanel({fields,outputIds,order,drop,onAdd,remove,sort,showD
           {(f.measure?numericOptions:dimensionOptions).map(value=><option key={value} value={value}>{aggregationLabels[value]}</option>)}
         </select>
         <button type="button" className="switch field-sort" role="switch" aria-checked={enabled} disabled={!included}
-          aria-label={'Sort by '+f.label} title={enabled?'Exclude from row sorting':'Include in row sorting'}
+          aria-label={'Sort by '+label} title={enabled?'Exclude from row sorting':'Include in row sorting'}
           onClick={()=>sort({field:f.id,direction,enabled:!enabled})}><span/></button>
-        <select className="field-priority" aria-label={'Sort priority for '+f.label} title="Priority 1 sorts first"
+        <select className="field-priority" aria-label={'Sort priority for '+label} title="Priority 1 sorts first"
           disabled={!included || !enabled} value={enabled?setting?.priority:''}
           onChange={e=>sort({field:f.id,direction,enabled:true,priority:Number(e.target.value)})}>
           {enabled?priorities.map(n=><option key={n} value={n}>{n}</option>):<option value="">—</option>}
         </select>
         <button type="button" className="field-direction" role="switch" aria-checked={desc} disabled={!included || !enabled}
-          aria-label={'Descending order for '+f.label} title={desc?'Descending. Switch to ascending.':'Ascending. Switch to descending.'}
+          aria-label={'Descending order for '+label} title={desc?'Descending. Switch to ascending.':'Ascending. Switch to descending.'}
           onClick={()=>sort({field:f.id,direction:desc?'asc':'desc',enabled:true})}>{desc?'↓ Desc':'↑ Asc'}</button>
-        <button type="button" className="remove-field" aria-label={'Remove '+f.label} onClick={()=>remove(f.id)}><Icon name="close" size={12}/></button>
+        <button type="button" className="rename-column" title={'Rename '+label} aria-haspopup="dialog"
+          aria-label={'Rename '+label} onClick={e=>rename(f,e.currentTarget)}><Icon name="edit" size={12}/></button>
+        <button type="button" className="remove-field" aria-label={'Remove '+label} onClick={()=>remove(f.id)}><Icon name="close" size={12}/></button>
       </div>;
     })}</div>
     </div>}

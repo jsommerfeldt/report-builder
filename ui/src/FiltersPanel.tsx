@@ -1,5 +1,5 @@
 import React, {useLayoutEffect,useRef} from 'react';
-import {Catalog,Field,FilterOp,RelativePeriod,ReportClient,ReportFilter} from './client';
+import {Catalog,ColumnNames,Field,FilterOp,RelativePeriod,ReportClient,ReportFilter,sourceColumn} from './client';
 import {FieldOptions} from './FieldOptions';
 import {Icon} from './Icon';
 import {ValuePicker} from './ValuePicker';
@@ -40,8 +40,9 @@ function changeCondition(rule:ReportFilter,op:FilterOp):ReportFilter {
 }
 export type FilterEditor = {index:number;rule:ReportFilter}|null;
 interface Props { fields:Field[]; entities:Catalog['entities']; rules:ReportFilter[]; lookup:ReportClient['values']; onChange(rules:ReportFilter[]):void;
+  columnNames?:ColumnNames; rename(field:Field,trigger:HTMLButtonElement):void;
   editor:FilterEditor;setEditor(value:FilterEditor):void;onAdd:React.MouseEventHandler<HTMLButtonElement>;showDropTarget:boolean;disclosure:CardDisclosure }
-export function FiltersPanel({fields,entities,rules,onChange,lookup,editor,setEditor,onAdd,showDropTarget,disclosure}:Props) {
+export function FiltersPanel({fields,entities,rules,onChange,lookup,editor,setEditor,onAdd,showDropTarget,disclosure,columnNames,rename}:Props) {
   const all = rules.every(r=>r.enabled);
   const editing = editor && fields.find(f=>f.id===editor.rule.field);
   const addButton=useRef<HTMLButtonElement>(null);
@@ -93,10 +94,10 @@ export function FiltersPanel({fields,entities,rules,onChange,lookup,editor,setEd
     {editor ? <form id="filter-editor" ref={formRef} className="filter-editor" onSubmit={commit}>
       <h5>{editor.index<rules.length?'Edit Filter':'New Filter'}</h5>
       <div className="filter-control"><label htmlFor="filter-field">Field</label>
-        <select id="filter-field" required value={editor.rule.field}
+        <select id="filter-field" required value={editor.rule.field} title={editing?sourceColumn(editing,entities):undefined}
           onChange={e=>updateRule(newFilterRule(fields.find(field=>field.id===e.target.value),editor.rule.enabled))}>
           <option value="" disabled>Choose a field</option>
-          <FieldOptions fields={fields} entities={entities}/>
+          <FieldOptions fields={fields} entities={entities} columnNames={columnNames}/>
         </select>
       </div>
       {editing && <>
@@ -146,12 +147,16 @@ export function FiltersPanel({fields,entities,rules,onChange,lookup,editor,setEd
         onClick={()=>onChange(rules.map(r=>({...r,enabled:!all})))}>{all?'Disable all':'Enable all'}</button>}
       {rules.length>0 && <ul className="filter-list" aria-label="Filter rules">{rules.map((r,i)=>{
         const f=fields.find(field=>field.id===r.field)!;
+        const name=columnNames?.[f.id]??f.label;
         return <li key={i} className={'filter-rule-grid'+(!r.enabled?' rule-off':'')}>
-          <button type="button" className="filter-content" aria-label={'Edit filter '+(i+1)} title={'Edit '+f.label+' filter'}
-            onClick={()=>setEditor({index:i,rule:{...r}})}><strong className="filter-name">{f.label}<Icon name="edit" size={12}/></strong>
+          <button type="button" className="filter-content" aria-label={'Edit filter '+(i+1)} aria-describedby={'filter-name-'+i}
+            title={sourceColumn(f,entities)} onClick={()=>setEditor({index:i,rule:{...r}})}>
+            <strong className="filter-name" id={'filter-name-'+i}>{name}</strong>
             <span>{describe(r,f)}</span></button>
+          <button type="button" className="rename-column" title={'Rename '+name} aria-haspopup="dialog"
+            aria-label={'Rename '+name} onClick={e=>rename(f,e.currentTarget)}><Icon name="edit" size={12}/></button>
           <button type="button" role="switch" className="switch" aria-checked={r.enabled}
-            aria-label={'Enable filter '+(i+1)+' on '+f.label}
+            aria-label={'Enable filter '+(i+1)+' on '+name}
             onClick={()=>onChange(rules.map((x,j)=>j===i?{...x,enabled:!x.enabled}:x))}><span/></button>
           <button type="button" className="remove-rule" aria-label={'Remove filter '+(i+1)} onClick={()=>onChange(rules.filter((_,j)=>j!==i))}><Icon name="close" size={14}/></button>
         </li>;
