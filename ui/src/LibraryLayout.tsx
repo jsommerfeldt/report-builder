@@ -49,9 +49,10 @@ interface LayoutProps {
   queryVisible:boolean; toggleQuery():void; closeQuery():void;
   objectsCollapsed:boolean; toggleObjects():void;
   queryToggle:React.Ref<HTMLButtonElement>; queryClose:React.Ref<HTMLButtonElement>;
+  previewRun:{run():void; disabled:boolean; busy:boolean; current:boolean};
 }
 export function LibraryLayout({library,children,newReport,queryVisible,toggleQuery,closeQuery,queryToggle,queryClose,
-  objectsCollapsed,toggleObjects}:LayoutProps) {
+  objectsCollapsed,toggleObjects,previewRun}:LayoutProps) {
   const prefix=layoutPrefix(newReport);
   const [preferred,setPreferred]=useState(()=>({
     objects:Math.max(editorPanes.objects.min,Number(stored(prefix+'objects-width'))||editorPanes.objects.initial),
@@ -142,6 +143,7 @@ export function LibraryLayout({library,children,newReport,queryVisible,toggleQue
     if(mode==='move')moveQuery(x+delta[0],y+delta[1],width,height);
     else resizeQuery(mode,{x,y,width,height},delta[0],delta[1]);
   }
+  const previewStatus=previewRun.busy?'Running preview…':previewRun.current?'Up to date':'Needs refresh';
   return <section ref={layout} className="build-report" aria-label="Build Report">
     <div ref={rail} className="builder-rail" role="group" aria-label="Builder sidebar">
       <button type="button" className="secondary-btn" aria-expanded={!objectsCollapsed}
@@ -153,7 +155,12 @@ export function LibraryLayout({library,children,newReport,queryVisible,toggleQue
         aria-controls={editorPanes.query.id} aria-expanded={queryVisible} aria-label="Query" title="Query" onClick={toggleQuery}>
         <Icon name="fields" size={15}/>
       </button>
+      <button type="button" className="primary-btn preview-run" data-current={previewRun.current}
+        aria-label="Run preview" aria-describedby="preview-run-status" aria-controls="report-preview"
+        aria-busy={previewRun.busy} title={'Run preview · '+previewStatus} disabled={previewRun.disabled}
+        onClick={previewRun.run}><Icon name="play" size={16}/></button>
     </div>
+    <span className="sr-only" id="preview-run-status" role="status">{previewStatus}</span>
     <aside ref={objects} id={editorPanes.objects.id} className="builder-pane library-wrap" hidden={objectsCollapsed}
       aria-label="Objects" style={{'--pane-width':objectsWidth+'px'} as React.CSSProperties}>
       <div id="library-contents" className="library-contents">{library}</div>

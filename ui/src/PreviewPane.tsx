@@ -22,12 +22,12 @@ export function resultLabel(field:Field, aggregation?:Aggregation, name?:string)
   if(aggregation==='unique')return 'Unique count of '+field.label;
   return aggregation && aggregation!=='sum'?aggregationLabels[aggregation]+' of '+field.label:field.label;
 }
-interface Props { data: Preview | null; outputIds:string[]; byId: Record<string, Field>; stale: boolean; busy: boolean; error:string;
-  entities:Catalog['entities']; columnNames?:ColumnNames; run():void;
+interface Props { data: Preview | null; outputIds:string[]; byId: Record<string, Field>; busy: boolean; error:string;
+  entities:Catalog['entities']; columnNames?:ColumnNames;
   rename(field:Field,name:string):void;
   move(id:string,anchor:string,after:boolean):void;
-  hasFields: boolean; pendingFilterMove:boolean; }
-export function PreviewPane({data,outputIds:ids,byId,entities,columnNames,run,stale,busy,error,hasFields,pendingFilterMove,move,rename}:Props) {
+  hasFields: boolean; }
+export function PreviewPane({data,outputIds:ids,byId,entities,columnNames,busy,error,hasFields,move,rename}:Props) {
   const table=useRef<HTMLTableElement>(null);
   const [widths,setWidths]=useState<Record<string,number>>({});
   const drag=useRef<{pointer:number; x:number; id:string; width:number}|null>(null);
@@ -86,17 +86,11 @@ export function PreviewPane({data,outputIds:ids,byId,entities,columnNames,run,st
     const current=measure();
     setWidths(prev=>({...prev,...current,[id]:clamp(current[id]+(e.key==='ArrowRight'?16:-16))}));
   }
-  return <section className="preview" aria-labelledby="preview-heading" data-library-zone="preview">
+  return <section className="preview" id="report-preview" aria-labelledby="preview-heading" data-library-zone="preview">
     <div className="pane-header preview-head"><h2 id="preview-heading"><Icon name="grid" size={16}/>Preview</h2><div className="preview-actions">
       {manual && <button className="text-action" onClick={()=>setWidths({})}>Auto-fit columns</button>}
       {data && <span className="result-count" role="status">{data.rows.length.toLocaleString()} of {data.total.toLocaleString()} rows</span>}
-      <button type="button" className="primary-btn" disabled={busy || !ids.length || pendingFilterMove} onClick={run}>
-        <Icon name="play" size={15}/>{busy?'Running…':'Run preview'}
-      </button>
     </div></div>
-    <div className="result-meta" role="status">{(busy || data || error || ids.length>0) && <>
-      <span className={'status-dot'+(busy?' loading':stale?' amber':data && !error?' ready':'')}/>
-      {busy?'Running preview…':error?'Preview failed':stale?'Report changed. Run preview to update.':data?'Preview ready':'Run preview to load rows.'}</>}</div>
     {error && <div className="alert preview-alert" role="alert">{error}{data && ' The table shows the previous preview.'}</div>}
     {ids.length>0 ? <div className="table-scroll" tabIndex={0} aria-label="Preview table"><table ref={table}
       className={manual?'manual-widths':undefined} style={manual?{width:ids.reduce((sum,id)=>sum+widths[id],0)}:undefined}>

@@ -108,6 +108,7 @@ export function ReportBuilder({catalog,client,initialReport,folderId,onReports}:
   const key = definitionKey(definition);
   const dirty = key !== baseline || title!==baseTitle;
   const shown = hasOutput ? result : null;
+  const previewCurrent=Boolean(shown && !busy && !error && shown.key===previewKey(definition,outputIds));
   const displayData=useMemo(()=>{
     if(!shown)return null;
     const original=shown.data;
@@ -342,6 +343,7 @@ export function ReportBuilder({catalog,client,initialReport,folderId,onReports}:
       }
     }}>
       <LibraryLayout newReport={newReport} queryVisible={queryVisible} toggleQuery={toggleQuery} closeQuery={closeQuery}
+        previewRun={{run:()=>void run(definition),disabled:busy || !hasOutput || !!pendingMove,busy,current:previewCurrent}}
         objectsCollapsed={objectsCollapsed} toggleObjects={()=>{
           if(!objectsCollapsed)setObjectPick(null);
           setObjectsCollapsed(!objectsCollapsed);
@@ -376,9 +378,9 @@ export function ReportBuilder({catalog,client,initialReport,folderId,onReports}:
           </div>
         </div>
       </LibraryLayout>
-      <PreviewPane data={displayData} outputIds={outputIds} byId={byId} stale={Boolean(shown && shown.key!==previewKey(definition,outputIds))} error={error}
-        entities={catalog.entities} columnNames={definition.columnNames} run={()=>void run(definition)} move={moveOutputColumn}
-        rename={renameColumn} busy={busy} pendingFilterMove={!!pendingMove} hasFields={Boolean(definition.fields.length)}/>
+      <PreviewPane data={displayData} outputIds={outputIds} byId={byId} error={error}
+        entities={catalog.entities} columnNames={definition.columnNames} move={moveOutputColumn}
+        rename={renameColumn} busy={busy} hasFields={Boolean(definition.fields.length)}/>
       <p className="sr-only" role="status">{notice}</p>
     </main>
     {dialog==='save' && <Modal title={collision?'Replace saved report?':'Save report'} close={close}><form onSubmit={save}>
