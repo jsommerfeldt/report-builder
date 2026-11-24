@@ -3,7 +3,7 @@ import {Icon} from './Icon';
 
 const editorPanes={
   objects:{id:'objects-pane',label:'Objects',initial:248,min:240},
-  query:{id:'query-pane',label:'Query',initial:472,min:456},
+  query:{id:'query-pane',label:'Query',initial:472,min:456,initialHeight:580},
 } as const;
 type EditorPane=keyof typeof editorPanes;
 function stored(key:string) { try { return localStorage.getItem('report-builder.library.'+key); } catch {return null;} }
@@ -167,7 +167,7 @@ export function LibraryLayout({library,children,newReport,queryVisible,toggleQue
       {!objectsCollapsed && <PaneDivider pane="objects" value={objectsWidth} max={maxObjects} onResize={value=>resize('objects',value)}/>}
     </aside>
     <section ref={popup} id={editorPanes.query.id} className="builder-pane query-controls" role="dialog" aria-labelledby="query-pane-heading"
-      hidden={!queryVisible} style={{width:queryWidth,height,maxHeight:maxQueryHeight,insetInlineStart:x,insetBlockStart:y}}>
+      hidden={!queryVisible} style={{width:queryWidth,height:height??editorPanes.query.initialHeight,maxHeight:maxQueryHeight,insetInlineStart:x,insetBlockStart:y}}>
       <div className="builder-pane-heading">
         <div className="query-title-bar" onPointerDown={e=>startGesture('move',e)} onPointerMove={trackGesture} onLostPointerCapture={stopGesture}>
           <h3 id="query-pane-heading"><Icon name="fields" size={16}/>Query</h3>
