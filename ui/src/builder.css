@@ -77,6 +77,7 @@
   width: var(--builder-rail-width);
   background: var(--build-bg);
 }
+.builder-rail:has(+ .library-wrap:not([hidden])) { row-gap: 7px; }
 .builder-rail::after {
   content: "";
   position: absolute;
