@@ -68,13 +68,13 @@
 .builder-pane-heading h3 { display: flex; align-items: center; gap: 6px; }
 .builder-rail {
   position: relative;
-  display: flex;
+  display: grid;
   flex: none;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
+  grid-template-rows: calc(var(--pane-heading-height) - 1px) auto;
+  align-content: start;
+  place-items: center;
+  row-gap: 1px;
   width: var(--builder-rail-width);
-  padding: 8px 0;
   background: var(--build-bg);
 }
 .builder-rail::after {
@@ -109,10 +109,10 @@
 .pane-resize:is(:hover, :focus-visible, :active)::after { background: var(--accent); }
 
 .library-body { display: flex; flex-direction: column; height: 100%; min-height: 0; }
-.library-toolbar { gap: 6px; flex: none; }
+.library-toolbar { gap: 6px; flex: none; padding-inline: var(--pane-content-gutter); }
 .library-search { flex: 1; min-width: 0; }
 .objects-toggle-all.secondary-btn { flex: none; min-width: 82px; min-height: 32px; padding: 4px 8px; font-size: 12px; white-space: nowrap; }
-.field-groups { padding: 0 8px 8px; overflow: auto; scrollbar-width: thin; }
+.field-groups { padding: 0 var(--pane-content-gutter) 8px; overflow: auto; scrollbar-width: thin; }
 .field-group + .field-group { border-top: 1px solid var(--line); margin-top: 6px; }
 .group-title { display: flex; align-items: center; gap: 7px; width: 100%; min-height: 33px; padding: 4px 8px; text-align: left; }
 .group-title:hover { background: var(--raised); }
