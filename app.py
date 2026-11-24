@@ -169,7 +169,7 @@ def make_app(snapshot, reports, assets: Path, key, origin=ORIGIN):
     def read_report(rid):
         try:
             record = reports.get(str(rid))
-            return jsonify({**record, "definition": snapshot.definition(record["definition"])})
+            return jsonify({**record, "definition": snapshot.editable_definition(record["definition"])})
         except FileNotFoundError:
             abort(404)
 

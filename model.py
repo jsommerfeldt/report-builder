@@ -53,29 +53,29 @@ class Field:
 
 
 FIELDS = (
-    Field("sales", "company", "Sales company"),
-    Field("sales", "reporting_date", "Reporting date", "date"),
+    Field("sales", "company", "Sales Company"),
+    Field("sales", "reporting_date", "Reporting Date", "date"),
     Field("sales", "sales", "Sales", "currency"),
-    Field("sales", "creditsales", "Credit sales", "currency"),
-    Field("sales", "shipquantitycseq", "Shipped case equivalents", "quantity"),
-    Field("customer", "customer", "Customer number"),
-    Field("customer", "customername", "Customer name"),
-    Field("customer", "shippingcity", "Shipping city"),
-    Field("customer", "shippingstate", "Shipping state"),
-    Field("customer", "customercompany", "Customer company"),
-    Field("customer", "customerregiondescription", "Customer region"),
+    Field("sales", "creditsales", "Credit Sales", "currency"),
+    Field("sales", "shipquantitycseq", "Shipped Case Equivalents", "quantity"),
+    Field("customer", "customer", "Customer Number"),
+    Field("customer", "customername", "Customer Name"),
+    Field("customer", "shippingcity", "Shipping City"),
+    Field("customer", "shippingstate", "Shipping State"),
+    Field("customer", "customercompany", "Customer Company"),
+    Field("customer", "customerregiondescription", "Customer Region"),
     Field("customer", "shippingzip", "Shipping ZIP"),
-    Field("customer", "salesparentcustomername", "Sales parent customer"),
-    Field("product", "productnumber", "Product number"),
-    Field("product", "productdesc", "Product description"),
+    Field("customer", "salesparentcustomername", "Sales Parent Customer"),
+    Field("product", "productnumber", "Product Number"),
+    Field("product", "productdesc", "Product Description"),
     Field("product", "packaging", "Packaging"),
-    Field("product", "productcompany", "Product company"),
+    Field("product", "productcompany", "Product Company"),
     Field("product", "departmentdescription", "Department"),
     Field("product", "commoditydescription", "Commodity"),
     Field("product", "classdescription", "Class"),
-    Field("trip", "tripnumber", "Trip number"),
-    Field("trip", "tripdescription", "Trip description"),
-    Field("trip", "dispatchdate", "Dispatch date", "date"),
+    Field("trip", "tripnumber", "Trip Number"),
+    Field("trip", "tripdescription", "Trip Description"),
+    Field("trip", "dispatchdate", "Dispatch Date", "date"),
     Field("trip", "dispatchdatetime", "Dispatch Date and Time", "datetime"),
     Field("warehouse", "warehouse", "Warehouse Code"),
     Field("warehouse", "warehousedesc", "Warehouse Name"),
@@ -129,9 +129,9 @@ def relative_range(field, value, now):
     return start.isoformat(), end.isoformat()
 
 
-def validate_filters(rules):
-    if not isinstance(rules, list) or len(rules) > 32:
-        raise InvalidDefinition("A dataset supports up to 32 filters.")
+def validate_filters(rules, *, limit=32):
+    if not isinstance(rules, list) or len(rules) > limit:
+        raise InvalidDefinition(f"A dataset supports up to {limit} filters.")
     for rule in rules:
         if not isinstance(rule, dict) or set(rule) - {"caseSensitive"} != {"field", "op", "value", "enabled"}:
             raise InvalidDefinition("Invalid filter format.")
@@ -192,7 +192,8 @@ def validate_definition(value):
         raise InvalidDefinition("Each selected field must be available and appear once.")
     result = {"version": value["version"], "source": "sales", "mode": value["mode"], "fields": list(ids)}
     if "filters" in value:
-        result["filters"] = validate_filters(value["filters"])
+        # Expanded definitions have one extra slot for a migrated company filter.
+        result["filters"] = validate_filters(value["filters"], limit=33 if value["version"] == 2 else 32)
     if "columnNames" in value:
         names = value["columnNames"]
         available = set(ids) | {rule["field"] for rule in result.get("filters", ())}

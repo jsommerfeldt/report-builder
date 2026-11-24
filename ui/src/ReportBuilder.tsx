@@ -371,13 +371,6 @@ export function ReportBuilder({catalog,client,initialReport,folderId,onReports}:
               showDropTarget={pickedField?.source==='objects' || pickedField?.source==='fields'}
               onAdd={e=>pickObject('filters',e.currentTarget)} onChange={changeFilters}/>
           </div>
-          <div className="query-footer">
-            {catalog.scope.companies && <div className="query-scope">
-              <span>{definition.version===1?'Sales scope · 0030':'Sales scope · '+catalog.scope.companies.join(', ')}</span>
-              {definition.version===1 && <button type="button" className="text-action"
-                onClick={()=>{setDefinition(prev=>({...prev,version:2}));setNotice('');}}>Include both companies</button>}
-            </div>}
-          </div>
         </div>
       </LibraryLayout>
       <PreviewPane paneRef={previewPane} data={displayData} outputIds={outputIds} byId={byId} error={error}

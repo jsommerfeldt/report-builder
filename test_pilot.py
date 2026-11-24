@@ -295,6 +295,23 @@ class PilotTest(unittest.TestCase):
         self.assertEqual(results.json["rows"], original_rows)
         self.assertEqual(results.json["sourceRows"], 3)
 
+        path = f"/api/reports/{saved['id']}"
+        editable = client.get(path, base_url=ORIGIN).json["definition"]
+        self.assertEqual(editable["version"], 2)
+        [company_filter] = editable["filters"]
+        self.assertEqual(company_filter, {"field": "sales.company", "op": "in",
+                                          "value": ["0030"], "enabled": True})
+        self.assertEqual(snapshot.preview(editable)["rows"], original_rows)
+        self.assertEqual(ReportStore(self.reports).get(saved["id"])["definition"]["version"], 1)
+        company_filter["value"] = ["0001"]
+        self.assertEqual(snapshot.preview(editable)["rows"], [["MN", "00003", "20", "2"]])
+        self.assertEqual(snapshot.preview({**editable, "filters": [], "mode": "detail"})["total"], 4)
+
+        existing_filter = {"field": "sales.company", "op": "in", "value": ["0001"], "enabled": True}
+        crowded = snapshot.editable_definition({**self.d, "filters": [existing_filter] * 32})
+        self.assertEqual(len(crowded["filters"]), 33)
+        self.assertEqual(snapshot.preview(crowded)["total"], 0)
+
     def test_warehouses_can_group_filter_and_preserve_sales_grain(self):
         self.snapshot = self.expanded_fixture(with_warehouses=True)
         company, code, name, sales = "warehouse.warehousecompany", "warehouse.warehouse", "warehouse.warehousedesc", "sales.sales"

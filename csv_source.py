@@ -178,6 +178,13 @@ class CsvSnapshot:
             raise InvalidDefinition("A selected field requires the expanded sales snapshot.")
         return definition
 
+    def editable_definition(self, raw):
+        definition = self.definition(raw)
+        if self.version == 2 and definition["version"] == 1:
+            company_filter = {"field": "sales.company", "op": "in", "value": [LEGACY_COMPANY], "enabled": True}
+            return {**definition, "version": 2, "filters": [company_filter, *definition.get("filters", ())]}
+        return definition
+
     def choices(self, payload):
         if not isinstance(payload, dict):
             raise InvalidDefinition("Invalid value search.")
