@@ -6,7 +6,7 @@ import {CardDisclosure,QueryCard} from './QueryCard';
 import {columnsHelp} from './QueryHelp';
 
 const numericOptions:Aggregation[]=['sum','avg','min','max','count'];
-const dimensionOptions:Aggregation[]=['first','last','count','unique'];
+const dimensionOptions:Aggregation[]=['first','last','unique'];
 
 interface Props {
   fields:Field[]; outputIds:string[]; order:Order[]; drop:DropField; showDropTarget:boolean; disclosure:CardDisclosure;
@@ -62,6 +62,7 @@ export function FieldsPanel({fields,outputIds,order,drop,onAdd,remove,sort,showD
           value={method??(f.measure?'sum':excluded?'excluded':'')}
           onChange={e=>onAggregationChange(f.id,e.target.value as Aggregation|'none'|'')}>
           {excluded && <option value="excluded" disabled>Excluded</option>}
+          {!f.measure && method==='count' && <option value="count" disabled>Count</option>}
           {f.measure?<option value="none">None</option>:<option value="" aria-label="No aggregation">—</option>}
           {(f.measure?numericOptions:dimensionOptions).map(value=><option key={value} value={value}>{aggregationLabels[value]}</option>)}
         </select>
