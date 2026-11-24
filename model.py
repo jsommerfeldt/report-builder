@@ -131,7 +131,7 @@ def relative_range(field, value, now):
 
 def validate_filters(rules):
     if not isinstance(rules, list) or len(rules) > 32:
-        raise InvalidDefinition("A report supports up to 32 filters.")
+        raise InvalidDefinition("A dataset supports up to 32 filters.")
     for rule in rules:
         if not isinstance(rule, dict) or set(rule) - {"caseSensitive"} != {"field", "op", "value", "enabled"}:
             raise InvalidDefinition("Invalid filter format.")
@@ -180,9 +180,9 @@ def validate_definition(value):
     if (not isinstance(value, dict)
             or set(value) - {"filters", "order", "groupBy", "aggregations", "columnNames"}
             != {"version", "source", "mode", "fields"}):
-        raise InvalidDefinition("The report definition has an unsupported format.")
+        raise InvalidDefinition("The dataset definition has an unsupported format.")
     if type(value["version"]) is not int or value["version"] not in (1, 2) or value["source"] != "sales":
-        raise InvalidDefinition("The report source or definition version is unavailable.")
+        raise InvalidDefinition("The dataset source or definition version is unavailable.")
     if value["mode"] not in ("detail", "summary"):
         raise InvalidDefinition("Choose a detail or summary preview.")
     ids = value["fields"]
@@ -201,7 +201,7 @@ def validate_definition(value):
             or re.search(r"[\x00-\x1f\x7f]", name)
             for key, name in names.items()
         ):
-            raise InvalidDefinition("Enter a name of 1 to 80 characters for a column used in the report.")
+            raise InvalidDefinition("Enter a name of 1 to 80 characters for a column used in the dataset.")
         if names:
             result["columnNames"] = {key: name.strip() for key, name in names.items()}
     if "groupBy" in value:

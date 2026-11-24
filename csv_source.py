@@ -167,7 +167,7 @@ class CsvSnapshot:
 
     def scoped_facts(self, version):
         if type(version) is not int or not 1 <= version <= self.version:
-            raise InvalidDefinition("This report requires the expanded sales snapshot.")
+            raise InvalidDefinition("This dataset requires the expanded sales snapshot.")
         return self.legacy_facts if version == 1 and self.legacy_facts is not None else self.facts
 
     def definition(self, raw):

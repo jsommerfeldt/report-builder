@@ -26,7 +26,7 @@ export const filtersHelp={
       <div><dt>Copy a field</dt><dd>Hold <strong>Ctrl</strong> while dragging between <strong>Columns</strong> and <strong>Filters</strong> to keep the field in both.</dd></div>
       <div><dt>Apply and manage</dt><dd>Choose <strong>Apply filter</strong>, then <strong>Run preview</strong>. Every active rule must match. Use the switch on a rule to pause or resume it.</dd></div>
       <div><dt>Exclude values</dt><dd><strong>Is not</strong> excludes any of the values you select. <strong>Does not contain</strong> excludes text containing what you enter. Both conditions skip blank values.</dd></div>
-      <div><dt>Match case and relative dates</dt><dd><strong>Match case</strong> checks capitalization on text. Relative date and time filters recalculate their range each time the report runs.</dd></div>
+      <div><dt>Match case and relative dates</dt><dd><strong>Match case</strong> checks capitalization on text. Relative date and time filters recalculate their range each time the dataset runs.</dd></div>
     </dl>
   </div>,
 };

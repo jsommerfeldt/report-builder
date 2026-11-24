@@ -14,7 +14,7 @@ export function ScheduleEditor(props:Props) {
       ()=>{if(active)setError('The schedule draft could not be opened. Check that browser storage is available.');});
     return ()=>{active=false;};
   },[props.report.id,props.store]);
-  if(draft===undefined)return <Modal title="Schedule report" close={props.close}>
+  if(draft===undefined)return <Modal title="Schedule dataset" close={props.close}>
     <p className="modal-note" role={error?'alert':'status'}>{error || 'Opening schedule…'}</p></Modal>;
   return <ScheduleForm {...props} initial={draft}/>;
 }
@@ -52,9 +52,9 @@ function ScheduleForm({report,store,initial,close,onChange}:Props & {initial:Sch
     try{await store.remove(report.id);onChange('Schedule draft removed.');}
     catch{setError('The schedule draft could not be removed.');setRemoving(false);setBusy(false);}
   }
-  return <Modal title={removing?'Remove schedule draft?':'Schedule report'} className="schedule-dialog" close={()=>{if(!busy)close();}}>
+  return <Modal title={removing?'Remove schedule draft?':'Schedule dataset'} className="schedule-dialog" close={()=>{if(!busy)close();}}>
     <p className="dialog-subject">{report.name}</p>
-    {removing?<><p className="modal-note">Remove the saved timing and recipients for this report?</p><footer>
+    {removing?<><p className="modal-note">Remove the saved timing and recipients for this dataset?</p><footer>
       <button className="secondary-btn" onClick={()=>setRemoving(false)} disabled={busy}>Cancel</button>
       <button className="danger-btn" onClick={remove} disabled={busy}>Remove draft</button></footer></>:
     <form onSubmit={save}>

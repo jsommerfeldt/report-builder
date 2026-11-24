@@ -33,15 +33,15 @@ function ReportResults({report,catalog,library,onReports}:{report:SavedInfo;cata
     let active=true;
     setPage(null);setError('');
     library.results(report,offset).then(result=>{if(active)setPage({offset,result});},
-      e=>{if(active)setError(e instanceof Error?e.message:'The report could not be run.');});
+      e=>{if(active)setError(e instanceof Error?e.message:'The dataset could not be run.');});
     return ()=>{active=false;};
   },[report,library,offset,retry]);
   const fields=data?.fields.map(id=>catalog.fields.find(field=>field.id===id)!)??[];
   return <div><WorkspaceBar onReports={onReports}/><main className="run-main">
-    <div className="doc-status"><Icon name="grid" size={15}/>Report results</div>
+    <div className="doc-status"><Icon name="grid" size={15}/>Dataset results</div>
     <h1 ref={title} tabIndex={-1}>{report.name}</h1>
     {error?<div role="alert" className="alert">{error} <button className="text-action" onClick={()=>setRetry(n=>n+1)}>Try again</button></div>:
-      !data?<p role="status" className="muted">Running saved report…</p>:<section className="panel results-panel" aria-label="Report results">
+      !data?<p role="status" className="muted">Running saved dataset…</p>:<section className="panel results-panel" aria-label="Dataset results">
         <div className="results-bar"><strong>{data.total.toLocaleString()} {data.total===1?'result':'results'}</strong>
           {data.total>0 && <div className="pages"><span role="status">{(offset+1).toLocaleString()}–{(offset+data.rows.length).toLocaleString()} of {data.total.toLocaleString()}</span>
             <button className="icon-button" aria-label="Previous page" disabled={offset===0} onClick={()=>setOffset(Math.max(0,offset-data.limit))}><Icon name="back" size={16}/></button>

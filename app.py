@@ -94,7 +94,7 @@ def make_app(snapshot, reports, assets: Path, key, origin=ORIGIN):
 
     @app.errorhandler(NameConflict)
     def name_conflict(exc):
-        return jsonify(error="A different report already has that name.", overwriteTarget=exc.target), 409
+        return jsonify(error="A different dataset already has that name.", overwriteTarget=exc.target), 409
 
     @api.post("/session")
     def unlock():
@@ -160,7 +160,7 @@ def make_app(snapshot, reports, assets: Path, key, origin=ORIGIN):
         raw_offset = request.args.get("offset", "0")
         revision = request.args.get("revision", "")
         if not re.fullmatch(r"[0-9]{1,10}", raw_offset) or not re.fullmatch(r"[0-9]{1,10}", revision):
-            raise InvalidDefinition("Invalid report page or revision.")
+            raise InvalidDefinition("Invalid dataset page or revision.")
         record = reports.get(str(rid))
         check_revision(record, int(revision))
         return jsonify(snapshot.preview(record["definition"], offset=int(raw_offset)))

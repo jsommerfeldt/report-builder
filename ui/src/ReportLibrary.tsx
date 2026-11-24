@@ -137,19 +137,19 @@ export function ReportLibrary({library,client,schedules,location,navigate,onNew,
     <WorkspaceBar onReports={()=>choose('all')}/>
     <main>
       <div className="reports-heading">
-        <h1>{directory?'Folders':trash?'Trash':'Reports'}</h1>
+        <h1>{directory?'Folders':trash?'Trash':'Datasets'}</h1>
         <div className="reports-tools">
           <button className="secondary-btn" type="button" aria-controls="report-folders" aria-expanded={foldersOpen}
             onClick={()=>setFoldersOpen(open=>!open)}><Icon name="folder" size={16}/>Folders</button>
           {current && <button className="secondary-btn" onClick={()=>setManage({kind:'folder',folder:current.folder})}>Manage folder</button>}
           {directory && <button className="secondary-btn" onClick={newFolder} disabled={!data}>New folder</button>}
-          {!trash && <button className="primary-btn" disabled={!data} onClick={onNew}><Icon name="plus" size={16}/>New report</button>}
+          {!trash && <button className="primary-btn" disabled={!data} onClick={onNew}><Icon name="plus" size={16}/>New dataset</button>}
         </div>
       </div>
       <div className={'reports-layout'+(foldersOpen?' folders-open':'')}>
-      <aside id="report-folders" className="reports-sidebar" hidden={!foldersOpen}><nav aria-label="Report library">
+      <aside id="report-folders" className="reports-sidebar" hidden={!foldersOpen}><nav aria-label="Dataset library">
       <h2>Library</h2>
-      <button {...target(null)} title="Drop here to move to the library root" className="location-link" aria-current={location==='all'?'page':undefined} onClick={()=>choose('all')}><Icon name="layers"/>All reports</button>
+      <button {...target(null)} title="Drop here to move to the library root" className="location-link" aria-current={location==='all'?'page':undefined} onClick={()=>choose('all')}><Icon name="layers"/>All datasets</button>
       <button className="location-link" aria-current={trash?'page':undefined} onClick={()=>choose('trash')}><Icon name="trash"/>Trash</button>
       <div className="folder-nav-head"><h2><button className="folders-index-link" aria-label="Folder directory" aria-current={directory?'page':undefined} onClick={()=>choose('folders')}>Folders</button></h2><button className="icon-button" title="New folder" aria-label="New folder" onClick={newFolder} disabled={!data}><Icon name="plus" size={16}/></button></div>
       {paths.map(p=><div className="folder-nav-row" key={p.folder.id}><button {...source({kind:'folder',item:p.folder})} {...target(p.folder.id)} className="location-link folder-link" title={p.label} aria-current={p.folder.id===location?'page':undefined}
@@ -162,22 +162,22 @@ export function ReportLibrary({library,client,schedules,location,navigate,onNew,
       <div className="reports-filters">
         <div className="reports-location"><label htmlFor="reports-location">Location</label>
           <select id="reports-location" value={location} onChange={e=>choose(e.target.value)}>
-          <option value="all">All reports</option><option value="folders">Folder directory</option><option value="trash">Trash</option>
+          <option value="all">All datasets</option><option value="folders">Folder directory</option><option value="trash">Trash</option>
           {paths.length>0 && <optgroup label="Folders">{paths.map(p=><option key={p.folder.id} value={p.folder.id}>{p.label}</option>)}</optgroup>}
         </select></div>
         {!directory && <div className="reports-search">
           <label htmlFor="reports-search">Search</label>
           <div className="search"><Icon name="search" size={16}/>
-            <input type="search" id="reports-search" placeholder="Search reports" value={search} onChange={e=>setSearch(e.target.value)}/>
+            <input type="search" id="reports-search" placeholder="Search datasets" value={search} onChange={e=>setSearch(e.target.value)}/>
           </div>
         </div>}
       </div>
-      {current && <nav className="crumbs" aria-label="Folder path"><button onClick={()=>choose('all')}>Reports</button>
+      {current && <nav className="crumbs" aria-label="Folder path"><button onClick={()=>choose('all')}>Datasets</button>
         {current.parents.map(f=><React.Fragment key={f.id}><Icon name="arrow" size={12}/><button onClick={()=>choose(f.id)}>{f.name}</button></React.Fragment>)}
         <Icon name="arrow" size={12}/><span>{current.folder.name}</span></nav>}
       {error && <div className="alert" role="alert">{error} <button className="text-action" onClick={refresh}>Refresh library</button></div>}
       <p role="status" className={'library-notice'+(notice?' visible':'')}>{notice}</p>
-      {!data && !error && <p className="muted" role="status">Loading reports…</p>}
+      {!data && !error && <p className="muted" role="status">Loading datasets…</p>}
       {data && directory && <section className="report-list-panel" aria-label="Folder directory">
         <div className="list-tools"><h2>All folders</h2><span className="folder-count-label">Direct contents</span></div>
         {paths.length===0?<div className="reports-empty"><Icon name="folder"/><h3>No folders yet</h3><button className="text-action" onClick={newFolder}>Create a folder</button></div>:
@@ -187,11 +187,11 @@ export function ReportLibrary({library,client,schedules,location,navigate,onNew,
             return <li key={p.folder.id}><button {...source({kind:'folder',item:p.folder})} {...target(p.folder.id)}
               onClick={()=>choose(p.folder.id)}><Icon name="folder"/><span><strong>{p.folder.name}</strong>
               <small>{p.parents.map(f=>f.name).join(' / ')||'Library root'}</small></span>
-              <small>{count} {count===1?'report':'reports'} · {children} {children===1?'subfolder':'subfolders'}</small></button></li>;
+              <small>{count} {count===1?'dataset':'datasets'} · {children} {children===1?'subfolder':'subfolders'}</small></button></li>;
           })}</ul>}</section>}
-      {data && !directory && <section className="report-list-panel" aria-label={trash?'Deleted reports':'Saved reports'}>
-        <div className="table-scroll" tabIndex={0} aria-label="Report list">
-          <table className="reports-table" aria-label={trash?'Deleted reports':'Saved reports'}>
+      {data && !directory && <section className="report-list-panel" aria-label={trash?'Deleted datasets':'Saved datasets'}>
+        <div className="table-scroll" tabIndex={0} aria-label="Dataset list">
+          <table className="reports-table" aria-label={trash?'Deleted datasets':'Saved datasets'}>
             <thead><tr>{sortHeader('name','Name')}<th scope="col">Folder</th>{sortHeader('modified',trash?'Deleted':'Last modified')}
               <th scope="col" className="report-actions-heading">Actions</th></tr></thead>
             <tbody>{shown.map(report=><tr key={report.id} {...(trash?{}:source({kind:'report',item:report}))}>
@@ -203,26 +203,26 @@ export function ReportLibrary({library,client,schedules,location,navigate,onNew,
               <button className="secondary-btn" disabled={working} onClick={()=>void restore(report)}>Restore</button>
               <button className="secondary-btn trash-delete" disabled={working} onClick={()=>{setDeleteError('');setDeleteTarget(report);}}>Delete permanently</button>
             </>:<>
-              <button className="icon-button" title="Run report" aria-label={'Run '+report.name} disabled={working} onClick={()=>onRun(report)}><Icon name="play" size={15}/></button>
-              <button className="icon-button" title="Edit report" aria-label={'Edit '+report.name} disabled={working} onClick={()=>void edit(report)}><Icon name="edit" size={16}/></button>
-              <button className="icon-button" title="Schedule report" aria-label={'Schedule '+report.name} disabled={working} onClick={()=>setSchedule(report)}><Icon name="clock" size={16}/></button>
-              <button className="icon-button" title="Manage report" aria-label={'Manage '+report.name} disabled={working} onClick={()=>setManage({kind:'report',report})}><Icon name="more" size={17}/></button>
+              <button className="icon-button" title="Run dataset" aria-label={'Run '+report.name} disabled={working} onClick={()=>onRun(report)}><Icon name="play" size={15}/></button>
+              <button className="icon-button" title="Edit dataset" aria-label={'Edit '+report.name} disabled={working} onClick={()=>void edit(report)}><Icon name="edit" size={16}/></button>
+              <button className="icon-button" title="Schedule dataset" aria-label={'Schedule '+report.name} disabled={working} onClick={()=>setSchedule(report)}><Icon name="clock" size={16}/></button>
+              <button className="icon-button" title="Manage dataset" aria-label={'Manage '+report.name} disabled={working} onClick={()=>setManage({kind:'report',report})}><Icon name="more" size={17}/></button>
             </>}</div></td></tr>)}</tbody>
           </table>
         </div>
         {!shown.length && <div className="reports-empty"><span className="empty-icon"><Icon name={searchTerm?'search':trash?'trash':'document'} size={24}/></span>
-          <h3>{searchTerm?'No matching reports':trash?'Trash is empty':current?'This folder is empty':'No saved reports yet'}</h3>
-          <p>{searchTerm?'Try another report name.':trash?'Reports you delete appear here.':current?'Create a report here or move one into this folder.':'Create a report and save it to your library.'}</p>
+          <h3>{searchTerm?'No matching datasets':trash?'Trash is empty':current?'This folder is empty':'No saved datasets yet'}</h3>
+          <p>{searchTerm?'Try another dataset name.':trash?'Datasets you delete appear here.':current?'Create a dataset here or move one into this folder.':'Create a dataset and save it to your library.'}</p>
           {searchTerm && <button className="text-action" onClick={()=>setSearch('')}>Clear search</button>}</div>}
         <div className="reports-count" role="status">{shown.length!==scoped.length
-          ?`${shown.length.toLocaleString()} of ${scoped.length.toLocaleString()} reports`
-          :`${shown.length.toLocaleString()} ${shown.length===1?'report':'reports'}`}</div>
+          ?`${shown.length.toLocaleString()} of ${scoped.length.toLocaleString()} datasets`
+          :`${shown.length.toLocaleString()} ${shown.length===1?'dataset':'datasets'}`}</div>
       </section>}
     </div></div>
     </main>
     {manage && <LibraryDialog item={manage} paths={paths} library={library} close={()=>setManage(null)} done={changed}/>}
     {schedule && <ScheduleEditor report={schedule} store={schedules} close={()=>setSchedule(null)} onChange={changed}/>}
-    {deleteTarget && <Modal title="Permanently delete report?" close={()=>{if(!working)setDeleteTarget(null);}} className="library-dialog">
+    {deleteTarget && <Modal title="Permanently delete dataset?" close={()=>{if(!working)setDeleteTarget(null);}} className="library-dialog">
       <p className="modal-note"><strong>{deleteTarget.name}</strong> will be removed from Trash. This cannot be undone.</p>
       {deleteError && <p className="alert" role="alert">{deleteError}</p>}
       <footer>

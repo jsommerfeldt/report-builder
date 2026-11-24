@@ -65,7 +65,7 @@ export function ReportBuilder({catalog,client,initialReport,folderId,onReports}:
   const initial = initialReport?.definition ?? (onReports ? blank : catalog.starter);
   const newReport=Boolean(onReports && !initialReport);
   const [definition, setDefinition] = useState<Definition>(initial);
-  const [title, setTitle] = useState(initialReport?.name ?? (onReports ? 'Untitled report' : 'Sales by state and product'));
+  const [title, setTitle] = useState(initialReport?.name ?? (onReports ? 'Untitled dataset' : 'Sales by state and product'));
   const [baseTitle,setBaseTitle]=useState(title);
   const [renaming,setRenaming]=useState(false);
   const [collision,setCollision]=useState<Collision|null>(null);
@@ -283,7 +283,7 @@ export function ReportBuilder({catalog,client,initialReport,folderId,onReports}:
     let next=0;
     changeFields(definition.fields.map(field=>outputIds.includes(field)?reordered[next++]:field));
   }
-  function discardOK() { return !dirty || window.confirm('Discard unsaved report changes?'); }
+  function discardOK() { return !dirty || window.confirm('Discard unsaved dataset changes?'); }
   async function openList() {
     setModalError(''); setListing([]); setDialog('open'); setWorking(true);
     try { setListing(await client.list()); } catch(e) { setModalError(message(e)); } finally {setWorking(false);}
@@ -295,7 +295,7 @@ export function ReportBuilder({catalog,client,initialReport,folderId,onReports}:
       setEditorSession(n=>n+1);setFilterEditor(null);setObjectPick(null);setPickedField(null);setPreviewDropActive(false);setQueryHint('');
       setQueryOpen(false);setExpandedCards({});
       setSaved(r); setTitle(r.name); setBaseTitle(r.name); setRenaming(false); setDefinition(r.definition); setBaseline(definitionKey(r.definition));
-      setResult(null); setDialog(null); setNotice('Report opened'); void run(r.definition);
+      setResult(null); setDialog(null); setNotice('Dataset opened'); void run(r.definition);
     } catch(e) {setModalError(message(e));} finally {setWorking(false);}
   }
   async function save(e:React.FormEvent) {
@@ -303,7 +303,7 @@ export function ReportBuilder({catalog,client,initialReport,folderId,onReports}:
     setWorking(true); setModalError('');
     try { const overwrite=collision?{id:collision.id,revision:collision.revision}:undefined;
       const r=await client.save(name.trim(),definition,saved,overwrite,folderId);
-      setSaved(r); setTitle(r.name); setBaseTitle(r.name); setBaseline(definitionKey(r.definition)); setDialog(null); setCollision(null); setNotice('Report saved');
+      setSaved(r); setTitle(r.name); setBaseTitle(r.name); setBaseline(definitionKey(r.definition)); setDialog(null); setCollision(null); setNotice('Dataset saved');
     } catch(e) {
       setCollision(e instanceof RequestError && e.overwriteTarget ? e.overwriteTarget : null);
       if (!(e instanceof RequestError && e.overwriteTarget)) setModalError(message(e));
@@ -316,23 +316,23 @@ export function ReportBuilder({catalog,client,initialReport,folderId,onReports}:
     <header className="editor-bar">
       <div className="bar-title">
         {renaming ? <form className="title-edit" onSubmit={e=>{e.preventDefault();if(name.trim()){setTitle(name.trim());setRenaming(false);}}}>
-          <input autoFocus aria-label="Report title" maxLength={80} required value={name} onFocus={e=>e.target.select()}
+          <input autoFocus aria-label="Dataset title" maxLength={80} required value={name} onFocus={e=>e.target.select()}
             onChange={e=>setName(e.target.value)} onKeyDown={e=>{if(e.key==='Escape'){e.preventDefault();setRenaming(false);}}}/>
           <div className="title-edit-actions">
             <button type="submit" className="primary-btn" disabled={!name.trim()}>Apply title</button>
             <button type="button" className="secondary-btn" onClick={()=>setRenaming(false)}>Cancel</button>
           </div>
-        </form> : <h1><button className="rename-title" title="Rename report" aria-label={'Rename report: '+title} onClick={()=>{setName(title);setRenaming(true);}}>
+        </form> : <h1><button className="rename-title" title="Rename dataset" aria-label={'Rename dataset: '+title} onClick={()=>{setName(title);setRenaming(true);}}>
           <span>{title}</span><Icon name="edit" size={15}/></button></h1>}
       </div>
       <div className="editor-actions">
         {!onReports && <button type="button" className="secondary-btn" onClick={openList}>
-          <Icon name="folder" size={16}/>Saved reports</button>}
+          <Icon name="folder" size={16}/>Saved datasets</button>}
         <div className="save-actions">
           <p role="status" className={'doc-status'+(dirty?' unsaved':'')}>{dirty?'Unsaved changes':saved?'Saved':'Draft'}</p>
           <button type="button" className="primary-btn" disabled={!hasOutput || renaming || !!pendingMove}
             onClick={()=>{setCollision(null);setModalError('');setName(title);setDialog('save');}}>
-            <Icon name="save" size={16}/>Save report</button>
+            <Icon name="save" size={16}/>Save dataset</button>
         </div>
       </div>
     </header>
@@ -385,20 +385,20 @@ export function ReportBuilder({catalog,client,initialReport,folderId,onReports}:
         rename={renameColumn} busy={busy} hasFields={Boolean(definition.fields.length)}/>
       <p className="sr-only" role="status">{notice}</p>
     </main>
-    {dialog==='save' && <Modal title={collision?'Replace saved report?':'Save report'} close={close}><form onSubmit={save}>
-      {collision ? <p className="modal-note">Replace the saved definition of <strong>{collision.name}</strong> with this report?
-        {saved && <> Your previously saved report, <strong>{saved.name}</strong>, will keep its own definition.</>}</p> : <>
-      <label className="input-label" htmlFor="report-name">Report name</label><input className="name-input" id="report-name" maxLength={80} required autoFocus
+    {dialog==='save' && <Modal title={collision?'Replace saved dataset?':'Save dataset'} close={close}><form onSubmit={save}>
+      {collision ? <p className="modal-note">Replace the saved definition of <strong>{collision.name}</strong> with this dataset?
+        {saved && <> Your previously saved dataset, <strong>{saved.name}</strong>, will keep its own definition.</>}</p> : <>
+      <label className="input-label" htmlFor="report-name">Dataset name</label><input className="name-input" id="report-name" maxLength={80} required autoFocus
         value={name} onFocus={e => e.target.select()} onChange={e => setName(e.target.value)}/>
       <p className="modal-note">Saves the columns, filters, grouping, and output order on this device.</p></>}
       {modalError && <p role="alert" className="alert">{modalError}</p>}
       <footer><button type="button" className="secondary-btn" onClick={collision?()=>setCollision(null):close} disabled={working}>{collision?'Go back':'Cancel'}</button>
-        <button className="primary-btn" type="submit" disabled={working || !name.trim()}>{working?'Saving…':collision?'Replace report':'Save'}</button></footer>
+        <button className="primary-btn" type="submit" disabled={working || !name.trim()}>{working?'Saving…':collision?'Replace dataset':'Save'}</button></footer>
     </form></Modal>}
-    {dialog==='open' && <Modal title="Saved reports" close={close}>
+    {dialog==='open' && <Modal title="Saved datasets" close={close}>
       {working && <p role="status" className="modal-note">Loading…</p>}
       {!!modalError && <p role="alert" className="alert">{modalError}</p>}
-      {!working && !modalError && !listing.length && <p className="modal-note">Your saved reports will appear here.</p>}
+      {!working && !modalError && !listing.length && <p className="modal-note">Your saved datasets will appear here.</p>}
       <div className="saved-list">{listing.map(r => <button key={r.id} disabled={working} onClick={() => void openReport(r.id)}>
         <span className="saved-icon"><Icon name="document"/></span><span><strong>{r.name}</strong>
         <small>{new Date(r.updated).toLocaleString()}</small></span><Icon name="arrow" size={15}/></button>)}</div>

@@ -150,12 +150,12 @@ class ReportStore:
     def change_report(self, action, report_id, payload):
         expected = {"revision", "folderId"} if action == "move" else {"revision"}
         if not isinstance(payload, dict) or set(payload) != expected:
-            raise InvalidDefinition("Invalid report management request.")
+            raise InvalidDefinition("Invalid dataset management request.")
         with self.lock:
             record = self._read(report_id)
             check_revision(record, payload["revision"])
             if bool(record.get("deletedAt")) != (action == "restore"):
-                raise LibraryConflict("The report has changed. Refresh the library.")
+                raise LibraryConflict("The dataset has changed. Refresh the library.")
             now = datetime.now(timezone.utc).isoformat()
             if action == "move":
                 self._destination(self._folders(), payload["folderId"])
@@ -179,12 +179,12 @@ class ReportStore:
 
     def delete_trashed_report(self, report_id, payload):
         if not isinstance(payload, dict) or set(payload) != {"revision"}:
-            raise InvalidDefinition("Invalid report deletion request.")
+            raise InvalidDefinition("Invalid dataset deletion request.")
         with self.lock:
             record = self._read(report_id)
             check_revision(record, payload["revision"])
             if not record.get("deletedAt"):
-                raise LibraryConflict("Only reports in Trash can be deleted permanently.")
+                raise LibraryConflict("Only datasets in Trash can be deleted permanently.")
             (self.directory / f"{report_id}.json").unlink()
 
     def save(self, payload, report_id=None, *, validate=validate_definition):
@@ -192,7 +192,7 @@ class ReportStore:
         optional = {"overwrite"} if report_id else {"overwrite", "folderId"}
         if not isinstance(payload, dict) or set(payload) - optional != expected:
             raise InvalidDefinition("Invalid save request.")
-        name = checked_name(payload["name"], "report")
+        name = checked_name(payload["name"], "dataset")
         definition = validate(payload["definition"])
         confirmation = payload.get("overwrite")
         if "overwrite" in payload and (not isinstance(confirmation, dict)
@@ -210,7 +210,7 @@ class ReportStore:
             if existing is None or existing["name"].strip().casefold() != name_key:
                 matches = [r for r in self.list() if r["name"].strip().casefold() == name_key]
                 if len(matches) > 1:
-                    raise InvalidDefinition("Several saved reports have that name. Pick a unique name or open the intended report.")
+                    raise InvalidDefinition("Several saved datasets have that name. Pick a unique name or open the intended dataset.")
                 if matches:
                     target = matches[0]
                     if confirmation is None:

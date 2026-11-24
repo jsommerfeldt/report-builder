@@ -145,7 +145,7 @@ export function LibraryLayout({library,children,newReport,editorSession,queryVis
     else resizeQuery(mode,{x,y,width,height},delta[0],delta[1]);
   }
   const previewStatus=previewRun.busy?'Running preview…':previewRun.current?'Up to date':'Needs refresh';
-  return <section ref={layout} className="build-report" aria-label="Build Report">
+  return <section ref={layout} className="build-report" aria-label="Build Dataset">
     <div ref={rail} className="builder-rail" role="group" aria-label="Builder sidebar">
       <button type="button" className="secondary-btn" aria-expanded={!objectsCollapsed}
         aria-controls={editorPanes.objects.id} aria-label={objectsCollapsed?'Expand Objects':'Collapse Objects'}
