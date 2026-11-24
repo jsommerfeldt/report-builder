@@ -19,9 +19,12 @@ export function useFieldDrag(drop:DropField,dragSource:DragSource,onInteraction:
     let zone:HTMLElement|null=null,motion:ReorderMotion|null=null;
     let scrollFrame=0;
     let previewHover=false;
+    let insertion:HTMLDivElement|null=null;
+    let previewSlot:{anchor:string;after:boolean}|undefined;
     function leave(settle:boolean) {
       cancelAnimationFrame(scrollFrame);
       motion?.finish(settle);motion=null;
+      insertion?.remove();insertion=null;previewSlot=undefined;
       zone?.classList.remove('library-drop-hover');zone=null;
     }
     function scrollNearEdge(scroller:HTMLElement|null|undefined,x:number,y:number) {
@@ -55,11 +58,40 @@ export function useFieldDrag(drop:DropField,dragSource:DragSource,onInteraction:
         }else zone?.classList.add('library-drop-hover');
       }
       motion?.update(x,y);
+      if(zone?.dataset.libraryZone==='preview'){
+        const scroller=zone.querySelector('.table-scroll');
+        const headers=Array.from(scroller?.querySelectorAll<HTMLElement>('th[data-preview-field]')??[])
+          .filter(header=>header.dataset.previewField!==id);
+        if(!scroller || !headers.length)return;
+        const next=headers.find(header=>{const rect=header.getBoundingClientRect();return x<rect.left+rect.width/2;});
+        const anchor=next??headers[headers.length-1];
+        const bounds=scroller.getBoundingClientRect(), rect=anchor.getBoundingClientRect();
+        previewSlot={anchor:anchor.dataset.previewField!,after:!next};
+        if(!insertion){
+          insertion=document.createElement('div');
+          insertion.className='preview-insertion-line';
+          insertion.setAttribute('aria-hidden','true');
+          document.body.append(insertion);
+        }
+        insertion.style.left=Math.max(bounds.left+1,Math.min(bounds.right-1,next?rect.left:rect.right))+'px';
+        insertion.style.top=Math.max(bounds.top,rect.top)+'px';
+        insertion.style.height=Math.max(0,Math.min(bounds.bottom,rect.bottom)-Math.max(bounds.top,rect.top))+'px';
+      }
     }
     function scrollTargets(x:number,y:number) {
       const columns=motion && zone?.querySelector<HTMLElement>('.configuration-scroll');
       const query=document.elementFromPoint(x,y)?.closest<HTMLElement>('.query-scroll');
-      if(!scrollNearEdge(columns,x,y) && !scrollNearEdge(query,x,y))return;
+      const preview=zone?.dataset.libraryZone==='preview'?zone.querySelector<HTMLElement>('.table-scroll'):null;
+      let scrolled=false;
+      if(preview && preview.scrollWidth>preview.clientWidth){
+        const bounds=preview.getBoundingClientRect();
+        if(x>=bounds.left && x<=bounds.right){
+          const before=preview.scrollLeft;
+          preview.scrollLeft+=x<bounds.left+24?-12:x>bounds.right-24?12:0;
+          scrolled=preview.scrollLeft!==before;
+        }
+      }
+      if(!scrolled && !scrollNearEdge(columns,x,y) && !scrollNearEdge(query,x,y))return;
       paint(x,y);
       scrollFrame=requestAnimationFrame(()=>scrollTargets(x,y));
     }
@@ -86,11 +118,11 @@ export function useFieldDrag(drop:DropField,dragSource:DragSource,onInteraction:
     function escape(e:KeyboardEvent) {if(e.key==='Escape')cancel();}
     function finish(p:PointerEvent) {
       if(p.pointerId!==pointer)return;
-      track(p);const name=zone?.dataset.libraryZone,slot=motion?.destination();cleanup(false);
+      track(p);const name=zone?.dataset.libraryZone,slot=motion?.destination(),position=previewSlot;cleanup(false);
       try {
         if(name==='filters')drop(id,'filters',dragSource);
         if(name==='fields' && (slot || dragSource==='filters'))drop(id,'fields',dragSource,slot?.anchor,slot?.after);
-        if(name==='preview')drop(id,'preview',dragSource);
+        if(name==='preview')drop(id,'preview',dragSource,position?.anchor,position?.after);
       } finally {
         onInteraction(null);
         onPreviewHover(false);

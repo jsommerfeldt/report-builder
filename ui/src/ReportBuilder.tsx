@@ -264,7 +264,7 @@ export function ReportBuilder({catalog,client,initialReport,folderId,onReports}:
       });
       setNotice('');setError('');
       requestAnimationFrame(()=>document.querySelector<HTMLButtonElement>('[data-column="'+id+'"] .move-field')?.focus());
-    }else if(zone!=='preview' || !definition.fields.includes(id)){
+    }else if(zone!=='preview' || anchor || !definition.fields.includes(id)){
       changeFields(placeField(definition.fields,id,anchor,after));
     }
     revealDestination('fields');
