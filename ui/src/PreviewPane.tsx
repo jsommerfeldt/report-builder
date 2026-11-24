@@ -3,6 +3,7 @@ import {Aggregation, aggregationLabels, Catalog, ColumnNames, Field, Preview, so
 import {Icon} from './Icon';
 import {ReorderMotion} from './ReorderMotion';
 import {showPreviewInsertionLine} from './previewInsertionLine';
+import {EditableColumnName} from './EditableColumnName';
 
 const dollars = new Intl.NumberFormat('en-US', {style:'currency', currency:'USD'});
 const quantity = new Intl.NumberFormat('en-US', {maximumFractionDigits:4});
@@ -23,13 +24,15 @@ export function resultLabel(field:Field, aggregation?:Aggregation, name?:string)
 }
 interface Props { data: Preview | null; outputIds:string[]; byId: Record<string, Field>; stale: boolean; busy: boolean; error:string;
   entities:Catalog['entities']; columnNames?:ColumnNames; run():void;
+  rename(field:Field,name:string):void;
   move(id:string,anchor:string,after:boolean):void;
   hasFields: boolean; pendingFilterMove:boolean; }
-export function PreviewPane({data,outputIds:ids,byId,entities,columnNames,run,stale,busy,error,hasFields,pendingFilterMove,move}:Props) {
+export function PreviewPane({data,outputIds:ids,byId,entities,columnNames,run,stale,busy,error,hasFields,pendingFilterMove,move,rename}:Props) {
   const table=useRef<HTMLTableElement>(null);
   const [widths,setWidths]=useState<Record<string,number>>({});
   const drag=useRef<{pointer:number; x:number; id:string; width:number}|null>(null);
   const moving=useRef<{pointer:number;x:number;id:string;grip:number;motion:ReorderMotion|null}|null>(null);
+  const dragged=useRef(false);
   const insertion=useRef<HTMLDivElement|null>(null);
   function clearInsertion(){
     insertion.current?.remove();
@@ -49,6 +52,7 @@ export function PreviewPane({data,outputIds:ids,byId,entities,columnNames,run,st
     const start=moving.current,t=table.current;
     if(!start || start.pointer!==e.pointerId || !t?.tHead || !t.parentElement)return;
     if(!start.motion && Math.abs(e.clientX-start.x)<5)return;
+    dragged.current=true;
     const scroll=t.parentElement,bounds=scroll.getBoundingClientRect();
     const heads=Array.from(t.tHead.rows[0].cells);
     const rect=heads[0].getBoundingClientRect();
@@ -101,9 +105,12 @@ export function PreviewPane({data,outputIds:ids,byId,entities,columnNames,run,st
       const source=sourceColumn(field,entities);
       return <th scope="col" key={id} data-preview-field={id} title={source} className={numericResult(field,data?.aggregations?.[id])?'numeric':''}
         onPointerDown={e=>{
-          if(!canMove || !e.isPrimary || e.button!==0)return;
+          if(!e.isPrimary || e.button!==0)return;
+          dragged.current=false;
+          if(!canMove)return;
           moving.current={pointer:e.pointerId,x:e.clientX,id,grip:e.clientX-e.currentTarget.getBoundingClientRect().left,motion:null};
-          e.currentTarget.setPointerCapture(e.pointerId);
+          const handle=(e.target as Element).closest('.column-name-button')??e.currentTarget;
+          handle.setPointerCapture(e.pointerId);
         }} onPointerMove={e=>trackHeader(e,true)} onPointerUp={e=>{
           const start=moving.current;
           if(!start || start.pointer!==e.pointerId)return;
@@ -111,12 +118,15 @@ export function PreviewPane({data,outputIds:ids,byId,entities,columnNames,run,st
           cancelMove();
           if(canMove && slot?.anchor)move(start.id,slot.anchor,slot.after);
         }} onLostPointerCapture={cancelMove}>
-        <button type="button" disabled={!canMove} className="column-label header-grip" aria-label={'Move preview column '+label(id)}
-          onKeyDown={e=>{
-            if(e.key!=='ArrowLeft' && e.key!=='ArrowRight')return;
-            e.preventDefault();const right=e.key==='ArrowRight',other=ids[ids.indexOf(id)+(right?1:-1)];
-            if(other)move(id,other,right);
-          }}><Icon name="grip" size={12}/>{label(id)}</button>
+        <div className="preview-column-heading">
+          {canMove && <Icon name="grip" size={12}/>}
+          <EditableColumnName name={label(id)} source={source} onRename={name=>rename(field,name)} dragged={dragged}
+            onKeyDown={canMove?e=>{
+              if(e.key!=='ArrowLeft' && e.key!=='ArrowRight')return;
+              e.preventDefault();const right=e.key==='ArrowRight',other=ids[ids.indexOf(id)+(right?1:-1)];
+              if(other)move(id,other,right);
+            }:undefined}/>
+        </div>
         <span className="column-resize" role="separator" tabIndex={0} aria-orientation="vertical" aria-label={'Resize '+label(id)}
           aria-valuemin={72} aria-valuemax={2000} aria-valuenow={manual?widths[id]:undefined}
           aria-valuetext={manual?widths[id]+' pixels':'Automatic width'}

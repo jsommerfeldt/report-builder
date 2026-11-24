@@ -4,6 +4,7 @@ import {Icon} from './Icon';
 import {DropField,useFieldDrag} from './useFieldDrag';
 import {CardDisclosure,QueryCard} from './QueryCard';
 import {columnsHelp} from './QueryHelp';
+import {EditableColumnName} from './EditableColumnName';
 
 const numericOptions:Aggregation[]=['sum','avg','min','max','count'];
 
@@ -12,7 +13,7 @@ interface Props {
   onAdd:React.MouseEventHandler<HTMLButtonElement>;
   onInteraction(field:string|null):void;
   onPreviewHover(active:boolean):void;
-  columnNames?:ColumnNames; entities:Catalog['entities']; rename(field:Field,trigger:HTMLButtonElement):void;
+  columnNames?:ColumnNames; entities:Catalog['entities']; rename(field:Field,name:string):void;
   remove(id:string):void; sort(setting:Order):void;
   groupBy:string[]; summary:boolean; canSummarize:boolean; aggregations?:Definition['aggregations'];
   onSummaryChange(value:boolean):void;
@@ -22,7 +23,7 @@ interface Props {
 export function FieldsPanel({fields,outputIds,order,drop,onInteraction,onPreviewHover,onAdd,remove,sort,showDropTarget,disclosure,columnNames,entities,rename,
   groupBy,summary,canSummarize,onSummaryChange,aggregations,onAggregationChange}:Props) {
   const [expanded,setExpanded]=useState(true);
-  const {begin}=useFieldDrag(drop,'fields',onInteraction,onPreviewHover);
+  const {begin,moved}=useFieldDrag(drop,'fields',onInteraction,onPreviewHover);
   const settings=new Map(order.map(item=>[item.field,item]));
   const priorities=order.filter(item=>item.enabled!==false).map((_,i)=>i+1);
   const visible=expanded?fields:fields.slice(0,3);
@@ -34,7 +35,7 @@ export function FieldsPanel({fields,outputIds,order,drop,onInteraction,onPreview
       </button>
     </div> : <div className="configuration-scroll" tabIndex={0} role="group" aria-label="Column order, grouping and sorting">
     <div className="field-control-grid field-headings" aria-hidden="true">
-      <span>Column Order</span><span/><span>Sort</span><span>Priority</span><span>Direction</span><span/><span/>
+      <span>Column Order</span><span/><span>Sort</span><span>Priority</span><span>Direction</span><span/>
     </div>
     <div className="field-stack" id="ordered-fields">{visible.map((f,i)=>{
       const setting=settings.get(f.id);
@@ -46,21 +47,27 @@ export function FieldsPanel({fields,outputIds,order,drop,onInteraction,onPreview
       const direction=setting?.direction??'asc';
       const desc=direction==='desc';
       return <div className={'field-control-grid field-line '+f.entity} key={f.id} data-column={f.id}>
-        <button type="button" className="move-field" aria-label={'Move '+label+', column '+(i+1)}
-          title={source} aria-keyshortcuts="Shift+ArrowDown"
-          onPointerDown={e=>begin(e,f.id)} onKeyDown={e=>{
-            if(e.shiftKey && e.key==='ArrowDown'){e.preventDefault();drop(f.id,'filters','fields');return;}
-            const up=e.key==='ArrowUp'||(e.altKey && e.key==='ArrowLeft');
-            const down=e.key==='ArrowDown'||(e.altKey && e.key==='ArrowRight');
-            if(!up && !down)return;
-            e.preventDefault();const next=i+(down?1:-1);
-            if(!fields[next])return;
-            if(next>=3)setExpanded(true);
-            drop(f.id,'fields','fields',fields[next].id,down);
-          }}>
-          <Icon name="grip" size={13}/><span className="column-ordinal">{i+1}</span>
-          <span className="field-name"><span className="field-label">{label}</span>
-            {!included && <small className="hint field-hidden">Hidden by grouping</small>}</span></button>
+        <div className="column-order">
+          <button type="button" className="move-field" aria-label={'Move '+label+', column '+(i+1)}
+            title={source} aria-keyshortcuts="Shift+ArrowDown"
+            onPointerDown={e=>begin(e,f.id)} onKeyDown={e=>{
+              if(e.shiftKey && e.key==='ArrowDown'){e.preventDefault();drop(f.id,'filters','fields');return;}
+              const up=e.key==='ArrowUp'||(e.altKey && e.key==='ArrowLeft');
+              const down=e.key==='ArrowDown'||(e.altKey && e.key==='ArrowRight');
+              if(!up && !down)return;
+              e.preventDefault();const next=i+(down?1:-1);
+              if(!fields[next])return;
+              if(next>=3)setExpanded(true);
+              drop(f.id,'fields','fields',fields[next].id,down);
+            }}>
+            <Icon name="grip" size={13}/><span className="column-ordinal">{i+1}</span>
+          </button>
+          <div className="field-name">
+            <EditableColumnName name={label} source={source} onRename={name=>rename(f,name)}
+              dragged={moved} onPointerDown={e=>begin(e,f.id)}/>
+            {!included && <small className="hint field-hidden">Hidden by grouping</small>}
+          </div>
+        </div>
         {f.measure ? <select className="field-grouping" aria-label={'Aggregation for '+label}
           title="Choose a calculation or keep this column for detail rows" value={method??'sum'}
           onChange={e=>onAggregationChange(f.id,e.target.value as Aggregation|'none')}>
@@ -78,8 +85,6 @@ export function FieldsPanel({fields,outputIds,order,drop,onInteraction,onPreview
         <button type="button" className="field-direction" role="switch" aria-checked={desc} disabled={!included || !enabled}
           aria-label={'Descending order for '+label} title={desc?'Descending. Switch to ascending.':'Ascending. Switch to descending.'}
           onClick={()=>sort({field:f.id,direction:desc?'asc':'desc',enabled:true})}>{desc?'↓ Desc':'↑ Asc'}</button>
-        <button type="button" className="rename-column" title={'Rename '+label} aria-haspopup="dialog"
-          aria-label={'Rename '+label} onClick={e=>rename(f,e.currentTarget)}><Icon name="edit" size={12}/></button>
         <button type="button" className="remove-field" aria-label={'Remove '+label} onClick={()=>remove(f.id)}><Icon name="close" size={12}/></button>
       </div>;
     })}</div>

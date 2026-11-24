@@ -2,6 +2,7 @@ import React, {useLayoutEffect,useRef} from 'react';
 import {Catalog,ColumnNames,Field,FilterOp,RelativePeriod,ReportClient,ReportFilter,sourceColumn} from './client';
 import {FieldOptions} from './FieldOptions';
 import {Icon} from './Icon';
+import {EditableColumnName} from './EditableColumnName';
 import {ValuePicker} from './ValuePicker';
 import {CardDisclosure,QueryCard} from './QueryCard';
 import {filtersHelp} from './QueryHelp';
@@ -41,7 +42,7 @@ function changeCondition(rule:ReportFilter,op:FilterOp):ReportFilter {
 }
 export type FilterEditor = {index:number;rule:ReportFilter;moveField?:string;overlapField?:string}|null;
 interface Props { fields:Field[]; entities:Catalog['entities']; rules:ReportFilter[]; lookup:ReportClient['values']; onChange(rules:ReportFilter[]):void;
-  columnNames?:ColumnNames; rename(field:Field,trigger:HTMLButtonElement):void;
+  columnNames?:ColumnNames; rename(field:Field,name:string):void;
   drop:DropField; onInteraction(field:string|null):void; onPreviewHover(active:boolean):void; outputFields:string[]; incomingColumn?:string;
   editor:FilterEditor;setEditor(value:FilterEditor):void;onAdd:React.MouseEventHandler<HTMLButtonElement>;showDropTarget:boolean;disclosure:CardDisclosure }
 export function FiltersPanel({fields,entities,rules,onChange,lookup,editor,setEditor,onAdd,showDropTarget,disclosure,columnNames,rename,
@@ -161,15 +162,17 @@ export function FiltersPanel({fields,entities,rules,onChange,lookup,editor,setEd
               if(e.shiftKey && e.key==='ArrowUp'){e.preventDefault();drop(f.id,'fields','filters');}
             }}
             onClick={e=>{if(e.detail===0)drop(f.id,'fields','filters');}}><Icon name="grip" size={14}/></button>
-          <button type="button" className="filter-content" aria-label={'Edit filter '+(i+1)} aria-describedby={'filter-name-'+i}
-            title={sourceColumn(f,entities)} onPointerDown={e=>begin(e,f.id)} onClick={e=>{
-              if(moved.current && e.detail>0){moved.current=false;return;}
-              setEditor({index:i,rule:{...r}});
-            }}>
-            <strong className="filter-name" id={'filter-name-'+i}>{name}</strong>
-            <span>{describe(r,f)}</span></button>
-          <button type="button" className="rename-column" title={'Rename '+name} aria-haspopup="dialog"
-            aria-label={'Rename '+name} onClick={e=>rename(f,e.currentTarget)}><Icon name="edit" size={12}/></button>
+          <div className="filter-content">
+            <div className="filter-name" id={'filter-name-'+i}>
+              <EditableColumnName name={name} source={sourceColumn(f,entities)} onRename={next=>rename(f,next)}
+                dragged={moved} onPointerDown={e=>begin(e,f.id)}/>
+            </div>
+            <button type="button" className="filter-condition" aria-label={'Edit filter '+(i+1)} aria-describedby={'filter-name-'+i}
+              title={sourceColumn(f,entities)} onPointerDown={e=>begin(e,f.id)} onClick={e=>{
+                if(moved.current && e.detail>0){moved.current=false;return;}
+                setEditor({index:i,rule:{...r}});
+              }}>{describe(r,f)}</button>
+          </div>
           <button type="button" role="switch" className="switch" aria-checked={r.enabled}
             aria-label={'Enable filter '+(i+1)+' on '+name}
             onClick={()=>onChange(rules.map((x,j)=>j===i?{...x,enabled:!x.enabled}:x))}><span/></button>

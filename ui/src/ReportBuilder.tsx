@@ -1,6 +1,6 @@
 import React, {useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState} from 'react';
 import {Aggregation, Catalog, Collision, ColumnNames, Definition, Field, Order, Preview, ReportClient, ReportFilter,
-  RequestError, SavedInfo, SavedReport, sourceColumn} from './client';
+  RequestError, SavedInfo, SavedReport} from './client';
 import {Modal} from './Modal';
 import {FieldLibrary} from './FieldLibrary';
 import {Icon} from './Icon';
@@ -65,7 +65,6 @@ export function ReportBuilder({catalog,client,initialReport,folderId,onReports}:
   const initial = initialReport?.definition ?? (onReports ? blank : catalog.starter);
   const newReport=Boolean(onReports && !initialReport);
   const [definition, setDefinition] = useState<Definition>(initial);
-  const [columnRename,setColumnRename]=useState<{field:Field; value:string; trigger:HTMLButtonElement}|null>(null);
   const [title, setTitle] = useState(initialReport?.name ?? (onReports ? 'Untitled report' : 'Sales by state and product'));
   const [baseTitle,setBaseTitle]=useState(title);
   const [renaming,setRenaming]=useState(false);
@@ -146,25 +145,13 @@ export function ReportBuilder({catalog,client,initialReport,folderId,onReports}:
       : {...prev,filters,columnNames:namesInUse(prev.columnNames,prev.fields,filters)});
     setNotice('');setError('');
   }
-  function renameColumn(field:Field,trigger:HTMLButtonElement) {
-    setColumnRename({field,trigger,value:definition.columnNames?.[field.id]??field.label});
-  }
-  function closeColumnRename() {
-    const trigger=columnRename?.trigger;
-    setColumnRename(null);
-    requestAnimationFrame(()=>trigger?.focus({preventScroll:true}));
-  }
-  function applyColumnName(nextName:string) {
-    if(!columnRename)return;
-    const {field}=columnRename;
-    const value=nextName.trim();
+  function renameColumn(field:Field,value:string) {
     setDefinition(prev=>{
       const columnNames={...prev.columnNames};
       if(value===field.label)delete columnNames[field.id];
       else columnNames[field.id]=value;
       return {...prev,columnNames};
     });
-    closeColumnRename();
   }
   function toggle(id:string) {
     changeFields(definition.fields.includes(id) ? definition.fields.filter(f => f !== id) : [...definition.fields,id]);
@@ -391,25 +378,9 @@ export function ReportBuilder({catalog,client,initialReport,folderId,onReports}:
       </LibraryLayout>
       <PreviewPane data={displayData} outputIds={outputIds} byId={byId} stale={Boolean(shown && shown.key!==previewKey(definition,outputIds))} error={error}
         entities={catalog.entities} columnNames={definition.columnNames} run={()=>void run(definition)} move={moveOutputColumn}
-        busy={busy} pendingFilterMove={!!pendingMove} hasFields={Boolean(definition.fields.length)}/>
+        rename={renameColumn} busy={busy} pendingFilterMove={!!pendingMove} hasFields={Boolean(definition.fields.length)}/>
       <p className="sr-only" role="status">{notice}</p>
     </main>
-    {columnRename && <Modal title="Rename column" close={closeColumnRename}><form onSubmit={e=>{
-      e.preventDefault();
-      if(columnRename.value.trim())applyColumnName(columnRename.value);
-    }}>
-      <label className="input-label" htmlFor="column-name">Column name</label>
-      <input className="name-input" id="column-name" required maxLength={80}
-        ref={input=>{if(input)input.autofocus=true;}} onFocus={e=>e.target.select()}
-        value={columnRename.value} onChange={e=>setColumnRename({...columnRename,value:e.target.value})}/>
-      <p className="modal-note">{sourceColumn(columnRename.field,catalog.entities)}</p>
-      <footer>
-        {definition.columnNames?.[columnRename.field.id] && <button type="button" className="text-action"
-          onClick={()=>applyColumnName(columnRename.field.label)}>Use original name</button>}
-        <button type="button" className="secondary-btn" onClick={closeColumnRename}>Cancel</button>
-        <button type="submit" className="primary-btn" disabled={!columnRename.value.trim()}>Apply name</button>
-      </footer>
-    </form></Modal>}
     {dialog==='save' && <Modal title={collision?'Replace saved report?':'Save report'} close={close}><form onSubmit={save}>
       {collision ? <p className="modal-note">Replace the saved definition of <strong>{collision.name}</strong> with this report?
         {saved && <> Your previously saved report, <strong>{saved.name}</strong>, will keep its own definition.</>}</p> : <>
