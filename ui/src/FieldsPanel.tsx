@@ -83,10 +83,8 @@ export function FieldsPanel({fields,outputIds,order,drop,onAdd,remove,sort,showD
     </div>}
     {fields.length>3 && <button className="text-action more-fields" aria-expanded={expanded} aria-controls="ordered-fields"
       onClick={()=>setExpanded(!expanded)}>{expanded?'Show less':'Show more ('+(fields.length-3)+')'}</button>}
-    {canSummarize && (groupBy.length>0
-      ? <label className="totals-option"><input type="checkbox" checked={!summary}
-          onChange={e=>onSummaryChange(!e.target.checked)}/>Detail rows</label>
-      : <label className="totals-option"><input type="checkbox" checked={summary}
-          onChange={e=>onSummaryChange(e.target.checked)}/>Totals only</label>)}
+    {canSummarize && !groupBy.length && <label className="totals-option">
+      <input type="checkbox" checked={summary} onChange={e=>onSummaryChange(e.target.checked)}/>Totals only
+    </label>}
   </QueryCard>;
 }

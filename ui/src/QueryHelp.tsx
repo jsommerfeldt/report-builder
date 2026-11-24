@@ -8,7 +8,7 @@ export const columnsHelp={
     <p>Choose <strong>Add column</strong> to focus <strong>Objects</strong> and pick your first field. You can also drag fields from <strong>Objects</strong> into <strong>Columns</strong>.</p>
     <dl>
       <div><dt>Column Order</dt><dd>Drag <strong>Shipping State</strong> above <strong>Sales</strong> to show the state first. The up and down arrow keys also move a focused column.</dd></div>
-      <div><dt>Aggregate</dt><dd>Leave a non-numeric column blank to group by it. <strong>First</strong> and <strong>Last</strong> use the first or last nonblank value in the filtered data’s source order. <strong>Unique</strong> counts distinct nonblank values. For numeric columns, <strong>Count</strong> counts nonblank values. Use <strong>Detail rows</strong> to see the underlying rows. When no columns define a group, <strong>Totals only</strong> summarizes all matching rows together.</dd></div>
+      <div><dt>Aggregate</dt><dd>Leave a non-numeric column blank to group by it. <strong>First</strong> and <strong>Last</strong> use the first or last nonblank value in the filtered data’s source order. <strong>Unique</strong> counts distinct nonblank values. For numeric columns, <strong>Count</strong> counts nonblank values. When no columns define a group, <strong>Totals only</strong> summarizes all matching rows together.</dd></div>
       <div><dt>Sort, Priority, and Direction</dt><dd>Turn on <strong>Sort</strong> for <strong>Sales</strong> and choose <strong>Desc</strong> to show the largest sales first. Priority 1 sorts first. Priority 2 breaks its ties.</dd></div>
     </dl>
   </div>
