@@ -11,20 +11,35 @@ export function FieldLibrary({catalog,fields,selectField,drop,onInteraction,sear
   const {begin,moved}=useFieldDrag(drop,onInteraction);
   const [search, setSearch] = useState('');
   const [open, setOpen] = useState<Entity[]>([]);
+  const [collapsedMatches,setCollapsedMatches]=useState<Entity[]>([]);
   const query = search.trim().toLowerCase();
   const found = catalog.fields.filter(f => (catalog.entities[f.entity] + ' ' + f.label).toLowerCase().includes(query));
+  const groups=entityOrder.map(entity=>({entity,items:found.filter(field=>field.entity===entity)})).filter(group=>group.items.length);
+  const isExpanded=(entity:Entity)=>query?!collapsedMatches.includes(entity):open.includes(entity);
+  const allExpanded=groups.length>0 && groups.every(group=>isExpanded(group.entity));
+  function toggleAll() {
+    const entities=groups.map(group=>group.entity);
+    if(query)setCollapsedMatches(allExpanded?entities:[]);
+    else setOpen(allExpanded?[]:entities);
+  }
+  function toggleGroup(entity:Entity) {
+    const update=query?setCollapsedMatches:setOpen;
+    update(previous=>previous.includes(entity)?previous.filter(key=>key!==entity):[...previous,entity]);
+  }
   return <div className="library-body" onBlur={e=>{if(!e.currentTarget.contains(e.relatedTarget))cancelPick(false);}}
     onKeyDown={e=>{if(e.key==='Escape' && cancelPick(true))e.preventDefault();}}>
-      <label className="search library-search"><Icon name="search" size={15}/><input ref={searchRef} type="search" placeholder="Search fields"
-        aria-label="Find a field" aria-describedby={pickingFilter?'objects-filter-prompt':undefined} value={search} onChange={e=>setSearch(e.target.value)}/></label>
+      <div className="library-toolbar">
+        <label className="search library-search"><Icon name="search" size={15}/><input ref={searchRef} type="search" placeholder="Search fields"
+          aria-label="Find a field" aria-describedby={pickingFilter?'objects-filter-prompt':undefined} value={search}
+          onChange={e=>{setSearch(e.target.value);setCollapsedMatches([]);}}/></label>
+        <button type="button" className="secondary-btn objects-toggle-all" disabled={!groups.length}
+          aria-controls="object-field-groups" onClick={toggleAll}>{allExpanded?'Collapse all':'Expand all'}</button>
+      </div>
       {pickingFilter && <p className="hint objects-filter-prompt" id="objects-filter-prompt">Choose a field to filter.</p>}
-      <div className="field-groups">{entityOrder.map(entity => {
-        const items = found.filter(f => f.entity === entity);
-        if (!items.length) return null;
-        const expanded = Boolean(query) || open.includes(entity);
+      <div className="field-groups" id="object-field-groups">{groups.map(({entity,items}) => {
+        const expanded = isExpanded(entity);
         return <section className={'field-group ' + entity} key={entity}>
-          <button className="group-title" aria-expanded={expanded} aria-disabled={query?true:undefined}
-            onClick={() => {if(!query)setOpen(prev=>prev.includes(entity)?prev.filter(x=>x!==entity):[...prev,entity]);}}>
+          <button type="button" className="group-title" aria-expanded={expanded} onClick={()=>toggleGroup(entity)}>
             <span className="entity-icon"><Icon name={entity} size={16}/></span>
             <strong>{catalog.entities[entity]}</strong><span className="group-count">{items.length}</span>
             <span className={expanded ? 'twist' : 'twist closed'}><Icon name="chevron" size={15}/></span>
