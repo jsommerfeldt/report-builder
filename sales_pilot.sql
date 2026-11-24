@@ -13,7 +13,7 @@ WITH pilot_companies AS (
 ), pilot_sales AS (
     SELECT f.time_key, f.company_key, f.it_key, f.lot_key, d.date AS reporting_date,
            f.customer_key, f.product_key, f.sales::numeric AS sales, f.creditsales::numeric AS creditsales,
-           f.shipquantitycseq::numeric AS shipquantitycseq, c.company, f.trip_key
+           f.shipquantitycseq::numeric AS shipquantitycseq, c.company, f.trip_key, f.warehouse_key
     FROM public.fact_sales f
     JOIN public.dim_time d ON d.time_key = f.time_key
     JOIN pilot_companies c ON c.company_key = f.company_key
@@ -29,13 +29,19 @@ WITH pilot_companies AS (
 ), pilot_trips AS (
     SELECT trip_key, tripnumber, tripdescription, dispatchdatetime::date AS dispatchdate, dispatchdatetime
     FROM public.dim_trips WHERE trip_key IN (SELECT trip_key FROM pilot_sales)
+), pilot_warehouses AS (
+    SELECT warehouse_key, warehousecompany, warehouse, warehousedesc
+    FROM public.dim_warehouses WHERE warehouse_key IN (SELECT warehouse_key FROM pilot_sales)
 ), pilot_joined AS (
     SELECT f.*, c.customer_key AS matched_customer, p.product_key AS matched_product,
-           t.trip_key AS matched_trip, p.commoditydescription, c.customerregiondescription, t.tripnumber
+           t.trip_key AS matched_trip, w.warehouse_key AS matched_warehouse,
+           p.commoditydescription, c.customerregiondescription, t.tripnumber,
+           w.warehousecompany, w.warehouse, w.warehousedesc
     FROM pilot_sales f
     LEFT JOIN pilot_customers c ON c.customer_key = f.customer_key
     LEFT JOIN pilot_products p ON p.product_key = f.product_key
     LEFT JOIN pilot_trips t ON t.trip_key = f.trip_key
+    LEFT JOIN pilot_warehouses w ON w.warehouse_key = f.warehouse_key
 ), before_checks AS (
     SELECT coalesce(company,'combined') AS scope, count(*) AS rows,
            count(DISTINCT (time_key, company_key, it_key, lot_key)) AS distinct_fact_keys,
@@ -47,6 +53,7 @@ WITH pilot_companies AS (
            count(*) FILTER (WHERE matched_product IS NULL) AS missing_products,
            count(*) FILTER (WHERE trip_key IS NOT NULL AND matched_trip IS NULL) AS missing_trips,
            count(*) FILTER (WHERE trip_key IS NULL) AS unassigned_trips,
+           count(*) FILTER (WHERE matched_warehouse IS NULL) AS missing_warehouses,
            sum(sales) AS sales, sum(creditsales) AS creditsales, sum(shipquantitycseq) AS shipquantitycseq
     FROM pilot_joined GROUP BY GROUPING SETS ((company), ())
 ), pilot_verification AS (
@@ -58,19 +65,22 @@ WITH pilot_companies AS (
         'after_by_company', (SELECT json_object_agg(scope,row_to_json(a)) FROM after_checks a WHERE scope <> 'combined'),
         'dimension_rows', json_build_object('customers',(SELECT count(*) FROM pilot_customers),
                                             'products',(SELECT count(*) FROM pilot_products),
-                                            'trips',(SELECT count(*) FROM pilot_trips)),
+                                            'trips',(SELECT count(*) FROM pilot_trips),
+                                            'warehouses',(SELECT count(*) FROM pilot_warehouses)),
         'passed', (SELECT count(*) = 2 AND count(DISTINCT company) = 2
                           AND count(DISTINCT company_key) = 2 FROM pilot_companies)
                  AND (SELECT count(*) = 3 AND bool_and(b.rows > 0 AND b.rows = b.distinct_fact_keys AND b.rows = a.rows
                           AND a.missing_customers = 0 AND a.missing_products = 0 AND a.missing_trips = 0
+                          AND a.missing_warehouses = 0
                           AND b.sales IS NOT DISTINCT FROM a.sales AND b.creditsales IS NOT DISTINCT FROM a.creditsales
                           AND b.shipquantitycseq IS NOT DISTINCT FROM a.shipquantitycseq)
                       FROM before_checks b JOIN after_checks a USING (scope))
     ) AS verification
 ), pilot_summary AS (
-    SELECT company, commoditydescription, customerregiondescription, tripnumber,
+    SELECT company, commoditydescription, customerregiondescription, tripnumber, warehousecompany, warehouse, warehousedesc,
            sum(sales) AS sales, sum(creditsales) AS creditsales, sum(shipquantitycseq) AS shipquantitycseq
-    FROM pilot_joined GROUP BY company, commoditydescription, customerregiondescription, tripnumber
+    FROM pilot_joined
+    GROUP BY company, commoditydescription, customerregiondescription, tripnumber, warehousecompany, warehouse, warehousedesc
 )
 $relations$ AS pilot_relations
 \gset
@@ -82,6 +92,7 @@ $relations$ AS pilot_relations
       UNION ALL SELECT json_build_array('dim_customers', row_to_json(c))::text FROM pilot_customers c
       UNION ALL SELECT json_build_array('dim_products', row_to_json(p))::text FROM pilot_products p
       UNION ALL SELECT json_build_array('dim_trips', row_to_json(t))::text FROM pilot_trips t
+      UNION ALL SELECT json_build_array('dim_warehouses', row_to_json(w))::text FROM pilot_warehouses w
       UNION ALL SELECT json_build_array('summary', row_to_json(s))::text FROM pilot_summary s
       UNION ALL SELECT json_build_array('verification', verification)::text FROM pilot_verification
   $stream$) AS r(payload text);

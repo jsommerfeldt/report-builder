@@ -1,4 +1,4 @@
-export type Entity = 'sales' | 'customer' | 'product' | 'trip';
+export type Entity = 'sales' | 'customer' | 'product' | 'trip' | 'warehouse';
 export type Mode = 'summary' | 'detail';
 export type FilterOp = 'eq' | 'contains' | 'gte' | 'lte' | 'blank' | 'in' | 'relative';
 export interface RelativePeriod {amount:number; unit:'hours'|'days'|'weeks'; direction:'last'|'next'}

@@ -19,14 +19,20 @@ CSV_COLUMNS = {
     "dim_trips": ("trip_key", "tripnumber", "tripdescription", "dispatchdate"),
 }
 CSV_COLUMNS_WITH_DATETIME = {**CSV_COLUMNS, "dim_trips": (*CSV_COLUMNS["dim_trips"], "dispatchdatetime")}
+CSV_COLUMNS_WITH_WAREHOUSES = {
+    **CSV_COLUMNS_WITH_DATETIME,
+    "fact_sales": (*CSV_COLUMNS["fact_sales"], "warehouse_key"),
+    "dim_warehouses": ("warehouse_key", "warehousecompany", "warehouse", "warehousedesc"),
+}
 COMPANIES = ("0001", "0030")
 LEGACY_COMPANY = "0030"
-ENTITIES = {"sales": "Sales", "customer": "Customers", "product": "Products", "trip": "Trips"}
+ENTITIES = {"sales": "Sales", "customer": "Customers", "product": "Products", "trip": "Trips", "warehouse": "Warehouses"}
 # entity -> (CSV relation, fact foreign key, dimension primary key)
 RELATIONSHIPS = {
     "customer": ("dim_customers", "customer_key", "customer_key"),
     "product": ("dim_products", "product_key", "product_key"),
     "trip": ("dim_trips", "trip_key", "trip_key"),
+    "warehouse": ("dim_warehouses", "warehouse_key", "warehouse_key"),
 }
 
 
@@ -71,6 +77,9 @@ FIELDS = (
     Field("trip", "tripdescription", "Trip description"),
     Field("trip", "dispatchdate", "Dispatch date", "date"),
     Field("trip", "dispatchdatetime", "Dispatch Date and Time", "datetime"),
+    Field("warehouse", "warehouse", "Warehouse Code"),
+    Field("warehouse", "warehousedesc", "Warehouse Name"),
+    Field("warehouse", "warehousecompany", "Warehouse Company"),
 )
 BY_ID = {field.id: field for field in FIELDS}
 MEASURES = tuple(field.column for field in FIELDS if field.measure)

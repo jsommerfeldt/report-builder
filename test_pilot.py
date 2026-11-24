@@ -13,7 +13,7 @@ from itsdangerous import URLSafeTimedSerializer
 from app import make_app
 from csv_source import CsvSnapshot, file_hash
 from local_paths import ORIGIN
-from model import CSV_COLUMNS, CSV_COLUMNS_WITH_DATETIME, LEGACY_COLUMNS, InvalidDefinition
+from model import CSV_COLUMNS, CSV_COLUMNS_WITH_DATETIME, CSV_COLUMNS_WITH_WAREHOUSES, LEGACY_COLUMNS, InvalidDefinition
 from report_store import ReportStore
 
 
@@ -134,19 +134,27 @@ class PilotTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "checksum"):
             CsvSnapshot(self.path)
 
-    def expanded_fixture(self, *, with_dispatch_time=False):
+    def expanded_fixture(self, *, with_dispatch_time=False, with_warehouses=False):
         expanded = self.path / "expanded"
         expanded.mkdir()
+        with_dispatch_time = with_dispatch_time or with_warehouses
         schema = CSV_COLUMNS_WITH_DATETIME if with_dispatch_time else CSV_COLUMNS
+        if with_warehouses:
+            schema = CSV_COLUMNS_WITH_WAREHOUSES
         for table, columns in schema.items():
             with (expanded / f"{table}.csv").open("w", encoding="utf-8", newline="") as stream:
                 writer = csv.DictWriter(stream, columns, quoting=csv.QUOTE_NOTNULL)
                 writer.writeheader()
                 if table == "fact_sales":
                     legacy_facts = self.snapshot.facts
-                    writer.writerows({**row, "company": "0030", "trip_key": "7"} for row in legacy_facts)
+                    for row in legacy_facts:
+                        fact = {**row, "company": "0030", "trip_key": "7"}
+                        if with_warehouses:
+                            fact["warehouse_key"] = "11" if row["product_key"] == "3" else "12"
+                        writer.writerow(fact)
                     writer.writerow({**legacy_facts[0], "company_key": "1", "company": "0001",
-                                     "trip_key": None, "sales": "20", "creditsales": "0", "shipquantitycseq": "2"})
+                                     "trip_key": None, "sales": "20", "creditsales": "0", "shipquantitycseq": "2",
+                                     **({"warehouse_key": "31"} if with_warehouses else {})})
                 elif table == "dim_trips":
                     trip = {"trip_key": "7", "tripnumber": "000007", "tripdescription": "Sample trip",
                             "dispatchdate": "2026-11-10"}
@@ -156,6 +164,13 @@ class PilotTest(unittest.TestCase):
                 elif table == "dim_customers":
                     writer.writerows({**row, "shippingzip": "00501", "customerregiondescription": "North"}
                                      for row in self.snapshot.dimensions["customer"].values())
+                elif table == "dim_warehouses":
+                    writer.writerows({
+                        "warehouse_key": key, "warehousecompany": company, "warehouse": code, "warehousedesc": name,
+                    } for key, company, code, name in (
+                        ("11", "0030", "01", "North Hub"), ("12", "0030", "02", "South Hub"),
+                        ("31", "0001", "01", "East Hub"),
+                    ))
                 else:
                     writer.writerows({**row, "commoditydescription": "Apples"}
                                      for row in self.snapshot.dimensions["product"].values())
@@ -165,9 +180,12 @@ class PilotTest(unittest.TestCase):
             "by_company": {"0030": self.manifest["verification"]["before_joins"],
                            "0001": {"rows": 1, "sales": "20", "creditsales": "0", "shipquantitycseq": "2"}},
         }
+        if with_warehouses:
+            control["dimension_rows"]["warehouses"] = 3
         (expanded / "manifest.json").write_text(json.dumps({
             "snapshot_version": 2, "scope": {"companies": ["0001", "0030"]},
             "trip_datetime": with_dispatch_time,
+            "warehouses": with_warehouses,
             "sha256": {table: file_hash(expanded / f"{table}.csv") for table in schema},
             "verification": control,
         }), encoding="utf-8")
@@ -178,6 +196,7 @@ class PilotTest(unittest.TestCase):
         original_rows = self.snapshot.preview(self.d)["rows"]
         snapshot = self.expanded_fixture()
         self.assertNotIn("trip.dispatchdatetime", snapshot.field_ids)
+        self.assertNotIn("warehouse.warehouse", snapshot.field_ids)
         definition = {**self.d, "version": 2, "fields": ["sales.company", "product.commoditydescription",
                       "customer.customerregiondescription", "trip.tripnumber", "sales.sales"]}
         self.assertEqual(snapshot.preview(definition)["rows"], [
@@ -196,6 +215,24 @@ class PilotTest(unittest.TestCase):
         self.assertEqual(results.status_code, 200)
         self.assertEqual(results.json["rows"], original_rows)
         self.assertEqual(results.json["sourceRows"], 3)
+
+    def test_warehouses_can_group_filter_and_preserve_sales_grain(self):
+        self.snapshot = self.expanded_fixture(with_warehouses=True)
+        company, code, name, sales = "warehouse.warehousecompany", "warehouse.warehouse", "warehouse.warehousedesc", "sales.sales"
+        client = self.client()
+        self.sign_in(client)
+        catalog = client.get("/api/catalog", base_url=ORIGIN).json
+        self.assertEqual(catalog["entities"]["warehouse"], "Warehouses")
+        self.assertEqual({field["id"] for field in catalog["fields"] if field["entity"] == "warehouse"}, {company, code, name})
+        self.assertEqual(self.snapshot.choices({"field": code})["values"], ["01", "02"])
+        self.assertEqual(self.snapshot.choices({"field": name, "version": 1})["values"], ["North Hub", "South Hub"])
+        definition = {**self.d, "version": 2, "fields": [company, code, name, sales]}
+        self.assertEqual(self.snapshot.preview(definition)["rows"], [
+            ["0001", "01", "East Hub", "20"], ["0030", "01", "North Hub", "12.10"], ["0030", "02", "South Hub", None],
+        ])
+        self.assertEqual(self.snapshot.preview({**definition, "mode": "detail"})["total"], 4)
+        rule = {"field": code, "op": "eq", "value": "01", "enabled": True}
+        self.assertEqual(self.snapshot.preview({**definition, "fields": [sales], "filters": [rule]})["rows"], [["32.10"]])
 
     def test_text_filter_case_sensitivity(self):
         self.snapshot.dimensions["customer"]["4"]["customername"] = "sample"

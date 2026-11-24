@@ -7,9 +7,9 @@ from datetime import datetime
 from decimal import Decimal
 from pathlib import Path
 
-from model import (BY_ID, COMPANIES, CSV_COLUMNS, CSV_COLUMNS_WITH_DATETIME, FIELDS, LEGACY_COLUMNS, LEGACY_COMPANY,
-                   MEASURES, PREVIEW_LIMIT, RELATIONSHIPS, InvalidDefinition, filter_operand, relative_range,
-                   validate_definition)
+from model import (BY_ID, COMPANIES, CSV_COLUMNS, CSV_COLUMNS_WITH_DATETIME, CSV_COLUMNS_WITH_WAREHOUSES, FIELDS,
+                   LEGACY_COLUMNS, LEGACY_COMPANY, MEASURES, PREVIEW_LIMIT, RELATIONSHIPS, InvalidDefinition,
+                   filter_operand, relative_range, validate_definition)
 
 
 def matches_filter(sources, field, op, expected, case_sensitive):
@@ -67,9 +67,14 @@ class CsvSnapshot:
         if self.version not in (1, 2):
             raise ValueError("Unsupported snapshot version.")
         self.has_dispatch_time = manifest.get("trip_datetime") is True
+        self.has_warehouses = manifest.get("warehouses") is True
         if self.has_dispatch_time and self.version != 2:
             raise ValueError("Dispatch timestamps require an expanded snapshot.")
-        columns = CSV_COLUMNS_WITH_DATETIME if self.has_dispatch_time else CSV_COLUMNS if self.version == 2 else LEGACY_COLUMNS
+        if self.has_warehouses and not self.has_dispatch_time:
+            raise ValueError("Warehouse fields require the expanded snapshot with dispatch timestamps.")
+        columns = CSV_COLUMNS if self.version == 2 else LEGACY_COLUMNS
+        if self.has_dispatch_time:
+            columns = CSV_COLUMNS_WITH_WAREHOUSES if self.has_warehouses else CSV_COLUMNS_WITH_DATETIME
         self.blank_trip = dict.fromkeys(columns.get("dim_trips", ()))
         relationships = {entity: spec for entity, spec in RELATIONSHIPS.items() if spec[0] in columns}
         fields_by_entity = {"sales": columns["fact_sales"],
@@ -143,6 +148,8 @@ class CsvSnapshot:
                     "product": control["dimension_rows"]["products"]}
         if self.version == 2:
             expected["trip"] = control["dimension_rows"]["trips"]
+            if self.has_warehouses:
+                expected["warehouse"] = control["dimension_rows"]["warehouses"]
             for company, check in company_checks.items():
                 source = control["by_company"][company]
                 if not check["rows"] or check["rows"] != source["rows"] or any(
