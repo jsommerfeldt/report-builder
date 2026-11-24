@@ -4,7 +4,7 @@ import {showPreviewInsertionLine} from './previewInsertionLine';
 
 export type Destination='fields'|'filters';
 export type DragSource='objects'|Destination;
-export type DropField=(id:string,zone:Destination|'preview',source:DragSource,anchor?:string,after?:boolean)=>void;
+export type DropField=(id:string,zone:Destination|'preview',source:DragSource,anchor?:string,after?:boolean,copy?:boolean)=>void;
 
 export function useFieldDrag(drop:DropField,dragSource:DragSource,onInteraction:(field:string|null)=>void,onPreviewHover:(active:boolean)=>void) {
   const stop=useRef<(notify?:boolean)=>void>(()=>{});
@@ -112,8 +112,8 @@ export function useFieldDrag(drop:DropField,dragSource:DragSource,onInteraction:
       if(p.pointerId!==pointer)return;
       track(p);const name=zone?.dataset.libraryZone,slot=motion?.destination(),position=previewSlot;cleanup(false);
       try {
-        if(name==='filters')drop(id,'filters',dragSource);
-        if(name==='fields' && (slot || dragSource==='filters'))drop(id,'fields',dragSource,slot?.anchor,slot?.after);
+        if(name==='filters')drop(id,'filters',dragSource,undefined,undefined,p.ctrlKey && dragSource==='fields');
+        if(name==='fields' && (slot || dragSource==='filters'))drop(id,'fields',dragSource,slot?.anchor,slot?.after,p.ctrlKey && dragSource==='filters');
         if(name==='preview')drop(id,'preview',dragSource,position?.anchor,position?.after);
       } finally {
         onInteraction(null);

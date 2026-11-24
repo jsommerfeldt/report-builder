@@ -223,32 +223,32 @@ export function ReportBuilder({catalog,client,initialReport,folderId,onReports}:
     setQueryHint(hint);
     setQueryOpen(true);
   }
-  function startFilter(id:string,source:DragSource) {
+  function startFilter(id:string,source:DragSource,copy:boolean) {
     const count=definition.filters?.length??0;
     const field=byId[id];
     if(!field || filterEditor)return;
-    const moving=source==='fields';
-    if(moving && definition.filters?.some(rule=>rule.field===id)){
-      changeFields(definition.fields.filter(key=>key!==id));
+    const moving=source==='fields' && !copy;
+    if(source==='fields' && definition.filters?.some(rule=>rule.field===id)){
+      if(moving)changeFields(definition.fields.filter(key=>key!==id));
     }else{
       if(count>=32){
         explainQueryAction('Remove a filter before adding another.');
         return;
       }
       setFilterEditor({index:count,rule:newFilterRule(field),moveField:moving?id:undefined,
-        overlapField:source==='objects'?id:undefined});
+        overlapField:source==='objects' || copy?id:undefined});
     }
     setObjectPick(null);
     revealDestination('filters');
   }
-  const dropField:DropField=(id,zone,source,anchor,after)=>{
+  const dropField:DropField=(id,zone,source,anchor,after,copy=false)=>{
     if(!byId[id] || id===anchor || id===pendingMove)return;
-    if(zone==='filters'){startFilter(id,source);return;}
+    if(zone==='filters'){startFilter(id,source,copy);return;}
     setObjectPick(null);
     if(source==='filters'){
       setDefinition(prev=>{
-        const fields=!anchor && prev.fields.includes(id)?prev.fields:placeField(prev.fields,id,anchor,after);
-        const filters=(prev.filters??[]).filter(rule=>rule.field!==id);
+        const fields=prev.fields.includes(id) && (copy || !anchor)?prev.fields:placeField(prev.fields,id,anchor,after);
+        const filters=copy?prev.filters:(prev.filters??[]).filter(rule=>rule.field!==id);
         return updateFieldSelection(prev,fields,filters,byId);
       });
       setNotice('');setError('');
@@ -264,7 +264,7 @@ export function ReportBuilder({catalog,client,initialReport,folderId,onReports}:
     const inFilters=definition.filters?.some(rule=>rule.field===id);
     if((objectPick?.destination==='filters' && inColumns && !inFilters) ||
       (objectPick?.destination!=='filters' && !inColumns && inFilters)){
-      explainQueryAction('Drag this field from Objects into '+(inColumns?'Filters':'Columns')+' to use it in both sections.');
+      explainQueryAction('Drag this field from Objects, or hold Ctrl while dragging it between Columns and Filters, to use it in both sections.');
       return;
     }
     setQueryHint('');
