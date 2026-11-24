@@ -45,21 +45,21 @@ function PaneDivider({pane,max,value,onResize}:DividerProps) {
 }
 
 interface LayoutProps {
-  library:React.ReactNode; children:React.ReactNode; newReport:boolean;
+  library:React.ReactNode; children:React.ReactNode; newReport:boolean; editorSession:number;
   queryVisible:boolean; toggleQuery():void; closeQuery():void;
   objectsCollapsed:boolean; toggleObjects():void;
   queryToggle:React.Ref<HTMLButtonElement>; queryClose:React.Ref<HTMLButtonElement>;
   previewPane:React.RefObject<HTMLElement>;
   previewRun:{run():void; disabled:boolean; busy:boolean; current:boolean};
 }
-export function LibraryLayout({library,children,newReport,queryVisible,toggleQuery,closeQuery,queryToggle,queryClose,
+export function LibraryLayout({library,children,newReport,editorSession,queryVisible,toggleQuery,closeQuery,queryToggle,queryClose,
   objectsCollapsed,toggleObjects,previewPane,previewRun}:LayoutProps) {
   const prefix=layoutPrefix(newReport);
   const [preferred,setPreferred]=useState(()=>({
     objects:Math.max(editorPanes.objects.min,Number(stored(prefix+'objects-width'))||editorPanes.objects.initial),
     query:Math.max(editorPanes.query.min,Number(stored(prefix+'query-width'))||editorPanes.query.initial),
   }));
-  const [queryHeight,setQueryHeight]=useState(()=>Number(stored(prefix+'query-height'))||0);
+  const [queryHeight,setQueryHeight]=useState(0);
   const [queryPosition,setQueryPosition]=useState<{x:number;y:number}|null>(null);
   const [workspace,setWorkspace]=useState(()=>({
     width:document.documentElement.clientWidth,height:document.documentElement.clientHeight,objectsHeight:0,railWidth:0,previewHeight:0,
@@ -84,6 +84,7 @@ export function LibraryLayout({library,children,newReport,queryVisible,toggleQue
   const x=clamp(queryPosition?.x??defaultX,leftLimit,workspace.width-queryWidth-edgeGap);
   const y=clamp(queryPosition?.y??defaultY,edgeGap,workspace.height-height-edgeGap);
   const maxQueryHeight=workspace.height-y-edgeGap;
+  useEffect(()=>setQueryHeight(0),[editorSession]);
   useEffect(()=>{
     const editor=layout.current?.parentElement;
     const objectPane=objects.current;
@@ -118,11 +119,7 @@ export function LibraryLayout({library,children,newReport,queryVisible,toggleQue
     const nextBottom=vertical>0?clamp(bottom+dy,top+minHeight,workspace.height-edgeGap):bottom;
     setQueryPosition({x:left,y:top});
     if(horizontal)resize('query',nextRight-left);
-    if(vertical){
-      const nextHeight=nextBottom-top;
-      setQueryHeight(nextHeight);
-      remember(prefix+'query-height',String(nextHeight));
-    }
+    if(vertical)setQueryHeight(nextBottom-top);
   }
   function startGesture(mode:'move'|ResizeEdge,e:React.PointerEvent<HTMLElement>) {
     if(!e.isPrimary || e.button!==0 || !popup.current)return;

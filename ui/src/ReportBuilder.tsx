@@ -343,7 +343,7 @@ export function ReportBuilder({catalog,client,initialReport,folderId,onReports}:
         closeQuery();
       }
     }}>
-      <LibraryLayout newReport={newReport} queryVisible={queryVisible} toggleQuery={toggleQuery} closeQuery={closeQuery}
+      <LibraryLayout newReport={newReport} editorSession={editorSession} queryVisible={queryVisible} toggleQuery={toggleQuery} closeQuery={closeQuery}
         previewPane={previewPane}
         previewRun={{run:()=>void run(definition),disabled:busy || !hasOutput || !!pendingMove,busy,current:previewCurrent}}
         objectsCollapsed={objectsCollapsed} toggleObjects={()=>{
