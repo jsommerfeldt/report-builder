@@ -1,6 +1,6 @@
 # Dataset Builder
 
-A single-user CSV pilot for building sales datasets. A fresh profile starts with an empty dataset library and the bundled [synthetic sales snapshot](demo-data/manifest.json).
+A single-user CSV pilot for building sales datasets. A fresh profile starts with an empty dataset library and the [bundled sales snapshot](bundled-snapshot/manifest.json).
 
 ## Quick start on Windows
 
@@ -15,9 +15,9 @@ Build downloads the pinned Python and frontend dependencies. Start launches the 
 
 Choose **New dataset**, add **Sales Company** and **Sales** from Objects, and click the play icon at the bottom of the sidebar. Preview shows totals for `0001` and `0030`.
 
-The files in [demo-data](demo-data/) contain 84 fictional sale rows and the customer, product, trip, and warehouse tables used by the builder. The app reads these CSVs directly on a fresh profile and checks the manifest's hashes, relationships, row counts, and totals at startup. Testing with this snapshot requires no PostgreSQL client, warehouse credentials, export, or saved dataset files.
+The [bundled snapshot](bundled-snapshot/) contains the complete pilot export for companies `0001` and `0030` from November 9 through 15, 2026, inclusive. It contains 233,735 sales rows and the corresponding customer, product, trip, and warehouse tables. The app reads these five CSVs directly on a fresh profile and verifies their hashes, relationships, row counts, and totals against the manifest at startup. Running the bundled export requires no PostgreSQL client, warehouse credentials, or saved dataset files.
 
-The Windows runtime and saved datasets live under `%LOCALAPPDATA%\RDWDW\ReportBuilderPilot`. To isolate a test from an existing profile, stop its running service first, then set `$env:REPORT_BUILDER_HOME = Join-Path $env:LOCALAPPDATA 'RDWDW/ReportBuilderDemo'` before building and starting. Use that same environment setting for later commands in the demo profile. Both profiles use port 8784.
+The Windows runtime and saved datasets live under `%LOCALAPPDATA%\RDWDW\ReportBuilderPilot`. To isolate a test from an existing profile, stop its running service first, then set `$env:REPORT_BUILDER_HOME = Join-Path $env:LOCALAPPDATA 'RDWDW/ReportBuilderTest'` before building and starting. Use the same environment setting for later commands in the test profile. Both profiles use port 8784.
 
 ## Manual setup on macOS or Linux
 

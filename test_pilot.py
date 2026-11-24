@@ -1,4 +1,4 @@
-"""Offline regression checks with synthetic data only. Run python -m unittest test_pilot."""
+"""Offline regression fixtures and validation of the bundled snapshot."""
 
 import csv
 import json
@@ -218,10 +218,11 @@ class PilotTest(unittest.TestCase):
         self.assertEqual(active_snapshot(profile), BUNDLED_SNAPSHOT)
         snapshot = CsvSnapshot(active_snapshot(profile))
         self.assertTrue(snapshot.has_warehouses)
-        self.assertGreater(snapshot.counts["sales"], 50)
+        self.assertEqual(snapshot.counts, {"sales": 233735, "customer": 2385, "product": 4710,
+                                           "trip": 697, "warehouse": 8})
         definition = {**self.d, "version": 2, "fields": ["sales.company", "sales.sales"]}
         companies = [row[0] for row in snapshot.preview(definition)["rows"]]
-        self.assertEqual(companies, ["0001", "0030"])
+        self.assertEqual(sorted(companies), ["0001", "0030"])
 
         legacy = profile / LEGACY_SNAPSHOT
         legacy.mkdir(parents=True)

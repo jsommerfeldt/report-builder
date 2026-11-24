@@ -1,0 +1,96 @@
+{
+  "snapshot_version": 2,
+  "trip_datetime": true,
+  "warehouses": true,
+  "scope": {
+    "companies": [
+      "0001",
+      "0030"
+    ],
+    "from": "2026-11-09",
+    "through": "2026-11-15"
+  },
+  "verification": {
+    "source_database": "pprodw_cognos",
+    "snapshot_at": "2026-11-23T20:45:13.760144-06:00",
+    "before_joins": {
+      "scope": "combined",
+      "rows": 233735,
+      "distinct_fact_keys": 233735,
+      "sales": "8711967.46",
+      "creditsales": "134275.45",
+      "shipquantitycseq": "376642.122577"
+    },
+    "after_joins": {
+      "scope": "combined",
+      "rows": 233735,
+      "missing_customers": 0,
+      "missing_products": 0,
+      "missing_trips": 0,
+      "unassigned_trips": 0,
+      "missing_warehouses": 0,
+      "sales": "8711967.46",
+      "creditsales": "134275.45",
+      "shipquantitycseq": "376642.122577"
+    },
+    "by_company": {
+      "0001": {
+        "scope": "0001",
+        "rows": 201380,
+        "distinct_fact_keys": 201380,
+        "sales": "6720190.04",
+        "creditsales": "99235.59",
+        "shipquantitycseq": "289036.071677"
+      },
+      "0030": {
+        "scope": "0030",
+        "rows": 32355,
+        "distinct_fact_keys": 32355,
+        "sales": "1991777.42",
+        "creditsales": "35039.86",
+        "shipquantitycseq": "87606.0509"
+      }
+    },
+    "after_by_company": {
+      "0030": {
+        "scope": "0030",
+        "rows": 32355,
+        "missing_customers": 0,
+        "missing_products": 0,
+        "missing_trips": 0,
+        "unassigned_trips": 0,
+        "missing_warehouses": 0,
+        "sales": "1991777.42",
+        "creditsales": "35039.86",
+        "shipquantitycseq": "87606.0509"
+      },
+      "0001": {
+        "scope": "0001",
+        "rows": 201380,
+        "missing_customers": 0,
+        "missing_products": 0,
+        "missing_trips": 0,
+        "unassigned_trips": 0,
+        "missing_warehouses": 0,
+        "sales": "6720190.04",
+        "creditsales": "99235.59",
+        "shipquantitycseq": "289036.071677"
+      }
+    },
+    "dimension_rows": {
+      "customers": 2385,
+      "products": 4710,
+      "trips": 697,
+      "warehouses": 8
+    },
+    "passed": true,
+    "verified_summary_groups": 1118
+  },
+  "sha256": {
+    "fact_sales": "3dfc546f95c0a7da760b97ebd4a33e70e3ef3c7b744a611fd1bd4452e2d1a13f",
+    "dim_customers": "03acc7a65c1ce2e8eac7194afc0e9a3e060ae777da35083ba865bd9a5962e748",
+    "dim_products": "c7c370ea6f4010a60be09b39b171eb66460074cf1974290557c52f90dae4d97e",
+    "dim_trips": "a6c7ff51f042d30fd85f052d7f4f10634cfa645366fb10f444523fd779318239",
+    "dim_warehouses": "1b6c648ea8e347b9fdd84ae30f4cb4eab3aa188844f658d5d633bc838675bcd2"
+  }
+}

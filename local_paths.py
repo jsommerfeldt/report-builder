@@ -9,7 +9,7 @@ EXPANDED_SNAPSHOT = "csv-expanded-v2"
 DATETIME_SNAPSHOT = "csv-expanded-v2-datetime"
 WAREHOUSE_SNAPSHOT = "csv-expanded-v2-warehouse"
 SNAPSHOT_POINTER = "active-snapshot"
-BUNDLED_SNAPSHOT = HERE / "demo-data"
+BUNDLED_SNAPSHOT = HERE / "bundled-snapshot"
 
 
 def private_home():

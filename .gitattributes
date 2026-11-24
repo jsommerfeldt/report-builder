@@ -1,2 +1,3 @@
-# The snapshot manifest verifies exact CSV bytes.
-/demo-data/*.csv text eol=lf
+# Preserve the export bytes across platforms.
+/bundled-snapshot/*.csv -text -diff
+/bundled-snapshot/manifest.json -text
