@@ -1,5 +1,6 @@
 import {PointerEvent as ReactPointerEvent,useEffect,useRef} from 'react';
 import {ReorderMotion} from './ReorderMotion';
+import {showPreviewInsertionLine} from './previewInsertionLine';
 
 export type Destination='fields'|'filters';
 export type DragSource='objects'|Destination;
@@ -65,17 +66,8 @@ export function useFieldDrag(drop:DropField,dragSource:DragSource,onInteraction:
         if(!scroller || !headers.length)return;
         const next=headers.find(header=>{const rect=header.getBoundingClientRect();return x<rect.left+rect.width/2;});
         const anchor=next??headers[headers.length-1];
-        const bounds=scroller.getBoundingClientRect(), rect=anchor.getBoundingClientRect();
         previewSlot={anchor:anchor.dataset.previewField!,after:!next};
-        if(!insertion){
-          insertion=document.createElement('div');
-          insertion.className='preview-insertion-line';
-          insertion.setAttribute('aria-hidden','true');
-          document.body.append(insertion);
-        }
-        insertion.style.left=Math.max(bounds.left+1,Math.min(bounds.right-1,next?rect.left:rect.right))+'px';
-        insertion.style.top=Math.max(bounds.top,rect.top)+'px';
-        insertion.style.height=Math.max(0,Math.min(bounds.bottom,rect.bottom)-Math.max(bounds.top,rect.top))+'px';
+        insertion=showPreviewInsertionLine(insertion,scroller,anchor,!next);
       }
     }
     function scrollTargets(x:number,y:number) {

@@ -2,6 +2,7 @@ import React, {useEffect,useRef,useState} from 'react';
 import {Aggregation, aggregationLabels, Catalog, ColumnNames, Field, Preview, sourceColumn} from './client';
 import {Icon} from './Icon';
 import {ReorderMotion} from './ReorderMotion';
+import {showPreviewInsertionLine} from './previewInsertionLine';
 
 const dollars = new Intl.NumberFormat('en-US', {style:'currency', currency:'USD'});
 const quantity = new Intl.NumberFormat('en-US', {maximumFractionDigits:4});
@@ -29,8 +30,14 @@ export function PreviewPane({data,outputIds:ids,byId,entities,columnNames,run,st
   const [widths,setWidths]=useState<Record<string,number>>({});
   const drag=useRef<{pointer:number; x:number; id:string; width:number}|null>(null);
   const moving=useRef<{pointer:number;x:number;id:string;grip:number;motion:ReorderMotion|null}|null>(null);
+  const insertion=useRef<HTMLDivElement|null>(null);
+  function clearInsertion(){
+    insertion.current?.remove();
+    insertion.current=null;
+  }
   function cancelMove(){
     moving.current?.motion?.finish(true);moving.current=null;
+    clearInsertion();
   }
   const canMove=ids.length>1;
   useEffect(()=>{
@@ -46,7 +53,7 @@ export function PreviewPane({data,outputIds:ids,byId,entities,columnNames,run,st
     const heads=Array.from(t.tHead.rows[0].cells);
     const rect=heads[0].getBoundingClientRect();
     if(e.clientY<rect.top || e.clientY>rect.bottom || e.clientX<bounds.left || e.clientX>bounds.right){
-      start.motion?.finish(false);start.motion=null;return;
+      start.motion?.finish(false);start.motion=null;clearInsertion();return;
     }
     if(scrollEdges){
       if(e.clientX<bounds.left+24)scroll.scrollLeft-=12;
@@ -57,6 +64,10 @@ export function PreviewPane({data,outputIds:ids,byId,entities,columnNames,run,st
       start.motion=new ReorderMotion(t.tHead,'x',heads,start.id,start.grip,i=>rows.map(row=>row.cells[i]));
     }
     start.motion.update(e.clientX,e.clientY);
+    const slot=start.motion.destination();
+    const from=ids.indexOf(start.id);
+    const anchor=slot?heads.find(head=>head.dataset.previewField===slot.anchor):heads[from+1]??heads[from-1];
+    if(anchor)insertion.current=showPreviewInsertionLine(insertion.current,scroll,anchor,slot?.after??from===ids.length-1);
   }
   const manual=ids.length>0 && ids.every(id=>widths[id]!==undefined);
   const label=(id:string)=>resultLabel(byId[id],data?.aggregations?.[id],columnNames?.[id]);
