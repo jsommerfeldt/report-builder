@@ -12,7 +12,7 @@ interface Props {
   title:string; icon:IconName; children:React.ReactNode; status?:string;
   className?:string; dropZone?:Destination; showDropTarget?:boolean;
   disclosure:CardDisclosure;
-  help:{title:string; body:React.ReactNode; className?:string};
+  help:{title:string; body:React.ReactNode};
 }
 
 export function QueryCard({title,icon,children,status,className,dropZone,showDropTarget,disclosure,help}:Props) {
@@ -38,6 +38,6 @@ export function QueryCard({title,icon,children,status,className,dropZone,showDro
         title={help.title} onClick={()=>setHelpOpen(true)}><Icon name="help"/></button>
     </header>
     <div className="query-card-body" id={id+'-body'} hidden={!open}>{children}</div>
-    {helpOpen && <Modal title={help.title} className={help.className??'query-help-dialog'} close={closeHelp}>{help.body}</Modal>}
+    {helpOpen && <Modal title={help.title} className="query-help-dialog" close={closeHelp}>{help.body}</Modal>}
   </section>;
 }

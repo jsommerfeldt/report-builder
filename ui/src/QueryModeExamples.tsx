@@ -1,29 +1,27 @@
 import React from 'react';
 
-interface ExampleProps {
-  grouped:boolean;
-  description:React.ReactNode;
-  columns:string[];
-  rows:ReadonlyArray<readonly [values:string[],sales:number]>;
-}
+type SaleRow = readonly [state:string,sales:number];
 
 const dollars = new Intl.NumberFormat('en-US', {style:'currency', currency:'USD'});
+const detailRows:ReadonlyArray<SaleRow>=[['MN',44.50],['MN',55.50],['WI',72.25]];
+const totalsByState=new Map<string,number>();
+for(const [state,sales] of detailRows)totalsByState.set(state,(totalsByState.get(state)??0)+sales);
 
-function ModeExample({grouped,description,columns,rows}:ExampleProps) {
-  const id=grouped?'example-grouped':'example-ungrouped';
+function ModeExample({title,description,rows}:{
+  title:string; description:React.ReactNode; rows:ReadonlyArray<SaleRow>;
+}) {
   const total = rows.reduce((sum, [,sales])=>sum+sales, 0);
-  return <section className={'mode-example'+(grouped?' example-grouped':'')}>
-    <h3 id={id}>{grouped?'Grouping on':'Grouping off'}</h3>
+  return <section className="mode-example">
+    <h3>{title}</h3>
     <p>{description}</p>
     <div className="mode-example-table">
-      <table aria-labelledby={id}>
-        <thead><tr>{columns.map(column=><th key={column} scope="col">{column}</th>)}
-          <th scope="col" className="numeric">Sales</th></tr></thead>
-        <tbody>{rows.map(([values,sales])=><tr key={values.join('|')}>
-          {values.map((value,i)=><td key={columns[i]}>{value}</td>)}
+      <table aria-label={title}>
+        <thead><tr><th scope="col">Shipping State</th><th scope="col" className="numeric">Sales</th></tr></thead>
+        <tbody>{rows.map(([state,sales],i)=><tr key={i}>
+          <td>{state}</td>
           <td className="numeric">{dollars.format(sales)}</td>
         </tr>)}</tbody>
-        <tfoot><tr><th scope="row" colSpan={columns.length}>Grand Total</th>
+        <tfoot><tr><th scope="row">Grand Total</th>
           <td className="numeric">{dollars.format(total)}</td></tr></tfoot>
       </table>
     </div>
@@ -32,13 +30,11 @@ function ModeExample({grouped,description,columns,rows}:ExampleProps) {
 
 export function QueryModeExamples() {
   return <div className="mode-comparison">
-      <ModeExample grouped={false}
-        description={<>Detail results show one row per sale.</>}
-        columns={['Shipping State','Product Description']}
-        rows={[[['MN','Apples'],44.50],[['MN','Carrots'],55.50],[['WI','Apples'],72.25]]}/>
-      <ModeExample grouped
-        description={<>Select <strong>Shipping State</strong> and choose <strong>Sum</strong> on <strong>Sales</strong> to show one total per state.</>}
-        columns={['Shipping State']}
-        rows={[[['MN'],100],[['WI'],72.25]]}/>
+    <ModeExample title="Detail rows"
+      description={<>Start with <strong>Sales</strong> alone, choose <strong>None</strong>, then add <strong>Shipping State</strong>.</>}
+      rows={detailRows}/>
+    <ModeExample title="Grouped totals"
+      description={<>In a new dataset, add both fields and keep <strong>Sum</strong> on <strong>Sales</strong>.</>}
+      rows={[...totalsByState]}/>
   </div>;
 }
