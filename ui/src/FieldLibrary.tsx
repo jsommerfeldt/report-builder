@@ -5,13 +5,13 @@ import {DropField, useFieldDrag} from './useFieldDrag';
 import {Icon} from './Icon';
 
 export function FieldLibrary({catalog,fields,selectField,drop,onInteraction,onDrag,searchRef,pickingFilter,cancelPick}: {
-  catalog:Catalog; fields:string[]; selectField(id:string):void; drop:DropField; onInteraction(active:boolean):void;
+  catalog:Catalog; fields:string[]; selectField(id:string):void; drop:DropField; onInteraction(field:string|null):void;
   onDrag(active:boolean):void; searchRef:React.RefObject<HTMLInputElement>; pickingFilter:boolean; cancelPick(returnFocus:boolean):boolean;
 }) {
   const pressingField=useRef(false);
-  const {begin,moved}=useFieldDrag(drop,active=>{
-    pressingField.current=active;
-    onInteraction(active);
+  const {begin,moved}=useFieldDrag(drop,'objects',field=>{
+    pressingField.current=field!==null;
+    onInteraction(field);
   },onDrag);
   const [search, setSearch] = useState('');
   const [open, setOpen] = useState<Entity[]>([]);

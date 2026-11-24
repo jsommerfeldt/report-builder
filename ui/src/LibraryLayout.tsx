@@ -9,6 +9,8 @@ type EditorPane=keyof typeof editorPanes;
 function stored(key:string) { try { return localStorage.getItem('report-builder.library.'+key); } catch {return null;} }
 function remember(key:string,value:string) { try { localStorage.setItem('report-builder.library.'+key,value); } catch { /* Private browsing can disable storage. */ } }
 const layoutPrefix=(newReport:boolean)=>newReport?'new-report-':'';
+const edgeGap=8;
+const clamp=(value:number,min:number,max:number)=>Math.max(min,Math.min(max,Math.round(value)));
 
 interface DividerProps {
   pane:EditorPane; max:number; value:number; onResize(value:number):void;
@@ -47,16 +49,37 @@ export function LibraryLayout({library,children,newReport,queryVisible,toggleQue
     objects:Math.max(editorPanes.objects.min,Number(stored(prefix+'objects-width'))||editorPanes.objects.initial),
     query:Math.max(editorPanes.query.min,Number(stored(prefix+'query-width'))||editorPanes.query.initial),
   }));
-  const [availableWidth,setAvailableWidth]=useState(()=>document.documentElement.clientWidth);
+  const [queryHeight,setQueryHeight]=useState(()=>Number(stored(prefix+'query-height'))||0);
+  const [queryPosition,setQueryPosition]=useState<{x:number;y:number}|null>(null);
+  const [workspace,setWorkspace]=useState(()=>({
+    width:document.documentElement.clientWidth,height:document.documentElement.clientHeight,objectsHeight:0,
+  }));
   const layout=useRef<HTMLElement>(null);
-  const maxObjects=Math.max(editorPanes.objects.min,Math.floor(availableWidth*.4));
+  const objects=useRef<HTMLElement>(null);
+  const popup=useRef<HTMLElement>(null);
+  const gesture=useRef<{mode:'move'|'resize';pointer:number;startX:number;startY:number;x:number;y:number;width:number;height:number}|null>(null);
+  const compact=workspace.width<=700;
+  const maxObjects=Math.max(editorPanes.objects.min,Math.floor(workspace.width*.4));
   const objectsWidth=Math.min(preferred.objects,maxObjects);
-  const maxQuery=Math.max(editorPanes.query.min,Math.floor(availableWidth)-objectsWidth-24);
-  const queryWidth=Math.min(preferred.query,maxQuery);
+  const widthLimit=workspace.width-2*edgeGap;
+  const heightLimit=workspace.height-2*edgeGap;
+  const minWidth=Math.min(compact?280:editorPanes.query.min,widthLimit);
+  const minHeight=Math.min(156,Math.max(0,heightLimit));
+  const queryWidth=clamp(preferred.query,minWidth,widthLimit);
+  const height=queryHeight?clamp(queryHeight,minHeight,heightLimit):undefined;
+  const x=clamp(queryPosition?.x??(compact?edgeGap:objectsWidth+edgeGap),edgeGap,workspace.width-queryWidth-edgeGap);
+  const y=clamp(queryPosition?.y??(compact?workspace.objectsHeight+6:52),edgeGap,workspace.height-(height??minHeight)-edgeGap);
+  const maxQueryWidth=workspace.width-x-edgeGap;
+  const maxQueryHeight=workspace.height-y-edgeGap;
   useEffect(()=>{
-    const observer=new ResizeObserver(([entry])=>setAvailableWidth(entry.contentRect.width));
     const editor=layout.current?.parentElement;
-    if(editor)observer.observe(editor);
+    const objectPane=objects.current;
+    if(!editor || !objectPane)return;
+    const observer=new ResizeObserver(()=>setWorkspace({
+      width:editor.clientWidth,height:editor.clientHeight,objectsHeight:objectPane.offsetHeight,
+    }));
+    observer.observe(editor);
+    observer.observe(objectPane);
     return ()=>observer.disconnect();
   },[]);
   function resize(pane:EditorPane,value:number) {
@@ -64,8 +87,41 @@ export function LibraryLayout({library,children,newReport,queryVisible,toggleQue
     setPreferred(current=>({...current,[pane]:value}));
     remember(prefix+pane+'-width',String(value));
   }
+  function moveQuery(left:number,top:number,width:number,height:number) {
+    setQueryPosition({x:clamp(left,edgeGap,workspace.width-width-edgeGap),
+      y:clamp(top,edgeGap,workspace.height-height-edgeGap)});
+  }
+  function resizeQuery(width:number,height:number) {
+    const nextHeight=clamp(height,minHeight,maxQueryHeight);
+    resize('query',clamp(width,minWidth,maxQueryWidth));
+    setQueryHeight(nextHeight);
+    remember(prefix+'query-height',String(nextHeight));
+  }
+  function startGesture(mode:'move'|'resize',e:React.PointerEvent<HTMLElement>) {
+    if(!e.isPrimary || e.button!==0 || !popup.current)return;
+    const {width,height}=popup.current.getBoundingClientRect();
+    gesture.current={mode,pointer:e.pointerId,startX:e.clientX,startY:e.clientY,x,y,width,height};
+    e.currentTarget.setPointerCapture(e.pointerId);
+  }
+  function trackGesture(e:React.PointerEvent<HTMLElement>) {
+    const start=gesture.current;
+    if(!start || e.pointerId!==start.pointer)return;
+    const dx=e.clientX-start.startX, dy=e.clientY-start.startY;
+    if(start.mode==='move')moveQuery(start.x+dx,start.y+dy,start.width,start.height);
+    else resizeQuery(start.width+dx,start.height+dy);
+  }
+  function stopGesture() {gesture.current=null;}
+  function keyboardGesture(mode:'move'|'resize',e:React.KeyboardEvent<HTMLButtonElement>) {
+    const directions:Record<string,[number,number]>={ArrowLeft:[-16,0],ArrowRight:[16,0],ArrowUp:[0,-16],ArrowDown:[0,16]};
+    const delta=directions[e.key];
+    if(!popup.current || !delta)return;
+    e.preventDefault();
+    const {width,height}=popup.current.getBoundingClientRect();
+    if(mode==='move')moveQuery(x+delta[0],y+delta[1],width,height);
+    else resizeQuery(width+delta[0],height+delta[1]);
+  }
   return <section ref={layout} className="build-report" aria-label="Build Report">
-    <aside id={editorPanes.objects.id} className="builder-pane library-wrap" aria-labelledby="objects-pane-heading"
+    <aside ref={objects} id={editorPanes.objects.id} className="builder-pane library-wrap" aria-labelledby="objects-pane-heading"
       style={{'--pane-width':objectsWidth+'px'} as React.CSSProperties}>
       <div className="builder-pane-heading">
         <h3 id="objects-pane-heading"><Icon name="layers" size={16}/>Objects</h3>
@@ -77,16 +133,23 @@ export function LibraryLayout({library,children,newReport,queryVisible,toggleQue
       <div id="library-contents" className="library-contents">{library}</div>
       <PaneDivider pane="objects" value={objectsWidth} max={maxObjects} onResize={value=>resize('objects',value)}/>
     </aside>
-    <section id={editorPanes.query.id} className="builder-pane query-controls" role="dialog" aria-labelledby="query-pane-heading"
-      hidden={!queryVisible} style={{'--pane-width':queryWidth+'px'} as React.CSSProperties}>
+    <section ref={popup} id={editorPanes.query.id} className="builder-pane query-controls" role="dialog" aria-labelledby="query-pane-heading"
+      hidden={!queryVisible} style={{width:queryWidth,height,maxHeight:maxQueryHeight,insetInlineStart:x,insetBlockStart:y}}>
       <div className="builder-pane-heading">
-        <h3 id="query-pane-heading"><Icon name="fields" size={16}/>Query</h3>
+        <div className="query-title-bar" onPointerDown={e=>startGesture('move',e)} onPointerMove={trackGesture} onLostPointerCapture={stopGesture}>
+          <h3 id="query-pane-heading"><Icon name="fields" size={16}/>Query</h3>
+          <button type="button" className="icon-button query-move" aria-label="Move Query" title="Move Query using drag or arrow keys"
+            onKeyDown={e=>keyboardGesture('move',e)}><Icon name="grip" size={16}/></button>
+        </div>
         <button ref={queryClose} type="button" className="icon-button" aria-label="Close Query" title="Close Query" onClick={closeQuery}>
           <Icon name="close" size={16}/>
         </button>
       </div>
       {children}
-      <PaneDivider pane="query" value={queryWidth} max={maxQuery} onResize={value=>resize('query',value)}/>
+      <PaneDivider pane="query" value={queryWidth} max={maxQueryWidth} onResize={value=>resize('query',value)}/>
+      <button type="button" className="query-resize-corner" aria-label="Resize Query" title="Resize Query using drag or arrow keys"
+        onPointerDown={e=>startGesture('resize',e)} onPointerMove={trackGesture} onLostPointerCapture={stopGesture}
+        onKeyDown={e=>keyboardGesture('resize',e)}><Icon name="resize" size={14}/></button>
     </section>
   </section>;
 }

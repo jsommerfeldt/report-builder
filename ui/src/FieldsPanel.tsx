@@ -10,6 +10,7 @@ const numericOptions:Aggregation[]=['sum','avg','min','max','count'];
 interface Props {
   fields:Field[]; outputIds:string[]; order:Order[]; drop:DropField; showDropTarget:boolean; disclosure:CardDisclosure;
   onAdd:React.MouseEventHandler<HTMLButtonElement>;
+  onInteraction(field:string|null):void;
   columnNames?:ColumnNames; entities:Catalog['entities']; rename(field:Field,trigger:HTMLButtonElement):void;
   remove(id:string):void; sort(setting:Order):void;
   groupBy:string[]; summary:boolean; canSummarize:boolean; aggregations?:Definition['aggregations'];
@@ -17,10 +18,10 @@ interface Props {
   onAggregationChange(id:string,value:Aggregation|'none'):void;
 }
 
-export function FieldsPanel({fields,outputIds,order,drop,onAdd,remove,sort,showDropTarget,disclosure,columnNames,entities,rename,
+export function FieldsPanel({fields,outputIds,order,drop,onInteraction,onAdd,remove,sort,showDropTarget,disclosure,columnNames,entities,rename,
   groupBy,summary,canSummarize,onSummaryChange,aggregations,onAggregationChange}:Props) {
   const [expanded,setExpanded]=useState(true);
-  const {begin}=useFieldDrag(drop);
+  const {begin}=useFieldDrag(drop,'fields',onInteraction);
   const settings=new Map(order.map(item=>[item.field,item]));
   const priorities=order.filter(item=>item.enabled!==false).map((_,i)=>i+1);
   const visible=expanded?fields:fields.slice(0,3);
@@ -45,15 +46,16 @@ export function FieldsPanel({fields,outputIds,order,drop,onAdd,remove,sort,showD
       const desc=direction==='desc';
       return <div className={'field-control-grid field-line '+f.entity} key={f.id} data-column={f.id}>
         <button type="button" className="move-field" aria-label={'Move '+label+', column '+(i+1)}
-          title={source}
+          title={source} aria-keyshortcuts="Shift+ArrowDown"
           onPointerDown={e=>begin(e,f.id)} onKeyDown={e=>{
+            if(e.shiftKey && e.key==='ArrowDown'){e.preventDefault();drop(f.id,'filters','fields');return;}
             const up=e.key==='ArrowUp'||(e.altKey && e.key==='ArrowLeft');
             const down=e.key==='ArrowDown'||(e.altKey && e.key==='ArrowRight');
             if(!up && !down)return;
             e.preventDefault();const next=i+(down?1:-1);
             if(!fields[next])return;
             if(next>=3)setExpanded(true);
-            drop(f.id,'fields',fields[next].id,down);
+            drop(f.id,'fields','fields',fields[next].id,down);
           }}>
           <Icon name="grip" size={13}/><span className="column-ordinal">{i+1}</span>
           <span className="field-name"><span className="field-label">{label}</span>

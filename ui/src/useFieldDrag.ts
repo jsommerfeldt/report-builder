@@ -2,9 +2,10 @@ import {PointerEvent as ReactPointerEvent,useEffect,useRef} from 'react';
 import {ReorderMotion} from './ReorderMotion';
 
 export type Destination='fields'|'filters';
-export type DropField=(id:string,zone:Destination,anchor?:string,after?:boolean)=>void;
+export type DragSource='objects'|Destination;
+export type DropField=(id:string,zone:Destination,source:DragSource,anchor?:string,after?:boolean)=>void;
 
-export function useFieldDrag(drop:DropField,onInteraction?:(active:boolean)=>void,onDrag?:(active:boolean)=>void) {
+export function useFieldDrag(drop:DropField,dragSource:DragSource,onInteraction?:(field:string|null)=>void,onDrag?:(active:boolean)=>void) {
   const stop=useRef<(notify?:boolean)=>void>(()=>{});
   const moved=useRef(false);
   useEffect(()=>()=>stop.current(false),[]);
@@ -22,26 +23,19 @@ export function useFieldDrag(drop:DropField,onInteraction?:(active:boolean)=>voi
       motion?.finish(settle);motion=null;
       zone?.classList.remove('library-drop-hover');zone=null;
     }
-    function scrollFields(x:number,y:number) {
-      const scroller=zone?.querySelector<HTMLElement>('.configuration-scroll');
-      if(!motion || !scroller)return;
-      const {top,bottom}=scroller.getBoundingClientRect();
-      if(y<top || y>bottom)return;
+    function scrollNearEdge(scroller:HTMLElement|null|undefined,x:number,y:number) {
+      if(!scroller)return false;
+      const {top,bottom,left,right}=scroller.getBoundingClientRect();
+      if(y<top || y>bottom || x<left || x>right)return false;
       const step=y<top+24?-8:y>bottom-24?8:0;
-      if(!step)return;
+      if(!step)return false;
       const before=scroller.scrollTop;
       scroller.scrollTop+=step;
-      if(scroller.scrollTop===before)return;
-      motion.update(x,y);
-      scrollFrame=requestAnimationFrame(()=>scrollFields(x,y));
+      return scroller.scrollTop!==before;
     }
-    function track(p:PointerEvent) {
-      if(p.pointerId!==pointer || (!moved.current && Math.hypot(p.clientX-x,p.clientY-y)<5))return;
-      if(!moved.current){
-        moved.current=true;
-        onDrag?.(true);
-      }
-      const hit=document.elementFromPoint(p.clientX,p.clientY)?.closest<HTMLElement>('[data-library-zone]')??null;
+    function paint(x:number,y:number) {
+      const target=document.elementFromPoint(x,y)?.closest<HTMLElement>('[data-library-zone]')??null;
+      const hit=dragSource==='filters' && target?.dataset.libraryZone==='filters'?null:target;
       if(hit!==zone){
         leave(false);zone=hit;
         if(zone?.dataset.libraryZone==='fields'){
@@ -49,9 +43,24 @@ export function useFieldDrag(drop:DropField,onInteraction?:(active:boolean)=>voi
           motion=new ReorderMotion(list,'y',Array.from(list.querySelectorAll('[data-column]')),id,grip);
         }else zone?.classList.add('library-drop-hover');
       }
-      motion?.update(p.clientX,p.clientY);
+      motion?.update(x,y);
+    }
+    function scrollTargets(x:number,y:number) {
+      const columns=motion && zone?.querySelector<HTMLElement>('.configuration-scroll');
+      const query=document.elementFromPoint(x,y)?.closest<HTMLElement>('.query-scroll');
+      if(!scrollNearEdge(columns,x,y) && !scrollNearEdge(query,x,y))return;
+      paint(x,y);
+      scrollFrame=requestAnimationFrame(()=>scrollTargets(x,y));
+    }
+    function track(p:PointerEvent) {
+      if(p.pointerId!==pointer || (!moved.current && Math.hypot(p.clientX-x,p.clientY-y)<5))return;
+      if(!moved.current){
+        moved.current=true;
+        onDrag?.(true);
+      }
+      paint(p.clientX,p.clientY);
       cancelAnimationFrame(scrollFrame);
-      if(motion)scrollFrame=requestAnimationFrame(()=>scrollFields(p.clientX,p.clientY));
+      scrollFrame=requestAnimationFrame(()=>scrollTargets(p.clientX,p.clientY));
     }
     function cleanup(notify=true) {
       leave(true);
@@ -60,7 +69,7 @@ export function useFieldDrag(drop:DropField,onInteraction?:(active:boolean)=>voi
       source.removeEventListener('lostpointercapture',cancelPointer);
       window.removeEventListener('keydown',escape);stop.current=()=>{};
       if(notify){
-        onInteraction?.(false);
+        onInteraction?.(null);
         onDrag?.(false);
       }
     }
@@ -71,10 +80,10 @@ export function useFieldDrag(drop:DropField,onInteraction?:(active:boolean)=>voi
       if(p.pointerId!==pointer)return;
       track(p);const name=zone?.dataset.libraryZone,slot=motion?.destination();cleanup(false);
       try {
-        if(name==='filters')drop(id,'filters');
-        if(name==='fields' && slot)drop(id,'fields',slot.anchor,slot.after);
+        if(name==='filters')drop(id,'filters',dragSource);
+        if(name==='fields' && (slot || dragSource==='filters'))drop(id,'fields',dragSource,slot?.anchor,slot?.after);
       } finally {
-        onInteraction?.(false);
+        onInteraction?.(null);
         onDrag?.(false);
       }
     }
@@ -84,7 +93,7 @@ export function useFieldDrag(drop:DropField,onInteraction?:(active:boolean)=>voi
       // Keep the original field press if Query opens during the drag.
       source.setPointerCapture(pointer);
       source.addEventListener('lostpointercapture',cancelPointer);
-      onInteraction(true);
+      onInteraction(id);
     }
   }
   return {begin,moved};

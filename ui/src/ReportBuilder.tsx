@@ -8,7 +8,7 @@ import {PreviewPane} from './PreviewPane';
 import {FilterEditor,FiltersPanel,newFilterRule} from './FiltersPanel';
 import {LibraryLayout} from './LibraryLayout';
 import {FieldsPanel} from './FieldsPanel';
-import {Destination,DropField} from './useFieldDrag';
+import {Destination,DragSource,DropField} from './useFieldDrag';
 import {WorkspaceBar} from './WorkspaceBar';
 
 function numberSorts(order:Order[]):Order[] {
@@ -52,6 +52,13 @@ function namesInUse(names:ColumnNames|undefined,fields:string[],filters:ReportFi
   const used=new Set([...fields,...(filters??[]).map(rule=>rule.field)]);
   return Object.fromEntries(Object.entries(names).filter(([id])=>used.has(id)));
 }
+function updateFieldSelection(d:Definition,fields:string[],filters:ReportFilter[]|undefined,byId:Record<string,Field>) {
+  const groupBy=d.groupBy && fields.filter(id=>includesDimension(d,id) || (!d.fields.includes(id) && !byId[id].measure));
+  return withOutputMode({...d,fields,filters,groupBy,
+    columnNames:namesInUse(d.columnNames,fields,filters),
+    aggregations:d.aggregations && Object.fromEntries(Object.entries(d.aggregations).filter(([id])=>fields.includes(id))),
+    order:d.order && numberSorts(d.order.filter(o=>fields.includes(o.field)))},byId);
+}
 interface BuilderProps {catalog:Catalog; client:ReportClient; initialReport?:SavedReport; folderId?:string|null; onReports?():void}
 export function ReportBuilder({catalog,client,initialReport,folderId,onReports}:BuilderProps) {
   const blank=useMemo<Definition>(()=>({version:catalog.starter.version,source:'sales',mode:'summary',fields:[]}),[catalog.starter.version]);
@@ -75,20 +82,23 @@ export function ReportBuilder({catalog,client,initialReport,folderId,onReports}:
   const [modalError,setModalError] = useState('');
   const [editorSession,setEditorSession] = useState(0);
   const [filterEditor,setFilterEditor]=useState<FilterEditor>(null);
+  const pendingMove=filterEditor?.moveField;
   const [objectPick,setObjectPick]=useState<{destination:Destination;trigger:HTMLButtonElement}|null>(null);
   const objectSearch=useRef<HTMLInputElement>(null);
   const [queryOpen,setQueryOpen]=useState(false);
   const queryToggle=useRef<HTMLButtonElement>(null);
   const queryClose=useRef<HTMLButtonElement>(null);
   const [expandedCards,setExpandedCards]=useState<Partial<Record<Destination,boolean>>>(()=>newReport?{fields:true}:{});
-  const [fieldInteraction,setFieldInteraction]=useState(false);
+  const [pickedField,setPickedField]=useState<{source:DragSource;id:string}|null>(null);
+  const [queryHint,setQueryHint]=useState('');
   const [fieldDragging,setFieldDragging]=useState(false);
   const queryVisible=queryOpen || fieldDragging;
   const [notice,setNotice] = useState('');
   const generation = useRef(0);
   const byId = useMemo(() => Object.fromEntries(catalog.fields.map(f => [f.id, f])) as Record<string,Field>, [catalog]);
-  const columns=definition.fields.map(id=>byId[id]);
-  const groupBy=columns.filter(f=>!f.measure && !definition.aggregations?.[f.id] && includesDimension(definition,f.id)).map(f=>f.id);
+  const selectedFields=definition.fields.filter(id=>id!==pendingMove);
+  const columns=selectedFields.map(id=>byId[id]);
+  const groupBy=definition.fields.filter(id=>!byId[id].measure && !definition.aggregations?.[id] && includesDimension(definition,id));
   const grouped=definition.mode==='summary';
   const summaryIds=useMemo(()=>summaryFields(definition,byId),[definition,byId]);
   const outputIds=grouped?summaryIds:definition.fields;
@@ -128,18 +138,13 @@ export function ReportBuilder({catalog,client,initialReport,folderId,onReports}:
     return () => window.removeEventListener('beforeunload',warn);
   }, [dirty]);
   function changeFields(fields:string[]) {
-    setDefinition(prev=>{
-      const groupBy=prev.groupBy && fields.filter(id=>
-        includesDimension(prev,id) || (!prev.fields.includes(id) && !byId[id].measure));
-      return withOutputMode({...prev,fields,groupBy,
-        columnNames:namesInUse(prev.columnNames,fields,prev.filters),
-        aggregations:prev.aggregations && Object.fromEntries(Object.entries(prev.aggregations).filter(([id])=>fields.includes(id))),
-        order:prev.order && numberSorts(prev.order.filter(o=>fields.includes(o.field)))},byId);
-    });
+    setDefinition(prev=>updateFieldSelection(prev,fields,prev.filters,byId));
     setNotice('');setError('');
   }
   function changeFilters(filters:ReportFilter[]) {
-    setDefinition(prev=>({...prev,filters,columnNames:namesInUse(prev.columnNames,prev.fields,filters)}));
+    setDefinition(prev=>pendingMove
+      ? updateFieldSelection(prev,prev.fields.filter(id=>id!==pendingMove),filters,byId)
+      : {...prev,filters,columnNames:namesInUse(prev.columnNames,prev.fields,filters)});
     setNotice('');setError('');
   }
   function renameColumn(field:Field,trigger:HTMLButtonElement) {
@@ -202,6 +207,7 @@ export function ReportBuilder({catalog,client,initialReport,folderId,onReports}:
   }
   function revealDestination(card:Destination) {
     setQueryOpen(true);
+    setQueryHint('');
     cardDisclosure(card).setExpanded(true);
   }
   function toggleQuery() {
@@ -211,10 +217,13 @@ export function ReportBuilder({catalog,client,initialReport,folderId,onReports}:
   }
   function closeQuery() {
     setObjectPick(null);
+    if(pendingMove)setFilterEditor(null);
+    setQueryHint('');
     setQueryOpen(false);
     requestAnimationFrame(()=>queryToggle.current?.focus({preventScroll:true}));
   }
   function pickObject(destination:Destination,trigger:HTMLButtonElement) {
+    setQueryHint('');
     setObjectPick({destination,trigger});
   }
   function cancelObjectPick(returnFocus:boolean) {
@@ -223,25 +232,58 @@ export function ReportBuilder({catalog,client,initialReport,folderId,onReports}:
     if(returnFocus)objectPick.trigger.focus({preventScroll:true});
     return true;
   }
-  function startFilter(id:string) {
+  function explainQueryAction(hint:string) {
+    setQueryHint(hint);
+    setQueryOpen(true);
+  }
+  function startFilter(id:string,source:DragSource) {
     const count=definition.filters?.length??0;
     const field=byId[id];
-    if(!filterEditor && count<32 && field) {
-      setObjectPick(null);
-      revealDestination('filters');
-      setFilterEditor({index:count,rule:newFilterRule(field)});
+    if(!field || filterEditor)return;
+    const moving=source==='fields';
+    if(moving && definition.filters?.some(rule=>rule.field===id)){
+      changeFields(definition.fields.filter(key=>key!==id));
+    }else{
+      if(count>=32){
+        explainQueryAction('Remove a filter before adding another.');
+        return;
+      }
+      setFilterEditor({index:count,rule:newFilterRule(field),moveField:moving?id:undefined,
+        overlapField:source==='objects'?id:undefined});
     }
-  }
-  const dropField:DropField=(id,zone,anchor,after)=>{
-    if(zone==='filters'){startFilter(id);return;}
-    if (!byId[id] || id===anchor) return;
     setObjectPick(null);
-    changeFields(placeField(definition.fields,id,anchor,after));
+    revealDestination('filters');
+  }
+  const dropField:DropField=(id,zone,source,anchor,after)=>{
+    if(!byId[id] || id===anchor || id===pendingMove)return;
+    if(zone==='filters'){startFilter(id,source);return;}
+    setObjectPick(null);
+    if(source==='filters'){
+      setDefinition(prev=>{
+        const fields=!anchor && prev.fields.includes(id)?prev.fields:placeField(prev.fields,id,anchor,after);
+        const filters=(prev.filters??[]).filter(rule=>rule.field!==id);
+        return updateFieldSelection(prev,fields,filters,byId);
+      });
+      setNotice('');setError('');
+      requestAnimationFrame(()=>document.querySelector<HTMLButtonElement>('[data-column="'+id+'"] .move-field')?.focus());
+    }else changeFields(placeField(definition.fields,id,anchor,after));
     revealDestination('fields');
   };
   function selectObjectField(id:string) {
-    if(objectPick)dropField(id,objectPick.destination);
+    if(id===pendingMove)return;
+    const inColumns=definition.fields.includes(id);
+    const inFilters=definition.filters?.some(rule=>rule.field===id);
+    if((objectPick?.destination==='filters' && inColumns && !inFilters) ||
+      (objectPick?.destination!=='filters' && !inColumns && inFilters)){
+      explainQueryAction('Drag this field from Objects into '+(inColumns?'Filters':'Columns')+' to use it in both sections.');
+      return;
+    }
+    setQueryHint('');
+    if(objectPick)dropField(id,objectPick.destination,'objects');
     else toggle(id);
+  }
+  function trackField(source:DragSource,id:string|null) {
+    setPickedField(id===null?null:{source,id});
   }
   function moveOutputColumn(id:string,anchor:string,after:boolean) {
     if(id===anchor)return;
@@ -259,7 +301,7 @@ export function ReportBuilder({catalog,client,initialReport,folderId,onReports}:
     if (!discardOK()) return;
     setWorking(true); setModalError('');
     try { const r=await client.open(id);
-      setEditorSession(n=>n+1);setFilterEditor(null);setObjectPick(null);setFieldInteraction(false);setFieldDragging(false);
+      setEditorSession(n=>n+1);setFilterEditor(null);setObjectPick(null);setPickedField(null);setFieldDragging(false);setQueryHint('');
       setQueryOpen(false);setExpandedCards({});
       setSaved(r); setTitle(r.name); setBaseTitle(r.name); setRenaming(false); setDefinition(r.definition); setBaseline(definitionKey(r.definition));
       setResult(null); setDialog(null); setNotice('Report opened'); void run(r.definition);
@@ -297,7 +339,7 @@ export function ReportBuilder({catalog,client,initialReport,folderId,onReports}:
           <Icon name="folder" size={16}/>Saved reports</button>}
         <div className="save-actions">
           <p role="status" className={'doc-status'+(dirty?' unsaved':'')}>{dirty?'Unsaved changes':saved?'Saved':'Draft'}</p>
-          <button type="button" className="primary-btn" disabled={!hasOutput || renaming}
+          <button type="button" className="primary-btn" disabled={!hasOutput || renaming || !!pendingMove}
             onClick={()=>{setCollision(null);setModalError('');setName(title);setDialog('save');}}>
             <Icon name="save" size={16}/>Save report</button>
         </div>
@@ -305,27 +347,31 @@ export function ReportBuilder({catalog,client,initialReport,folderId,onReports}:
     </header>
     </div>
     <main className="editor-content" onKeyDown={e=>{
-      if(queryOpen && !fieldDragging && e.key==='Escape' && !e.defaultPrevented && !(e.target as HTMLElement).closest('dialog[open]')){
+      if(queryOpen && !pickedField && e.key==='Escape' && !e.defaultPrevented && !(e.target as HTMLElement).closest('dialog[open]')){
         e.preventDefault();
         closeQuery();
       }
     }}>
       <LibraryLayout newReport={newReport} queryVisible={queryVisible} toggleQuery={toggleQuery} closeQuery={closeQuery}
         queryToggle={queryToggle} queryClose={queryClose}
-        library={<FieldLibrary key={editorSession} catalog={catalog} fields={definition.fields} selectField={selectObjectField}
+        library={<FieldLibrary key={editorSession} catalog={catalog} fields={selectedFields} selectField={selectObjectField}
           searchRef={objectSearch} pickingFilter={objectPick?.destination==='filters'} cancelPick={cancelObjectPick}
-          drop={dropField} onInteraction={setFieldInteraction} onDrag={setFieldDragging}/>}>
+          drop={dropField} onInteraction={id=>trackField('objects',id)} onDrag={setFieldDragging}/>}>
         <div className="query-body" id="query-contents">
           <div className="query-scroll">
+            {queryHint && <p className="query-drag-hint" role="status">{queryHint}</p>}
             <FieldsPanel key={'fields-'+editorSession} fields={columns} outputIds={outputIds} disclosure={cardDisclosure('fields')}
               entities={catalog.entities} columnNames={definition.columnNames} rename={renameColumn}
               onAdd={e=>pickObject('fields',e.currentTarget)}
-              order={definition.order??[]} drop={dropField} remove={toggle} sort={changeSort} showDropTarget={fieldInteraction}
+              order={definition.order??[]} drop={dropField} onInteraction={id=>trackField('fields',id)}
+              remove={toggle} sort={changeSort} showDropTarget={pickedField?.source==='objects' || pickedField?.source==='filters'}
               groupBy={groupBy} summary={grouped} canSummarize={summaryIds.length>0} onSummaryChange={setSummary}
               aggregations={definition.aggregations} onAggregationChange={changeAggregation}/>
             <FiltersPanel key={editorSession} fields={catalog.fields} entities={catalog.entities} lookup={lookup} rules={definition.filters??[]}
               columnNames={definition.columnNames} rename={renameColumn} disclosure={cardDisclosure('filters')}
-              editor={filterEditor} setEditor={setFilterEditor} showDropTarget={fieldInteraction}
+              editor={filterEditor} setEditor={setFilterEditor} drop={dropField} onInteraction={id=>trackField('filters',id)}
+              outputFields={definition.fields} incomingColumn={pickedField?.source==='fields'?pickedField.id:undefined}
+              showDropTarget={pickedField?.source==='objects' || pickedField?.source==='fields'}
               onAdd={e=>pickObject('filters',e.currentTarget)} onChange={changeFilters}/>
           </div>
           <div className="query-footer">
@@ -339,7 +385,7 @@ export function ReportBuilder({catalog,client,initialReport,folderId,onReports}:
       </LibraryLayout>
       <PreviewPane data={displayData} byId={byId} stale={Boolean(shown && shown.key!==previewKey(definition,outputIds))} error={error}
         entities={catalog.entities} columnNames={definition.columnNames} run={()=>void run(definition)} canMove={sameColumns} move={moveOutputColumn}
-        busy={busy} hasFields={Boolean(definition.fields.length)} hasOutput={hasOutput}/>
+        busy={busy} pendingFilterMove={!!pendingMove} hasFields={Boolean(definition.fields.length)} hasOutput={hasOutput}/>
       <p className="sr-only" role="status">{notice}</p>
     </main>
     {columnRename && <Modal title="Rename column" close={closeColumnRename}><form onSubmit={e=>{

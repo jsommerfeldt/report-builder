@@ -5,6 +5,7 @@ import {Icon} from './Icon';
 import {ValuePicker} from './ValuePicker';
 import {CardDisclosure,QueryCard} from './QueryCard';
 import {filtersHelp} from './QueryHelp';
+import {DropField,useFieldDrag} from './useFieldDrag';
 
 const labels:Record<FilterOp,string> = {in:'is any of',eq:'equals',contains:'contains',gte:'at least',lte:'at most',blank:'is blank',relative:'relative to now'};
 const defaultPeriod:RelativePeriod={direction:'last',amount:7,unit:'days'};
@@ -38,12 +39,18 @@ function changeCondition(rule:ReportFilter,op:FilterOp):ReportFilter {
     (Array.isArray(value)?value[0]??'':value);
   return {field:rule.field,enabled:rule.enabled,op,value:next,...(rule.caseSensitive && op!=='blank'?{caseSensitive:true}:{})};
 }
-export type FilterEditor = {index:number;rule:ReportFilter}|null;
+export type FilterEditor = {index:number;rule:ReportFilter;moveField?:string;overlapField?:string}|null;
 interface Props { fields:Field[]; entities:Catalog['entities']; rules:ReportFilter[]; lookup:ReportClient['values']; onChange(rules:ReportFilter[]):void;
   columnNames?:ColumnNames; rename(field:Field,trigger:HTMLButtonElement):void;
+  drop:DropField; onInteraction(field:string|null):void; outputFields:string[]; incomingColumn?:string;
   editor:FilterEditor;setEditor(value:FilterEditor):void;onAdd:React.MouseEventHandler<HTMLButtonElement>;showDropTarget:boolean;disclosure:CardDisclosure }
-export function FiltersPanel({fields,entities,rules,onChange,lookup,editor,setEditor,onAdd,showDropTarget,disclosure,columnNames,rename}:Props) {
+export function FiltersPanel({fields,entities,rules,onChange,lookup,editor,setEditor,onAdd,showDropTarget,disclosure,columnNames,rename,
+  drop,onInteraction,outputFields,incomingColumn}:Props) {
   const editing = editor && fields.find(f=>f.id===editor.rule.field);
+  const {begin,moved}=useFieldDrag(drop,'filters',onInteraction);
+  const blocked=(field:Field)=>outputFields.includes(field.id) && editor?.overlapField!==field.id &&
+    !rules.some(rule=>rule.field===field.id);
+  const canReceive=!editor && (rules.length<32 || rules.some(rule=>rule.field===incomingColumn));
   const addButton=useRef<HTMLButtonElement>(null);
   const formRef=useRef<HTMLFormElement>(null);
   const editorIndex=editor?.index;
@@ -51,7 +58,7 @@ export function FiltersPanel({fields,entities,rules,onChange,lookup,editor,setEd
   const editorCondition=editor?.rule.op;
   useLayoutEffect(()=>{
     if(disclosure.expanded && editorIndex!==undefined){
-      formRef.current?.querySelector('select')?.focus({preventScroll:true});
+      formRef.current?.querySelector<HTMLSelectElement>('select:not(:disabled)')?.focus({preventScroll:true});
     }
   },[disclosure.expanded,editorIndex]);
   useLayoutEffect(()=>{
@@ -74,6 +81,7 @@ export function FiltersPanel({fields,entities,rules,onChange,lookup,editor,setEd
   const relative=value!==undefined && isPeriod(value)?value:null;
   const valid=relative?Number.isInteger(relative.amount) && relative.amount>=1 && relative.amount<=365:
     (Array.isArray(value)?value.length:typeof value==='string' && Boolean(value.trim()));
+  const canApply=!!editor && !!editing && (!!editor.moveField || !blocked(editing)) && (editor.rule.op==='blank' || valid);
   function updateRule(rule:ReportFilter) {if(editor)setEditor({...editor,rule});}
   function closeEditor() {
     setEditor(null);
@@ -81,22 +89,23 @@ export function FiltersPanel({fields,entities,rules,onChange,lookup,editor,setEd
   }
   function commit(e:React.FormEvent) {
     e.preventDefault();
-    if (!editor || !editing || (editor.rule.op!=='blank' && !valid)) return;
+    if(!editor || !canApply)return;
     const next = rules.slice();
     const value=editor.rule.value;
     next[editor.index] = {...editor.rule,value:editor.rule.op==='blank'?'':typeof value==='string'?value.trim():value};
     onChange(next);closeEditor();
   }
-  return <QueryCard title="Filters" icon="filter" className="filters" dropZone={!editor && rules.length<32?'filters':undefined}
+  return <QueryCard title="Filters" icon="filter" className="filters" dropZone={canReceive?'filters':undefined}
     showDropTarget={showDropTarget} disclosure={disclosure} help={filtersHelp}
     status={editor && !disclosure.expanded && !showDropTarget?'Filter draft':undefined}>
     {editor ? <form id="filter-editor" ref={formRef} className="filter-editor" onSubmit={commit}>
       <h5>{editor.index<rules.length?'Edit Filter':'New Filter'}</h5>
+      {editor.moveField && <p className="hint">Apply the filter to finish the move. Cancel to restore the column.</p>}
       <div className="filter-control"><label htmlFor="filter-field">Field</label>
-        <select id="filter-field" required value={editor.rule.field} title={editing?sourceColumn(editing,entities):undefined}
+        <select id="filter-field" required disabled={Boolean(editor.moveField)} value={editor.rule.field} title={editing?sourceColumn(editing,entities):undefined}
           onChange={e=>updateRule(newFilterRule(fields.find(field=>field.id===e.target.value),editor.rule.enabled))}>
           <option value="" disabled>Choose a field</option>
-          <FieldOptions fields={fields} entities={entities} columnNames={columnNames}/>
+          <FieldOptions fields={fields} entities={entities} columnNames={columnNames} disabled={blocked}/>
         </select>
       </div>
       {editing && <>
@@ -139,15 +148,24 @@ export function FiltersPanel({fields,entities,rules,onChange,lookup,editor,setEd
       </>}
       <div className="filter-buttons">
         <button type="button" className="secondary-btn" onClick={closeEditor}>Cancel</button>
-        <button type="submit" className="primary-btn" disabled={!editing || (editor.rule.op!=='blank' && !valid)}>Apply filter</button>
+        <button type="submit" className="primary-btn" disabled={!canApply}>Apply filter</button>
       </div>
     </form> : <div className="filter-overview">
       {rules.length>0 && <ul className="filter-list" aria-label="Filter rules">{rules.map((r,i)=>{
         const f=fields.find(field=>field.id===r.field)!;
         const name=columnNames?.[f.id]??f.label;
         return <li key={i} className={'filter-rule-grid'+(!r.enabled?' rule-off':'')}>
+          <button type="button" className="filter-move" aria-label={'Move '+name+' to Columns'} aria-keyshortcuts="Shift+ArrowUp"
+            title="Drag to Columns or press Shift+Up" onPointerDown={e=>begin(e,f.id)}
+            onKeyDown={e=>{
+              if(e.shiftKey && e.key==='ArrowUp'){e.preventDefault();drop(f.id,'fields','filters');}
+            }}
+            onClick={e=>{if(e.detail===0)drop(f.id,'fields','filters');}}><Icon name="grip" size={14}/></button>
           <button type="button" className="filter-content" aria-label={'Edit filter '+(i+1)} aria-describedby={'filter-name-'+i}
-            title={sourceColumn(f,entities)} onClick={()=>setEditor({index:i,rule:{...r}})}>
+            title={sourceColumn(f,entities)} onPointerDown={e=>begin(e,f.id)} onClick={e=>{
+              if(moved.current && e.detail>0){moved.current=false;return;}
+              setEditor({index:i,rule:{...r}});
+            }}>
             <strong className="filter-name" id={'filter-name-'+i}>{name}</strong>
             <span>{describe(r,f)}</span></button>
           <button type="button" className="rename-column" title={'Rename '+name} aria-haspopup="dialog"

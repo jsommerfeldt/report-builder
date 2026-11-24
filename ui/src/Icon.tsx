@@ -28,6 +28,7 @@ const paths = {
   fields: 'M4 6h16 M4 12h16 M4 18h16 M8 4v4 M15 10v4 M10 16v4',
   filter: 'M3 5h18l-7 8v5l-4 2v-7z',
   grip: 'M9 6h.1 M15 6h.1 M9 12h.1 M15 12h.1 M9 18h.1 M15 18h.1',
+  resize: 'M5 19 19 5 M11 19l8-8 M17 19l2-2',
   clock: 'M21 12a9 9 0 11-18 0 9 9 0 0118 0 M12 7v5l3 2',
   lock: 'M6 11h12v9H6z M8 11V8a4 4 0 118 0v3',
 };

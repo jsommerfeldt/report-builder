@@ -23,8 +23,8 @@ export function resultLabel(field:Field, aggregation?:Aggregation, name?:string)
 interface Props { data: Preview | null; byId: Record<string, Field>; stale: boolean; busy: boolean; error:string;
   entities:Catalog['entities']; columnNames?:ColumnNames; run():void;
   canMove:boolean; move(id:string,anchor:string,after:boolean):void;
-  hasFields: boolean; hasOutput:boolean; }
-export function PreviewPane({data,byId,entities,columnNames,run,stale,busy,error,hasFields,hasOutput,canMove,move}:Props) {
+  hasFields: boolean; hasOutput:boolean; pendingFilterMove:boolean; }
+export function PreviewPane({data,byId,entities,columnNames,run,stale,busy,error,hasFields,hasOutput,pendingFilterMove,canMove,move}:Props) {
   const table=useRef<HTMLTableElement>(null);
   const [widths,setWidths]=useState<Record<string,number>>({});
   const drag=useRef<{pointer:number; x:number; id:string; width:number}|null>(null);
@@ -75,7 +75,7 @@ export function PreviewPane({data,byId,entities,columnNames,run,stale,busy,error
     <div className="pane-header preview-head"><h2 id="preview-heading"><Icon name="grid" size={16}/>Preview</h2><div className="preview-actions">
       {data && manual && <button className="text-action" onClick={()=>setWidths({})}>Auto-fit columns</button>}
       {data && <span className="result-count" role="status">{data.rows.length.toLocaleString()} of {data.total.toLocaleString()} rows</span>}
-      <button type="button" className="primary-btn" disabled={busy || !hasOutput} onClick={run}>
+      <button type="button" className="primary-btn" disabled={busy || !hasOutput || pendingFilterMove} onClick={run}>
         <Icon name="play" size={15}/>{busy?'Running…':'Run preview'}
       </button>
     </div></div>
