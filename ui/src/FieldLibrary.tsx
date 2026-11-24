@@ -4,15 +4,15 @@ import {entityOrder} from './FieldOptions';
 import {DropField, useFieldDrag} from './useFieldDrag';
 import {Icon} from './Icon';
 
-export function FieldLibrary({catalog,fields,selectField,drop,onInteraction,searchRef,pickingFilter,cancelPick}: {
+export function FieldLibrary({catalog,fields,selectField,drop,onInteraction,onDrag,searchRef,pickingFilter,cancelPick}: {
   catalog:Catalog; fields:string[]; selectField(id:string):void; drop:DropField; onInteraction(active:boolean):void;
-  searchRef:React.RefObject<HTMLInputElement>; pickingFilter:boolean; cancelPick(returnFocus:boolean):boolean;
+  onDrag(active:boolean):void; searchRef:React.RefObject<HTMLInputElement>; pickingFilter:boolean; cancelPick(returnFocus:boolean):boolean;
 }) {
   const pressingField=useRef(false);
   const {begin,moved}=useFieldDrag(drop,active=>{
     pressingField.current=active;
     onInteraction(active);
-  });
+  },onDrag);
   const [search, setSearch] = useState('');
   const [open, setOpen] = useState<Entity[]>([]);
   const [collapsedMatches,setCollapsedMatches]=useState<Entity[]>([]);

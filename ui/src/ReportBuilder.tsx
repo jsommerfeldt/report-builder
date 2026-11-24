@@ -6,7 +6,7 @@ import {FieldLibrary} from './FieldLibrary';
 import {Icon} from './Icon';
 import {PreviewPane} from './PreviewPane';
 import {FilterEditor,FiltersPanel,newFilterRule} from './FiltersPanel';
-import {EditorPane, editorPanes, LibraryLayout, useEditorPanes} from './LibraryLayout';
+import {LibraryLayout} from './LibraryLayout';
 import {FieldsPanel} from './FieldsPanel';
 import {Destination,DropField} from './useFieldDrag';
 import {WorkspaceBar} from './WorkspaceBar';
@@ -77,12 +77,13 @@ export function ReportBuilder({catalog,client,initialReport,folderId,onReports}:
   const [filterEditor,setFilterEditor]=useState<FilterEditor>(null);
   const [objectPick,setObjectPick]=useState<{destination:Destination;trigger:HTMLButtonElement}|null>(null);
   const objectSearch=useRef<HTMLInputElement>(null);
-  const {compact,drawer,objectsOpen,queryOpen,setOpen}=useEditorPanes(newReport);
-  const headings={objects:useRef<HTMLButtonElement>(null),query:useRef<HTMLButtonElement>(null)};
-  const reopen={objects:useRef<HTMLButtonElement>(null),query:useRef<HTMLButtonElement>(null)};
+  const [queryOpen,setQueryOpen]=useState(false);
+  const queryToggle=useRef<HTMLButtonElement>(null);
+  const queryClose=useRef<HTMLButtonElement>(null);
   const [expandedCards,setExpandedCards]=useState<Partial<Record<Destination,boolean>>>(()=>newReport?{fields:true}:{});
   const [fieldInteraction,setFieldInteraction]=useState(false);
-  const queryVisible=queryOpen || (!compact && objectsOpen && fieldInteraction);
+  const [fieldDragging,setFieldDragging]=useState(false);
+  const queryVisible=queryOpen || fieldDragging;
   const [notice,setNotice] = useState('');
   const generation = useRef(0);
   const byId = useMemo(() => Object.fromEntries(catalog.fields.map(f => [f.id, f])) as Record<string,Field>, [catalog]);
@@ -116,10 +117,10 @@ export function ReportBuilder({catalog,client,initialReport,folderId,onReports}:
   }
   useEffect(() => { if(initial.fields.length)void run(initial); return () => { generation.current++; }; }, [initial,client]);
   useLayoutEffect(()=>{
-    if(!objectPick || !objectsOpen)return;
+    if(!objectPick)return;
     objectSearch.current?.focus();
     objectSearch.current?.select();
-  },[objectPick,objectsOpen]);
+  },[objectPick]);
   useEffect(() => {
     if (!dirty) return;
     const warn=(e:BeforeUnloadEvent) => { e.preventDefault(); e.returnValue=''; };
@@ -200,29 +201,26 @@ export function ReportBuilder({catalog,client,initialReport,folderId,onReports}:
     };
   }
   function revealDestination(card:Destination) {
-    setOpen('query',true);
+    setQueryOpen(true);
     cardDisclosure(card).setExpanded(true);
   }
-  function showPane(pane:EditorPane) {
-    setOpen(pane,true);
-    requestAnimationFrame(()=>headings[pane].current?.focus({preventScroll:true}));
+  function toggleQuery() {
+    if(queryOpen){closeQuery();return;}
+    setQueryOpen(true);
+    requestAnimationFrame(()=>queryClose.current?.focus({preventScroll:true}));
   }
-  function closePane(pane:EditorPane) {
-    if(pane==='objects')setObjectPick(null);
-    setOpen(pane,false);
-    requestAnimationFrame(()=>reopen[pane].current?.focus({preventScroll:true}));
+  function closeQuery() {
+    setObjectPick(null);
+    setQueryOpen(false);
+    requestAnimationFrame(()=>queryToggle.current?.focus({preventScroll:true}));
   }
   function pickObject(destination:Destination,trigger:HTMLButtonElement) {
     setObjectPick({destination,trigger});
-    setOpen('objects',true);
   }
   function cancelObjectPick(returnFocus:boolean) {
     if(!objectPick)return false;
     setObjectPick(null);
-    if(returnFocus){
-      setOpen('query',true);
-      requestAnimationFrame(()=>objectPick.trigger.focus({preventScroll:true}));
-    }
+    if(returnFocus)objectPick.trigger.focus({preventScroll:true});
     return true;
   }
   function startFilter(id:string) {
@@ -242,12 +240,7 @@ export function ReportBuilder({catalog,client,initialReport,folderId,onReports}:
     revealDestination('fields');
   };
   function selectObjectField(id:string) {
-    if(objectPick){
-      dropField(id,objectPick.destination);
-      if(compact && objectPick.destination==='fields'){
-        requestAnimationFrame(()=>headings.query.current?.focus({preventScroll:true}));
-      }
-    }
+    if(objectPick)dropField(id,objectPick.destination);
     else toggle(id);
   }
   function moveOutputColumn(id:string,anchor:string,after:boolean) {
@@ -266,7 +259,8 @@ export function ReportBuilder({catalog,client,initialReport,folderId,onReports}:
     if (!discardOK()) return;
     setWorking(true); setModalError('');
     try { const r=await client.open(id);
-      setEditorSession(n=>n+1);setFilterEditor(null);setObjectPick(null);setFieldInteraction(false);setExpandedCards({});
+      setEditorSession(n=>n+1);setFilterEditor(null);setObjectPick(null);setFieldInteraction(false);setFieldDragging(false);
+      setQueryOpen(false);setExpandedCards({});
       setSaved(r); setTitle(r.name); setBaseTitle(r.name); setRenaming(false); setDefinition(r.definition); setBaseline(definitionKey(r.definition));
       setResult(null); setDialog(null); setNotice('Report opened'); void run(r.definition);
     } catch(e) {setModalError(message(e));} finally {setWorking(false);}
@@ -311,16 +305,17 @@ export function ReportBuilder({catalog,client,initialReport,folderId,onReports}:
     </header>
     </div>
     <main className="editor-content" onKeyDown={e=>{
-      if(compact && drawer && e.key==='Escape' && !e.defaultPrevented && !(e.target as HTMLElement).closest('dialog')){
+      if(queryOpen && !fieldDragging && e.key==='Escape' && !e.defaultPrevented && !(e.target as HTMLElement).closest('dialog[open]')){
         e.preventDefault();
-        closePane(drawer);
+        closeQuery();
       }
     }}>
-      <LibraryLayout newReport={newReport} objectsOpen={objectsOpen} queryOpen={queryVisible} close={closePane} headings={headings}
+      <LibraryLayout newReport={newReport} queryVisible={queryVisible} toggleQuery={toggleQuery} closeQuery={closeQuery}
+        queryToggle={queryToggle} queryClose={queryClose}
         library={<FieldLibrary key={editorSession} catalog={catalog} fields={definition.fields} selectField={selectObjectField}
           searchRef={objectSearch} pickingFilter={objectPick?.destination==='filters'} cancelPick={cancelObjectPick}
-          drop={dropField} onInteraction={setFieldInteraction}/>}>
-        <div className="query-body" id={editorPanes.query.contents}>
+          drop={dropField} onInteraction={setFieldInteraction} onDrag={setFieldDragging}/>}>
+        <div className="query-body" id="query-contents">
           <div className="query-scroll">
             <FieldsPanel key={'fields-'+editorSession} fields={columns} outputIds={outputIds} disclosure={cardDisclosure('fields')}
               entities={catalog.entities} columnNames={definition.columnNames} rename={renameColumn}
@@ -344,11 +339,6 @@ export function ReportBuilder({catalog,client,initialReport,folderId,onReports}:
       </LibraryLayout>
       <PreviewPane data={displayData} byId={byId} stale={Boolean(shown && shown.key!==previewKey(definition,outputIds))} error={error}
         entities={catalog.entities} columnNames={definition.columnNames} run={()=>void run(definition)} canMove={sameColumns} move={moveOutputColumn}
-        paneActions={(Object.keys(editorPanes) as EditorPane[]).filter(pane=>!(pane==='objects'?objectsOpen:queryVisible)).map(pane=>{
-          const {icon,id,label}=editorPanes[pane];
-          return <button key={pane} ref={reopen[pane]} type="button" className="secondary-btn" aria-controls={id}
-            aria-expanded="false" onClick={()=>showPane(pane)}><Icon name={icon} size={15}/>Show {label}</button>;
-        })}
         busy={busy} hasFields={Boolean(definition.fields.length)} hasOutput={hasOutput}/>
       <p className="sr-only" role="status">{notice}</p>
     </main>

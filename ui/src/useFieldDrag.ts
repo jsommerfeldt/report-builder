@@ -4,7 +4,7 @@ import {ReorderMotion} from './ReorderMotion';
 export type Destination='fields'|'filters';
 export type DropField=(id:string,zone:Destination,anchor?:string,after?:boolean)=>void;
 
-export function useFieldDrag(drop:DropField,onInteraction?:(active:boolean)=>void) {
+export function useFieldDrag(drop:DropField,onInteraction?:(active:boolean)=>void,onDrag?:(active:boolean)=>void) {
   const stop=useRef<(notify?:boolean)=>void>(()=>{});
   const moved=useRef(false);
   useEffect(()=>()=>stop.current(false),[]);
@@ -37,7 +37,10 @@ export function useFieldDrag(drop:DropField,onInteraction?:(active:boolean)=>voi
     }
     function track(p:PointerEvent) {
       if(p.pointerId!==pointer || (!moved.current && Math.hypot(p.clientX-x,p.clientY-y)<5))return;
-      moved.current=true;
+      if(!moved.current){
+        moved.current=true;
+        onDrag?.(true);
+      }
       const hit=document.elementFromPoint(p.clientX,p.clientY)?.closest<HTMLElement>('[data-library-zone]')??null;
       if(hit!==zone){
         leave(false);zone=hit;
@@ -56,7 +59,10 @@ export function useFieldDrag(drop:DropField,onInteraction?:(active:boolean)=>voi
       window.removeEventListener('pointercancel',cancelPointer);window.removeEventListener('blur',cancel);
       source.removeEventListener('lostpointercapture',cancelPointer);
       window.removeEventListener('keydown',escape);stop.current=()=>{};
-      if(notify)onInteraction?.(false);
+      if(notify){
+        onInteraction?.(false);
+        onDrag?.(false);
+      }
     }
     function cancel() {moved.current=true;cleanup();}
     function cancelPointer(e:PointerEvent) {if(e.pointerId===pointer)cancel();}
@@ -69,12 +75,13 @@ export function useFieldDrag(drop:DropField,onInteraction?:(active:boolean)=>voi
         if(name==='fields' && slot)drop(id,'fields',slot.anchor,slot.after);
       } finally {
         onInteraction?.(false);
+        onDrag?.(false);
       }
     }
     stop.current=cleanup;window.addEventListener('pointermove',track);window.addEventListener('pointerup',finish);
     window.addEventListener('pointercancel',cancelPointer);window.addEventListener('blur',cancel);window.addEventListener('keydown',escape);
     if(onInteraction) {
-      // Keep the original field press when Query opens temporarily.
+      // Keep the original field press if Query opens during the drag.
       source.setPointerCapture(pointer);
       source.addEventListener('lostpointercapture',cancelPointer);
       onInteraction(true);
