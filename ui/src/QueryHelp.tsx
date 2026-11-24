@@ -5,7 +5,7 @@ export const columnsHelp={
   title:'Columns Help',
   className:'mode-dialog',
   body:<><div className="query-help-content">
-    <p>Select fields in <strong>Objects</strong> or drag them into <strong>Columns</strong>.</p>
+    <p>Choose <strong>Add column</strong> to pick your first field. You can also select fields in <strong>Objects</strong> or drag them into <strong>Columns</strong>.</p>
     <dl>
       <div><dt>Column Order</dt><dd>Drag <strong>Shipping State</strong> above <strong>Sales</strong> to show the state first. The up and down arrow keys also move a focused column.</dd></div>
       <div><dt>Group</dt><dd>Turn on <strong>Group</strong> for each column that defines a group. For each numeric column, choose <strong>Sum</strong>, <strong>Average</strong>, <strong>Minimum</strong>, <strong>Maximum</strong>, or <strong>Count</strong>. Count counts values and skips blanks. With no groups selected, <strong>Totals only</strong> applies the same calculations across all matching rows.</dd></div>

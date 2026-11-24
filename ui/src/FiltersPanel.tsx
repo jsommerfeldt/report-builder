@@ -156,7 +156,7 @@ export function FiltersPanel({fields,entities,rules,onChange,lookup,editor,setEd
           <button type="button" className="remove-rule" aria-label={'Remove filter '+(i+1)} onClick={()=>onChange(rules.filter((_,j)=>j!==i))}><Icon name="close" size={14}/></button>
         </li>;
       })}</ul>}
-      <button ref={addButton} type="button" className="add-filter" disabled={rules.length>=32} onClick={()=>start()}>
+      <button ref={addButton} type="button" className="query-add" disabled={rules.length>=32} onClick={()=>start()}>
         <Icon name="plus" size={14}/>Add filter{showDropTarget && <span className="hint" aria-hidden="true">Drop a field here</span>}
       </button>
     </div>}

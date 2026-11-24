@@ -250,7 +250,7 @@ export function ReportBuilder({catalog,client,initialReport,folderId,onReports}:
           </div>
           <div className="query-body" id="query-contents" hidden={!queryOpen}>
             <div className="query-scroll">
-              <FieldsPanel key={'fields-'+editorSession} fields={columns} outputIds={outputIds} disclosure={cardDisclosure('fields')}
+              <FieldsPanel key={'fields-'+editorSession} catalog={catalog} fields={columns} outputIds={outputIds} disclosure={cardDisclosure('fields')}
                 order={definition.order??[]} drop={dropField} remove={toggle} sort={changeSort} showDropTarget={fieldInteraction}
                 groupBy={grouped?groupBy:[]} totalsOnly={grouped && !groupBy.length}
                 aggregations={definition.aggregations} onAggregationChange={changeAggregation}

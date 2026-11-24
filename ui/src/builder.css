@@ -179,17 +179,22 @@
 .field-direction[aria-checked=true]:enabled { color: var(--accent-hover); background: var(--accent-subtle); }
 .remove-field, .remove-rule { display: grid; place-items: center; padding: 4px; border-radius: var(--radius); color: var(--muted); }
 .remove-field:hover, .remove-rule:hover:enabled { background: var(--danger-subtle); color: var(--danger); }
-.drop-hint, .add-filter {
+.query-add {
   display: flex;
   align-items: center;
   gap: 6px;
+  width: 100%;
   min-height: 36px;
   padding: 6px 9px;
   border: 1px dashed var(--line-control);
   border-radius: var(--radius);
-  color: var(--muted);
+  color: var(--accent-hover);
   font-size: 12px;
+  font-weight: 600;
+  text-align: left;
 }
+.query-add .hint { margin-left: auto; font-weight: 400; }
+.query-add:hover:enabled { background: var(--accent-subtle); border-color: var(--accent); }
 .more-fields { margin-top: 4px; }
 .filter-overview { display: grid; gap: 8px; }
 .filter-bulk { justify-self: end; }
@@ -207,9 +212,6 @@
 .switch span { display: block; width: 12px; height: 12px; border-radius: 50%; background: var(--surface); }
 .switch[aria-checked=true] { background: var(--accent); }
 .switch[aria-checked=true] span { transform: translateX(12px); }
-.add-filter { width: 100%; color: var(--accent-hover); font-weight: 600; text-align: left; }
-.add-filter .hint { margin-left: auto; font-weight: 400; }
-.add-filter:hover:enabled { background: var(--accent-subtle); border-color: var(--accent); }
 .hint { color: var(--muted); font-size: 11px; }
 .filter-buttons { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; padding-top: 9px; border-top: 1px solid var(--line); }
 .filter-buttons button { min-height: 30px; padding: 4px 9px; font-size: 12px; }

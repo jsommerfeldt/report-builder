@@ -1,11 +1,14 @@
-import React,{useState} from 'react';
-import {Aggregation,aggregationLabels,Aggregations,Field,Order} from './client';
+import React,{useRef,useState} from 'react';
+import {Aggregation,aggregationLabels,Aggregations,Catalog,Field,Order} from './client';
+import {FieldOptions} from './FieldOptions';
 import {Icon} from './Icon';
+import {Modal} from './Modal';
 import {DropField,useFieldDrag} from './useFieldDrag';
 import {CardDisclosure,QueryCard} from './QueryCard';
 import {columnsHelp} from './QueryHelp';
 
 interface Props {
+  catalog:Catalog;
   fields:Field[]; outputIds:string[]; order:Order[]; drop:DropField; showDropTarget:boolean; disclosure:CardDisclosure;
   remove(id:string):void; sort(setting:Order):void;
   groupBy:string[]; totalsOnly:boolean; aggregations?:Aggregations;
@@ -13,19 +16,29 @@ interface Props {
   onAggregationChange(id:string,value:Aggregation):void;
 }
 
-export function FieldsPanel({fields,outputIds,order,drop,remove,sort,showDropTarget,disclosure,
+export function FieldsPanel({catalog,fields,outputIds,order,drop,remove,sort,showDropTarget,disclosure,
   groupBy,totalsOnly,onGroupChange,onTotalsChange,aggregations,onAggregationChange}:Props) {
   const [expanded,setExpanded]=useState(true);
+  const [columnChoice,setColumnChoice]=useState<string|null>(null);
+  const focusAfterPicker=useRef<HTMLButtonElement>(null);
   const {begin}=useFieldDrag(drop);
   const settings=new Map(order.map(item=>[item.field,item]));
   const priorities=order.filter(item=>item.enabled!==false).map((_,i)=>i+1);
   const visible=expanded?fields:fields.slice(0,3);
+  function closePicker() {
+    setColumnChoice(null);
+    requestAnimationFrame(()=>focusAfterPicker.current?.focus());
+  }
   return <QueryCard title="Columns" icon="grid" className="selection" dropZone="fields" showDropTarget={showDropTarget}
     disclosure={disclosure} help={columnsHelp}>
-    <div className="configuration-scroll" tabIndex={0} role="group" aria-label="Column order, grouping and sorting">
-    {fields.length>0 && <div className="field-control-grid field-headings" aria-hidden="true">
+    {fields.length===0 ? <div className="field-stack">
+      <button ref={focusAfterPicker} type="button" className="query-add" aria-haspopup="dialog" onClick={()=>setColumnChoice('')}>
+        <Icon name="plus" size={14}/>Add column{showDropTarget && <span className="hint" aria-hidden="true">Drop a field here</span>}
+      </button>
+    </div> : <div className="configuration-scroll" tabIndex={0} role="group" aria-label="Column order, grouping and sorting">
+    <div className="field-control-grid field-headings" aria-hidden="true">
       <span>Column Order</span><span>Group</span><span>Sort</span><span>Priority</span><span>Direction</span><span/>
-    </div>}
+    </div>
     <div className="field-stack" id="ordered-fields">{visible.map((f,i)=>{
       const setting=settings.get(f.id);
       const enabled=!!setting && setting.enabled!==false;
@@ -34,7 +47,7 @@ export function FieldsPanel({fields,outputIds,order,drop,remove,sort,showDropTar
       const direction=setting?.direction??'asc';
       const desc=direction==='desc';
       return <div className={'field-control-grid field-line '+f.entity} key={f.id} data-column={f.id}>
-        <button type="button" className="move-field" aria-label={'Move '+f.label+', column '+(i+1)}
+        <button ref={i===0?focusAfterPicker:null} type="button" className="move-field" aria-label={'Move '+f.label+', column '+(i+1)}
           title={'Drag '+f.label+' or use the up and down arrow keys'}
           onPointerDown={e=>begin(e,f.id)} onKeyDown={e=>{
             const up=e.key==='ArrowUp'||(e.altKey && e.key==='ArrowLeft');
@@ -68,12 +81,29 @@ export function FieldsPanel({fields,outputIds,order,drop,remove,sort,showDropTar
           onClick={()=>sort({field:f.id,direction:desc?'asc':'desc',enabled:true})}>{desc?'↓ Desc':'↑ Asc'}</button>
         <button type="button" className="remove-field" aria-label={'Remove '+f.label} onClick={()=>remove(f.id)}><Icon name="close" size={12}/></button>
       </div>;
-    })}{!fields.length && <span className="drop-hint">Select or drop fields here</span>}</div>
-    </div>
+    })}</div>
+    </div>}
     {fields.length>3 && <button className="text-action more-fields" aria-expanded={expanded} aria-controls="ordered-fields"
       onClick={()=>setExpanded(!expanded)}>{expanded?'Show less':'Show more ('+(fields.length-3)+')'}</button>}
     {!groupBy.length && fields.some(field=>field.measure) && <label className="totals-option">
       <input type="checkbox" checked={totalsOnly} onChange={e=>onTotalsChange(e.target.checked)}/>Totals only
     </label>}
+    {columnChoice!==null && <Modal title="Add column" close={closePicker}><form onSubmit={event=>{
+      event.preventDefault();
+      if(!columnChoice)return;
+      drop(columnChoice,'fields');
+      closePicker();
+    }}>
+      <label className="input-label" htmlFor="column-picker-field">Field</label>
+      <select id="column-picker-field" className="name-input" ref={select=>{if(select)select.autofocus=true;}}
+        required value={columnChoice} onChange={event=>setColumnChoice(event.target.value)}>
+        <option value="" disabled>Choose a field</option>
+        <FieldOptions fields={catalog.fields} entities={catalog.entities}/>
+      </select>
+      <footer>
+        <button type="button" className="secondary-btn" onClick={closePicker}>Cancel</button>
+        <button type="submit" className="primary-btn" disabled={!columnChoice}>Add column</button>
+      </footer>
+    </form></Modal>}
   </QueryCard>;
 }
