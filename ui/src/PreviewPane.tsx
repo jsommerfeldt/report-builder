@@ -71,7 +71,7 @@ export function PreviewPane({data,byId,entities,columnNames,run,stale,busy,error
     const current=measure();
     setWidths(prev=>({...prev,...current,[id]:clamp(current[id]+(e.key==='ArrowRight'?16:-16))}));
   }
-  return <section className="preview" aria-labelledby="preview-heading">
+  return <section className="preview" aria-labelledby="preview-heading" data-library-zone="preview">
     <div className="pane-header preview-head"><h2 id="preview-heading"><Icon name="grid" size={16}/>Preview</h2><div className="preview-actions">
       {data && manual && <button className="text-action" onClick={()=>setWidths({})}>Auto-fit columns</button>}
       {data && <span className="result-count" role="status">{data.rows.length.toLocaleString()} of {data.total.toLocaleString()} rows</span>}

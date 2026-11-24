@@ -3,7 +3,7 @@ import {ReorderMotion} from './ReorderMotion';
 
 export type Destination='fields'|'filters';
 export type DragSource='objects'|Destination;
-export type DropField=(id:string,zone:Destination,source:DragSource,anchor?:string,after?:boolean)=>void;
+export type DropField=(id:string,zone:Destination|'preview',source:DragSource,anchor?:string,after?:boolean)=>void;
 
 export function useFieldDrag(drop:DropField,dragSource:DragSource,onInteraction?:(field:string|null)=>void,onDrag?:(active:boolean)=>void) {
   const stop=useRef<(notify?:boolean)=>void>(()=>{});
@@ -82,6 +82,7 @@ export function useFieldDrag(drop:DropField,dragSource:DragSource,onInteraction?
       try {
         if(name==='filters')drop(id,'filters',dragSource);
         if(name==='fields' && (slot || dragSource==='filters'))drop(id,'fields',dragSource,slot?.anchor,slot?.after);
+        if(name==='preview')drop(id,'preview',dragSource);
       } finally {
         onInteraction?.(null);
         onDrag?.(false);

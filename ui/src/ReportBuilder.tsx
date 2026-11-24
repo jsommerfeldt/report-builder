@@ -266,7 +266,9 @@ export function ReportBuilder({catalog,client,initialReport,folderId,onReports}:
       });
       setNotice('');setError('');
       requestAnimationFrame(()=>document.querySelector<HTMLButtonElement>('[data-column="'+id+'"] .move-field')?.focus());
-    }else changeFields(placeField(definition.fields,id,anchor,after));
+    }else if(zone!=='preview' || !definition.fields.includes(id)){
+      changeFields(placeField(definition.fields,id,anchor,after));
+    }
     revealDestination('fields');
   };
   function selectObjectField(id:string) {

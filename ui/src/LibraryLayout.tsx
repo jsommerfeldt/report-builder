@@ -2,8 +2,8 @@ import React, {useEffect, useRef, useState} from 'react';
 import {Icon} from './Icon';
 
 const editorPanes={
-  objects:{id:'objects-pane',label:'Objects',initial:240,min:200},
-  query:{id:'query-pane',label:'Query',initial:450,min:400},
+  objects:{id:'objects-pane',label:'Objects',initial:248,min:240},
+  query:{id:'query-pane',label:'Query',initial:472,min:456},
 } as const;
 type EditorPane=keyof typeof editorPanes;
 function stored(key:string) { try { return localStorage.getItem('report-builder.library.'+key); } catch {return null;} }
@@ -11,6 +11,12 @@ function remember(key:string,value:string) { try { localStorage.setItem('report-
 const layoutPrefix=(newReport:boolean)=>newReport?'new-report-':'';
 const edgeGap=8;
 const clamp=(value:number,min:number,max:number)=>Math.max(min,Math.min(max,Math.round(value)));
+const resizeEdges={
+  'top-left':[-1,-1],top:[0,-1],'top-right':[1,-1],right:[1,0],
+  'bottom-right':[1,1],bottom:[0,1],'bottom-left':[-1,1],left:[-1,0],
+} as const;
+type ResizeEdge=keyof typeof resizeEdges;
+type PopupRect={x:number;y:number;width:number;height:number};
 
 interface DividerProps {
   pane:EditorPane; max:number; value:number; onResize(value:number):void;
@@ -57,19 +63,18 @@ export function LibraryLayout({library,children,newReport,queryVisible,toggleQue
   const layout=useRef<HTMLElement>(null);
   const objects=useRef<HTMLElement>(null);
   const popup=useRef<HTMLElement>(null);
-  const gesture=useRef<{mode:'move'|'resize';pointer:number;startX:number;startY:number;x:number;y:number;width:number;height:number}|null>(null);
+  const gesture=useRef<(PopupRect & {mode:'move'|ResizeEdge;pointer:number;startX:number;startY:number})|null>(null);
   const compact=workspace.width<=700;
   const maxObjects=Math.max(editorPanes.objects.min,Math.floor(workspace.width*.4));
   const objectsWidth=Math.min(preferred.objects,maxObjects);
   const widthLimit=workspace.width-2*edgeGap;
   const heightLimit=workspace.height-2*edgeGap;
-  const minWidth=Math.min(compact?280:editorPanes.query.min,widthLimit);
+  const minWidth=Math.min(editorPanes.query.min,widthLimit);
   const minHeight=Math.min(156,Math.max(0,heightLimit));
   const queryWidth=clamp(preferred.query,minWidth,widthLimit);
   const height=queryHeight?clamp(queryHeight,minHeight,heightLimit):undefined;
   const x=clamp(queryPosition?.x??(compact?edgeGap:objectsWidth+edgeGap),edgeGap,workspace.width-queryWidth-edgeGap);
   const y=clamp(queryPosition?.y??(compact?workspace.objectsHeight+6:52),edgeGap,workspace.height-(height??minHeight)-edgeGap);
-  const maxQueryWidth=workspace.width-x-edgeGap;
   const maxQueryHeight=workspace.height-y-edgeGap;
   useEffect(()=>{
     const editor=layout.current?.parentElement;
@@ -91,13 +96,22 @@ export function LibraryLayout({library,children,newReport,queryVisible,toggleQue
     setQueryPosition({x:clamp(left,edgeGap,workspace.width-width-edgeGap),
       y:clamp(top,edgeGap,workspace.height-height-edgeGap)});
   }
-  function resizeQuery(width:number,height:number) {
-    const nextHeight=clamp(height,minHeight,maxQueryHeight);
-    resize('query',clamp(width,minWidth,maxQueryWidth));
-    setQueryHeight(nextHeight);
-    remember(prefix+'query-height',String(nextHeight));
+  function resizeQuery(edge:ResizeEdge,rect:PopupRect,dx:number,dy:number) {
+    const [horizontal,vertical]=resizeEdges[edge];
+    const right=rect.x+rect.width, bottom=rect.y+rect.height;
+    const left=horizontal<0?clamp(rect.x+dx,edgeGap,right-minWidth):rect.x;
+    const top=vertical<0?clamp(rect.y+dy,edgeGap,bottom-minHeight):rect.y;
+    const nextRight=horizontal>0?clamp(right+dx,left+minWidth,workspace.width-edgeGap):right;
+    const nextBottom=vertical>0?clamp(bottom+dy,top+minHeight,workspace.height-edgeGap):bottom;
+    setQueryPosition({x:left,y:top});
+    if(horizontal)resize('query',nextRight-left);
+    if(vertical){
+      const nextHeight=nextBottom-top;
+      setQueryHeight(nextHeight);
+      remember(prefix+'query-height',String(nextHeight));
+    }
   }
-  function startGesture(mode:'move'|'resize',e:React.PointerEvent<HTMLElement>) {
+  function startGesture(mode:'move'|ResizeEdge,e:React.PointerEvent<HTMLElement>) {
     if(!e.isPrimary || e.button!==0 || !popup.current)return;
     const {width,height}=popup.current.getBoundingClientRect();
     gesture.current={mode,pointer:e.pointerId,startX:e.clientX,startY:e.clientY,x,y,width,height};
@@ -108,17 +122,17 @@ export function LibraryLayout({library,children,newReport,queryVisible,toggleQue
     if(!start || e.pointerId!==start.pointer)return;
     const dx=e.clientX-start.startX, dy=e.clientY-start.startY;
     if(start.mode==='move')moveQuery(start.x+dx,start.y+dy,start.width,start.height);
-    else resizeQuery(start.width+dx,start.height+dy);
+    else resizeQuery(start.mode,start,dx,dy);
   }
   function stopGesture() {gesture.current=null;}
-  function keyboardGesture(mode:'move'|'resize',e:React.KeyboardEvent<HTMLButtonElement>) {
+  function keyboardGesture(mode:'move'|ResizeEdge,e:React.KeyboardEvent<HTMLButtonElement>) {
     const directions:Record<string,[number,number]>={ArrowLeft:[-16,0],ArrowRight:[16,0],ArrowUp:[0,-16],ArrowDown:[0,16]};
     const delta=directions[e.key];
     if(!popup.current || !delta)return;
     e.preventDefault();
     const {width,height}=popup.current.getBoundingClientRect();
     if(mode==='move')moveQuery(x+delta[0],y+delta[1],width,height);
-    else resizeQuery(width+delta[0],height+delta[1]);
+    else resizeQuery(mode,{x,y,width,height},delta[0],delta[1]);
   }
   return <section ref={layout} className="build-report" aria-label="Build Report">
     <aside ref={objects} id={editorPanes.objects.id} className="builder-pane library-wrap" aria-labelledby="objects-pane-heading"
@@ -146,10 +160,10 @@ export function LibraryLayout({library,children,newReport,queryVisible,toggleQue
         </button>
       </div>
       {children}
-      <PaneDivider pane="query" value={queryWidth} max={maxQueryWidth} onResize={value=>resize('query',value)}/>
-      <button type="button" className="query-resize-corner" aria-label="Resize Query" title="Resize Query using drag or arrow keys"
-        onPointerDown={e=>startGesture('resize',e)} onPointerMove={trackGesture} onLostPointerCapture={stopGesture}
-        onKeyDown={e=>keyboardGesture('resize',e)}><Icon name="resize" size={14}/></button>
+      {(Object.keys(resizeEdges) as ResizeEdge[]).map(edge=><button key={edge} type="button" className="query-resize-handle"
+        data-edge={edge} aria-label={'Resize Query from '+edge.replace('-',' ')} title="Resize Query using drag or arrow keys"
+        onPointerDown={e=>startGesture(edge,e)} onPointerMove={trackGesture} onLostPointerCapture={stopGesture}
+        onKeyDown={e=>keyboardGesture(edge,e)}>{edge==='bottom-right' && <Icon name="resize" size={14}/>}</button>)}
     </section>
   </section>;
 }
