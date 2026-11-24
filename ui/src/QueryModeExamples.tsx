@@ -8,7 +8,6 @@ interface ExampleProps {
 }
 
 const dollars = new Intl.NumberFormat('en-US', {style:'currency', currency:'USD'});
-export const QUERY_MODE_EXAMPLE_TITLE = 'Query Mode Example';
 
 function ModeExample({grouped,description,columns,rows}:ExampleProps) {
   const id=grouped?'example-grouped':'example-ungrouped';
@@ -34,11 +33,11 @@ function ModeExample({grouped,description,columns,rows}:ExampleProps) {
 export function QueryModeExamples() {
   return <div className="mode-comparison">
       <ModeExample grouped={false}
-        description={<>Clear <strong>Group rows and total measures</strong> to show one row for each sale.</>}
+        description={<>Turn off the <strong>Group</strong> switches and clear <strong>Totals only</strong> to show one row per sale.</>}
         columns={['Shipping State','Product Description']}
         rows={[[['MN','Apples'],44.50],[['MN','Carrots'],55.50],[['WI','Apples'],72.25]]}/>
       <ModeExample grouped
-        description={<>Turn on grouping. In <strong>Group by</strong>, check <strong>Shipping State</strong> and clear <strong>Product Description</strong> to total sales by state.</>}
+        description={<>Turn on <strong>Group</strong> for <strong>Shipping State</strong> and leave it off for <strong>Product Description</strong> to total sales by state.</>}
         columns={['Shipping State']}
         rows={[[['MN'],100],[['WI'],72.25]]}/>
   </div>;

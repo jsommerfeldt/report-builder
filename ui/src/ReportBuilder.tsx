@@ -7,11 +7,8 @@ import {PreviewPane} from './PreviewPane';
 import {FilterEditor,FiltersPanel,newFilterRule} from './FiltersPanel';
 import {LibraryLayout} from './LibraryLayout';
 import {FieldsPanel} from './FieldsPanel';
-import {GroupingPanel} from './GroupingPanel';
 import {Destination,DropField} from './useFieldDrag';
 import {WorkspaceBar} from './WorkspaceBar';
-
-type QuerySection=Destination|'grouping';
 
 function numberSorts(order:Order[]):Order[] {
   let rank=0;
@@ -42,6 +39,7 @@ interface BuilderProps {catalog:Catalog; client:ReportClient; initialReport?:Sav
 export function ReportBuilder({catalog,client,initialReport,folderId,onReports}:BuilderProps) {
   const blank=useMemo<Definition>(()=>({version:catalog.starter.version,source:'sales',mode:'summary',fields:[]}),[catalog.starter.version]);
   const initial = initialReport?.definition ?? (onReports ? blank : catalog.starter);
+  const newReport=Boolean(onReports && !initialReport);
   const [definition, setDefinition] = useState<Definition>(initial);
   const [title, setTitle] = useState(initialReport?.name ?? (onReports ? 'Untitled report' : 'Sales by state and product'));
   const [baseTitle,setBaseTitle]=useState(title);
@@ -60,7 +58,7 @@ export function ReportBuilder({catalog,client,initialReport,folderId,onReports}:
   const [editorSession,setEditorSession] = useState(0);
   const [filterEditor,setFilterEditor]=useState<FilterEditor>(null);
   const [queryCollapsed,setQueryCollapsed]=useState(false);
-  const [expandedCards,setExpandedCards]=useState<Partial<Record<QuerySection,boolean>>>({});
+  const [expandedCards,setExpandedCards]=useState<Partial<Record<Destination,boolean>>>(()=>newReport?{fields:true}:{});
   const [fieldInteraction,setFieldInteraction]=useState(false);
   const queryOpen=!queryCollapsed || fieldInteraction;
   const [notice,setNotice] = useState('');
@@ -106,10 +104,12 @@ export function ReportBuilder({catalog,client,initialReport,folderId,onReports}:
     return () => window.removeEventListener('beforeunload',warn);
   }, [dirty]);
   function changeFields(fields:string[]) {
-    setDefinition(prev=>({
-      ...prev,fields,groupBy:prev.groupBy?.filter(id=>fields.includes(id)),
-      order:prev.order && numberSorts(prev.order.filter(o=>fields.includes(o.field))),
-    }));
+    setDefinition(prev=>{
+      const groupBy=prev.groupBy?.filter(id=>fields.includes(id));
+      const mode=groupBy?.length===0 && !fields.some(id=>byId[id].measure)?'detail':prev.mode;
+      return {...prev,fields,groupBy,mode,
+        order:prev.order && numberSorts(prev.order.filter(o=>fields.includes(o.field)))};
+    });
     setNotice('');setError('');
   }
   function toggle(id:string) {
@@ -131,7 +131,16 @@ export function ReportBuilder({catalog,client,initialReport,folderId,onReports}:
     });
     setError('');setNotice('');
   }
-  function cardDisclosure(card:QuerySection) {
+  function setGrouping(mode:Definition['mode'],groupBy:string[]) {
+    setDefinition(prev=>({...prev,mode,groupBy}));
+    setNotice('');setError('');
+  }
+  function toggleGroup(id:string,active:boolean) {
+    const current=grouped?groupBy:[];
+    const next=active?[...current,id]:current.filter(key=>key!==id);
+    setGrouping(next.length?'summary':'detail',next);
+  }
+  function cardDisclosure(card:Destination) {
     return {
       expanded:expandedCards[card]??false,
       setExpanded:(value:boolean)=>setExpandedCards(prev=>({...prev,[card]:value})),
@@ -216,7 +225,7 @@ export function ReportBuilder({catalog,client,initialReport,folderId,onReports}:
     </header>
     </div>
     <main className="editor-content">
-      <LibraryLayout library={<FieldLibrary key={editorSession} catalog={catalog} fields={definition.fields} toggle={toggle}
+      <LibraryLayout newReport={newReport} library={<FieldLibrary key={editorSession} catalog={catalog} fields={definition.fields} toggle={toggle}
         drop={dropField} onInteraction={setFieldInteraction}/>}
         headerAction={<button type="button" className="primary-btn" disabled={busy || !hasOutput} onClick={()=>void run(definition)}>
           <Icon name="play" size={15}/>{busy?'Running…':'Run preview'}
@@ -231,14 +240,13 @@ export function ReportBuilder({catalog,client,initialReport,folderId,onReports}:
           <div className="query-body" id="query-contents" hidden={!queryOpen}>
             <div className="query-scroll">
               <FieldsPanel key={'fields-'+editorSession} fields={columns} outputIds={outputIds} disclosure={cardDisclosure('fields')}
-                order={definition.order??[]} drop={dropField} remove={toggle} sort={changeSort} showDropTarget={fieldInteraction}/>
+                order={definition.order??[]} drop={dropField} remove={toggle} sort={changeSort} showDropTarget={fieldInteraction}
+                groupBy={grouped?groupBy:[]} totalsOnly={grouped && !groupBy.length}
+                onGroupChange={toggleGroup} onTotalsChange={active=>setGrouping(active?'summary':'detail',[])}/>
               <FiltersPanel key={editorSession} fields={catalog.fields} entities={catalog.entities} lookup={lookup} rules={definition.filters??[]}
                 disclosure={cardDisclosure('filters')}
                 editor={filterEditor} setEditor={setFilterEditor} start={startFilter} showDropTarget={fieldInteraction}
                 onChange={filters=>{setDefinition(prev=>({...prev,filters}));setNotice('');setError('');}}/>
-              <GroupingPanel columns={dimensions} grouped={grouped} groupBy={groupBy} hasOutput={hasOutput} disclosure={cardDisclosure('grouping')}
-                onModeChange={active=>{setDefinition(prev=>({...prev,mode:active?'summary':'detail'}));setNotice('');setError('');}}
-                onGroupByChange={ids=>{setDefinition(prev=>({...prev,groupBy:ids}));setNotice('');setError('');}}/>
             </div>
             <div className="query-footer">
               {catalog.scope.companies && <div className="query-scope">

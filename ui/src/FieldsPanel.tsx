@@ -8,9 +8,12 @@ import {columnsHelp} from './QueryHelp';
 interface Props {
   fields:Field[]; outputIds:string[]; order:Order[]; drop:DropField; showDropTarget:boolean; disclosure:CardDisclosure;
   remove(id:string):void; sort(setting:Order):void;
+  groupBy:string[]; totalsOnly:boolean;
+  onGroupChange(id:string,value:boolean):void; onTotalsChange(value:boolean):void;
 }
 
-export function FieldsPanel({fields,outputIds,order,drop,remove,sort,showDropTarget,disclosure}:Props) {
+export function FieldsPanel({fields,outputIds,order,drop,remove,sort,showDropTarget,disclosure,
+  groupBy,totalsOnly,onGroupChange,onTotalsChange}:Props) {
   const [expanded,setExpanded]=useState(false);
   const {begin}=useFieldDrag(drop);
   const settings=new Map(order.map(item=>[item.field,item]));
@@ -20,12 +23,13 @@ export function FieldsPanel({fields,outputIds,order,drop,remove,sort,showDropTar
     disclosure={disclosure} help={columnsHelp}>
     <div className="configuration-scroll" tabIndex={0} role="group" aria-label="Field order and sorting">
     {fields.length>0 && <div className="field-control-grid field-headings" aria-hidden="true">
-      <span>Column Order</span><span>Sort</span><span>Priority</span><span>Direction</span><span/>
+      <span>Column Order</span><span>Group</span><span>Sort</span><span>Priority</span><span>Direction</span><span/>
     </div>}
     <div className="field-stack" id="ordered-fields">{visible.map((f,i)=>{
       const setting=settings.get(f.id);
       const enabled=!!setting && setting.enabled!==false;
       const included=outputIds.includes(f.id);
+      const grouped=groupBy.includes(f.id);
       const direction=setting?.direction??'asc';
       const desc=direction==='desc';
       return <div className={'field-control-grid field-line '+f.entity} key={f.id} data-column={f.id}>
@@ -42,6 +46,9 @@ export function FieldsPanel({fields,outputIds,order,drop,remove,sort,showDropTar
           }}>
           <Icon name="grip" size={13}/><span className="column-ordinal">{i+1}</span>
           <span className="field-name">{f.label}{!included && <small className="hint field-hidden">Hidden by grouping</small>}</span></button>
+        <button type="button" className="switch field-group-switch" role="switch" aria-checked={grouped} disabled={f.measure}
+          aria-label={'Group by '+f.label} title={f.measure?'Measures are totaled within each group':'Group rows by '+f.label}
+          onClick={()=>onGroupChange(f.id,!grouped)}><span/></button>
         <button type="button" className="switch field-sort" role="switch" aria-checked={enabled} disabled={!included}
           aria-label={'Sort by '+f.label} title={enabled?'Exclude from row sorting':'Include in row sorting'}
           onClick={()=>sort({field:f.id,direction,enabled:!enabled})}><span/></button>
@@ -55,9 +62,12 @@ export function FieldsPanel({fields,outputIds,order,drop,remove,sort,showDropTar
           onClick={()=>sort({field:f.id,direction:desc?'asc':'desc',enabled:true})}>{desc?'↓ Desc':'↑ Asc'}</button>
         <button type="button" className="remove-field" aria-label={'Remove '+f.label} onClick={()=>remove(f.id)}><Icon name="close" size={12}/></button>
       </div>;
-    })}{!fields.length && <span className="drop-hint"><Icon name="plus" size={15}/>Select or drop fields here</span>}</div>
+    })}{!fields.length && <span className="drop-hint">Select or drop fields here</span>}</div>
     </div>
     {fields.length>3 && <button className="text-action more-fields" aria-expanded={expanded} aria-controls="ordered-fields"
       onClick={()=>setExpanded(!expanded)}>{expanded?'Show less':'Show more ('+(fields.length-3)+')'}</button>}
+    {!groupBy.length && fields.some(field=>field.measure) && <label className="totals-option">
+      <input type="checkbox" checked={totalsOnly} onChange={e=>onTotalsChange(e.target.checked)}/>Totals only
+    </label>}
   </QueryCard>;
 }

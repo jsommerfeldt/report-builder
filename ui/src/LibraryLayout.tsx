@@ -32,14 +32,17 @@ function PaneDivider({className,label,controls,min,max,value,step,dragScale=1,va
     }}/>;
 }
 
-export function LibraryLayout({library,headerAction,children}:{library:React.ReactNode;headerAction:React.ReactNode;children:React.ReactNode}) {
-  const [hidden,setHidden]=useState(()=>{const pref=stored('hidden');return pref===null?window.matchMedia('(max-width:900px)').matches:pref==='true';});
-  const [width,setWidth]=useState(()=>Number(stored('build-width')) || initial);
+export function LibraryLayout({library,headerAction,children,newReport}:{
+  library:React.ReactNode;headerAction:React.ReactNode;children:React.ReactNode;newReport:boolean;
+}) {
+  const prefix=newReport?'new-report-':'';
+  const [hidden,setHidden]=useState(()=>{const pref=stored(prefix+'hidden');return pref===null?window.matchMedia('(max-width:900px)').matches:pref==='true';});
+  const [width,setWidth]=useState(()=>Number(stored(prefix+'build-width')) || null);
   const [availableWidth,setAvailableWidth]=useState(()=>document.documentElement.clientWidth);
-  const [objectsShare,setObjectsShare]=useState(()=>Math.max(minShare,Math.min(maxShare,Number(stored('objects-share')) || initialShare)));
+  const [objectsShare,setObjectsShare]=useState(()=>Math.max(minShare,Math.min(maxShare,Number(stored(prefix+'objects-share')) || (newReport?36:initialShare))));
   const layout=useRef<HTMLElement>(null);
   const maxWidth=Math.max(min,Math.floor(availableWidth*.72));
-  const buildWidth=Math.max(min,Math.min(width,maxWidth));
+  const buildWidth=Math.max(min,Math.min(width??(newReport?maxWidth:initial),maxWidth));
   const layoutStyle={
     '--build-width':buildWidth+'px',
     '--objects-share':objectsShare+'fr',
@@ -51,9 +54,9 @@ export function LibraryLayout({library,headerAction,children}:{library:React.Rea
     if(editor)observer.observe(editor);
     return ()=>observer.disconnect();
   },[]);
-  useEffect(()=>{remember('build-width',String(width));},[width]);
-  useEffect(()=>{remember('objects-share',String(objectsShare));},[objectsShare]);
-  useEffect(()=>{remember('hidden',String(hidden));},[hidden]);
+  useEffect(()=>{if(width!==null)remember(prefix+'build-width',String(width));},[prefix,width]);
+  useEffect(()=>{remember(prefix+'objects-share',String(objectsShare));},[prefix,objectsShare]);
+  useEffect(()=>{remember(prefix+'hidden',String(hidden));},[prefix,hidden]);
   return <section id="build-report-pane" ref={layout} style={layoutStyle} className={'build-report'+(hidden?' library-hidden':'')} aria-labelledby="build-report-heading">
     <div className="pane-header build-header"><h2 id="build-report-heading">Build Report</h2>{headerAction}</div>
     <aside id="objects-pane" className="library-wrap" aria-labelledby="objects-heading">

@@ -1,14 +1,19 @@
 import React from 'react';
+import {QueryModeExamples} from './QueryModeExamples';
 
 export const columnsHelp={
   title:'Columns Help',
-  body:<div className="query-help-content">
+  className:'mode-dialog',
+  body:<><div className="query-help-content">
     <p>Select fields in <strong>Objects</strong> or drag them into <strong>Columns</strong>.</p>
     <dl>
       <div><dt>Column Order</dt><dd>Drag <strong>Shipping State</strong> above <strong>Sales</strong> to show the state first. The up and down arrow keys also move a focused column.</dd></div>
+      <div><dt>Group</dt><dd>Turn on <strong>Group</strong> for each column that defines a group. Measures are totaled for each group. With no groups selected, <strong>Totals only</strong> shows a single total row for the selected measures.</dd></div>
       <div><dt>Sort, Priority, and Direction</dt><dd>Turn on <strong>Sort</strong> for <strong>Sales</strong> and choose <strong>Desc</strong> to show the largest sales first. Priority 1 sorts first. Priority 2 breaks its ties.</dd></div>
     </dl>
-  </div>,
+  </div>
+    <div className="columns-help-examples"><h3>Query Mode Example</h3><QueryModeExamples/></div>
+  </>,
 };
 
 export const filtersHelp={
