@@ -85,8 +85,8 @@
   border-inline-end: 1px solid var(--build-line);
   pointer-events: none;
 }
-.builder-rail:has(+ .library-wrap:not([hidden]))::after { inset-block-start: var(--pane-heading-height); }
-.builder-rail:has(+ .library-wrap:not([hidden]))::before {
+.builder-rail:has(~ .library-wrap:not([hidden]))::after { inset-block-start: var(--pane-heading-height); }
+.builder-rail:has(~ .library-wrap:not([hidden]))::before {
   content: "";
   position: absolute;
   inset-block-start: calc(var(--pane-heading-height) - 1px);
@@ -302,8 +302,10 @@ button.field-row { width: 100%; text-align: left; }
 .filter-editor-selects { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 8px; }
 .filter-control, .value-picker { display: grid; gap: 4px; min-width: 0; }
 .filter-control, .filter-value-heading { font-size: 12px; font-weight: 600; }
-.filter-value-heading { display: flex; justify-content: space-between; align-items: baseline; gap: 6px; }
-.filter-value-heading .hint { font-weight: 400; }
+.filter-value-heading { display: flex; align-items: center; gap: 10px; }
+.filter-value-heading .filter-case { font-weight: 400; white-space: nowrap; }
+.filter-value-heading .filter-case input { margin: 0; }
+.filter-value-heading .hint { margin-inline-start: auto; font-weight: 400; white-space: nowrap; }
 .filter-editor select, .filter-editor input:not([type=checkbox], [type=radio]) {
   width: 100%;
   min-width: 0;

@@ -127,6 +127,7 @@ export function FiltersPanel({fields,entities,rules,onChange,lookup,editor,setEd
       {editing && <>
         {editor.rule.op!=='blank' && editor.rule.op!=='relative' && <ValuePicker key={editing.id} field={editing} lookup={lookup}
           selected={selected} multiple={allowsMultiple(editor.rule.op)} caseSensitive={editor.rule.caseSensitive}
+          changeCase={editing.kind==='text'?enabled=>updateRule({...editor.rule,caseSensitive:enabled || undefined}):undefined}
           change={values=>updateRule({...editor.rule,value:allowsMultiple(editor.rule.op)?values:values[0]??''})}/>}
         {editor.rule.op==='relative' && relative && <div className="relative-period">
           <div className="filter-control period-direction"><label htmlFor="relative-direction">Direction</label>
@@ -146,10 +147,6 @@ export function FiltersPanel({fields,entities,rules,onChange,lookup,editor,setEd
           </div>
           <p className="hint">{relative.unit==='hours'?'Counts from the current local time.':'Includes today. Weeks count as seven days.'}</p>
         </div>}
-        {editing.kind==='text' && editor.rule.op!=='blank' && <label className="filter-case">
-          <input type="checkbox" checked={editor.rule.caseSensitive??false}
-            onChange={e=>updateRule({...editor.rule,caseSensitive:e.target.checked || undefined})}/>Match case
-        </label>}
       </>}
       <div className="filter-buttons">
         <button type="button" className="secondary-btn" onClick={closeEditor}>Cancel</button>

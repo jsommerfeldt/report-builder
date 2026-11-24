@@ -2,8 +2,11 @@ import React, {useEffect, useState} from 'react';
 import {Field, ReportClient} from './client';
 import {Icon} from './Icon';
 
-interface Props {field:Field; selected:string[]; change(values:string[]):void; lookup:ReportClient['values']; multiple:boolean; caseSensitive?:boolean}
-export function ValuePicker({field,selected,change,lookup,multiple,caseSensitive}:Props) {
+interface Props {
+  field:Field; selected:string[]; change(values:string[]):void; lookup:ReportClient['values'];
+  multiple:boolean; caseSensitive?:boolean; changeCase?(enabled:boolean):void;
+}
+export function ValuePicker({field,selected,change,lookup,multiple,caseSensitive,changeCase}:Props) {
   const [query,setQuery]=useState('');
   const [offset,setOffset]=useState(0);
   const [options,setOptions]=useState<string[]>([]);
@@ -37,6 +40,8 @@ export function ValuePicker({field,selected,change,lookup,multiple,caseSensitive
     field.kind==='datetime'?'Search or enter YYYY-MM-DD HH:MM':'Search or enter a value';
   return <div className="value-picker">
     <div className="filter-value-heading"><label htmlFor="filter-value-search">{multiple?'Values':'Value'}</label>
+      {changeCase && <label className="filter-case"><input type="checkbox" checked={caseSensitive??false}
+        onChange={e=>changeCase(e.target.checked)}/>Match case</label>}
       {multiple && selected.length>0 && <span className="hint">{selected.length} selected</span>}
     </div>
     <input id="filter-value-search" type="search" maxLength={160} value={query} placeholder={placeholder}
