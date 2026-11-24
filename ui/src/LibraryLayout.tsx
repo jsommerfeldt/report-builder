@@ -50,10 +50,9 @@ interface LayoutProps {
   objectsCollapsed:boolean; toggleObjects():void;
   queryToggle:React.Ref<HTMLButtonElement>; queryClose:React.Ref<HTMLButtonElement>;
   previewPane:React.RefObject<HTMLElement>;
-  previewRun:{run():void; disabled:boolean; busy:boolean; current:boolean};
 }
 export function LibraryLayout({library,children,newReport,editorSession,queryVisible,toggleQuery,closeQuery,queryToggle,queryClose,
-  objectsCollapsed,toggleObjects,previewPane,previewRun}:LayoutProps) {
+  objectsCollapsed,toggleObjects,previewPane}:LayoutProps) {
   const prefix=layoutPrefix(newReport);
   const [preferred,setPreferred]=useState(()=>({
     objects:Math.max(editorPanes.objects.min,Number(stored(prefix+'objects-width'))||editorPanes.objects.initial),
@@ -80,7 +79,7 @@ export function LibraryLayout({library,children,newReport,editorSession,queryVis
   const queryWidth=clamp(preferred.query,minWidth,widthLimit);
   const height=queryHeight?clamp(queryHeight,minHeight,heightLimit):Math.min(heightLimit,Math.round(workspace.previewHeight*.85));
   const defaultX=compact?leftLimit:workspace.width-queryWidth-28;
-  const defaultY=compact?(objectsCollapsed?52:workspace.objectsHeight+6):workspace.height*.23;
+  const defaultY=compact?(objectsCollapsed?0:workspace.objectsHeight)+52:workspace.height*.23;
   const x=clamp(queryPosition?.x??defaultX,leftLimit,workspace.width-queryWidth-edgeGap);
   const y=clamp(queryPosition?.y??defaultY,edgeGap,workspace.height-height-edgeGap);
   const maxQueryHeight=workspace.height-y-edgeGap;
@@ -144,7 +143,6 @@ export function LibraryLayout({library,children,newReport,editorSession,queryVis
     if(mode==='move')moveQuery(x+delta[0],y+delta[1],width,height);
     else resizeQuery(mode,{x,y,width,height},delta[0],delta[1]);
   }
-  const previewStatus=previewRun.busy?'Running preview…':previewRun.current?'Up to date':'Needs refresh';
   return <section ref={layout} className="build-report" aria-label="Build Dataset">
     <div ref={rail} className="builder-rail" role="group" aria-label="Builder sidebar">
       <button type="button" className="secondary-btn" aria-expanded={!objectsCollapsed}
@@ -156,12 +154,7 @@ export function LibraryLayout({library,children,newReport,editorSession,queryVis
         aria-controls={editorPanes.query.id} aria-expanded={queryVisible} aria-label="Query" title="Query" onClick={toggleQuery}>
         <Icon name="fields" size={15}/>
       </button>
-      <button type="button" className="primary-btn preview-run" data-current={previewRun.current}
-        aria-label="Run preview" aria-describedby="preview-run-status" aria-controls="report-preview"
-        aria-busy={previewRun.busy} title={'Run preview · '+previewStatus} disabled={previewRun.disabled}
-        onClick={previewRun.run}><Icon name="play" size={16}/></button>
     </div>
-    <span className="sr-only" id="preview-run-status" role="status">{previewStatus}</span>
     <aside ref={objects} id={editorPanes.objects.id} className="builder-pane library-wrap" hidden={objectsCollapsed}
       aria-label="Objects" style={{'--pane-width':objectsWidth+'px'} as React.CSSProperties}>
       <div id="library-contents" className="library-contents">{library}</div>

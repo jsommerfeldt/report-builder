@@ -26,8 +26,9 @@ interface Props { data: Preview | null; outputIds:string[]; byId: Record<string,
   entities:Catalog['entities']; columnNames?:ColumnNames; paneRef:React.Ref<HTMLElement>;
   rename(field:Field,name:string):void;
   move(id:string,anchor:string,after:boolean):void;
-  hasFields: boolean; }
-export function PreviewPane({data,outputIds:ids,byId,entities,columnNames,paneRef,busy,error,hasFields,move,rename}:Props) {
+  hasFields: boolean; runPreview():void; canRunPreview:boolean; previewCurrent:boolean; }
+export function PreviewPane({data,outputIds:ids,byId,entities,columnNames,paneRef,busy,error,hasFields,move,rename,
+  runPreview,canRunPreview,previewCurrent}:Props) {
   const table=useRef<HTMLTableElement>(null);
   const [widths,setWidths]=useState<Record<string,number>>({});
   const drag=useRef<{pointer:number; x:number; id:string; width:number}|null>(null);
@@ -86,11 +87,22 @@ export function PreviewPane({data,outputIds:ids,byId,entities,columnNames,paneRe
     const current=measure();
     setWidths(prev=>({...prev,...current,[id]:clamp(current[id]+(e.key==='ArrowRight'?16:-16))}));
   }
+  const previewStatus=busy?'Running preview…':previewCurrent?'Up to date':'Needs refresh';
   return <section ref={paneRef} className="preview" id="report-preview" aria-labelledby="preview-heading" data-library-zone="preview">
-    <div className="pane-header preview-head"><h2 id="preview-heading"><Icon name="grid" size={16}/>Preview</h2><div className="preview-actions">
-      {manual && <button className="text-action" onClick={()=>setWidths({})}>Auto-fit columns</button>}
-      {data && <span className="result-count" role="status">{data.rows.length.toLocaleString()} of {data.total.toLocaleString()} rows</span>}
-    </div></div>
+    <div className="pane-header preview-head">
+      <div className="preview-heading">
+        <h2 id="preview-heading"><Icon name="grid" size={16}/>Preview</h2>
+        <button type="button" className="primary-btn preview-run" data-current={previewCurrent}
+          aria-label="Run preview" aria-describedby="preview-run-status" aria-controls="report-preview"
+          aria-busy={busy} title={'Run preview · '+previewStatus} disabled={busy || !canRunPreview}
+          onClick={runPreview}><Icon name="play" size={16}/></button>
+      </div>
+      {(manual || data) && <div className="preview-actions">
+        {manual && <button className="text-action" onClick={()=>setWidths({})}>Auto-fit columns</button>}
+        {data && <span className="result-count" role="status">{data.rows.length.toLocaleString()} of {data.total.toLocaleString()} rows</span>}
+      </div>}
+    </div>
+    <span className="sr-only" id="preview-run-status" role="status">{previewStatus}</span>
     {error && <div className="alert preview-alert" role="alert">{error}{data && ' The table shows the previous preview.'}</div>}
     {ids.length>0 ? <div className="table-scroll" tabIndex={0} aria-label="Preview table"><table ref={table}
       className={manual?'manual-widths':undefined} style={manual?{width:ids.reduce((sum,id)=>sum+widths[id],0)}:undefined}>

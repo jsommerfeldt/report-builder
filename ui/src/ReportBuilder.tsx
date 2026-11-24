@@ -345,7 +345,6 @@ export function ReportBuilder({catalog,client,initialReport,folderId,onReports}:
     }}>
       <LibraryLayout newReport={newReport} editorSession={editorSession} queryVisible={queryVisible} toggleQuery={toggleQuery} closeQuery={closeQuery}
         previewPane={previewPane}
-        previewRun={{run:()=>void run(definition),disabled:busy || !hasOutput || !!pendingMove,busy,current:previewCurrent}}
         objectsCollapsed={objectsCollapsed} toggleObjects={()=>{
           if(!objectsCollapsed)setObjectPick(null);
           setObjectsCollapsed(!objectsCollapsed);
@@ -375,7 +374,8 @@ export function ReportBuilder({catalog,client,initialReport,folderId,onReports}:
       </LibraryLayout>
       <PreviewPane paneRef={previewPane} data={displayData} outputIds={outputIds} byId={byId} error={error}
         entities={catalog.entities} columnNames={definition.columnNames} move={moveOutputColumn}
-        rename={renameColumn} busy={busy} hasFields={Boolean(definition.fields.length)}/>
+        rename={renameColumn} busy={busy} hasFields={Boolean(definition.fields.length)}
+        runPreview={()=>void run(definition)} canRunPreview={hasOutput && !pendingMove} previewCurrent={previewCurrent}/>
       <p className="sr-only" role="status">{notice}</p>
     </main>
     {dialog==='save' && <Modal title={collision?'Replace saved dataset?':'Save dataset'} close={close}><form onSubmit={save}>

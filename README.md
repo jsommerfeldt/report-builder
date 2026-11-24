@@ -13,7 +13,7 @@ Install Python 3.13 through the Windows Python launcher, Node.js 24, and pnpm 11
 
 Build downloads the pinned Python and frontend dependencies. Start launches the local service and opens an authorized browser tab at `http://127.0.0.1:8784`. For later launches, double-click **Open Report Builder.cmd** or run `.\pilot.ps1 -Action Open` if the service is already running. An agent can use `Start -NoBrowser` followed by `Status`, then hand off with `Open` to launch the browser.
 
-Choose **New dataset**, add **Sales Company** and **Sales** from Objects, and click the play icon at the bottom of the sidebar. Preview shows totals for `0001` and `0030`.
+Choose **New dataset**, add **Sales Company** and **Sales** from Objects, and click the play button beside the **Preview** title. Preview shows totals for `0001` and `0030`.
 
 The [bundled snapshot](bundled-snapshot/) contains the complete pilot export for companies `0001` and `0030` from November 9 through 15, 2026, inclusive. It contains 233,735 sales rows and the corresponding customer, product, trip, and warehouse tables. The app reads these five CSVs directly on a fresh profile and verifies their hashes, relationships, row counts, and totals against the manifest at startup. Running the bundled export requires no PostgreSQL client, warehouse credentials, or saved dataset files.
 
@@ -48,7 +48,7 @@ In **Trash**, choose **Delete permanently** and confirm to remove a saved report
 
 1. In **Objects**, expand Sales, Customers, Products, Trips, or Warehouses, or search for a field. Click fields or drag them into **Columns** in **Query**. Drag columns to reorder them. **Warehouse Code**, **Warehouse Name**, and **Warehouse Company** describe the warehouse recorded on the sale.
 2. In **Columns**, non-numeric fields group the results by default. For numeric fields, use the dropdown to choose a calculation. **Count** counts nonblank values, and **None** keeps a column for detail rows. When no columns define groups, clear **Totals only** to see one row per sale. The **?** icon shows both views.
-3. In **Columns**, turn on **Sort** for each visible column and choose **Asc** or **Desc**. **Run preview** at the bottom of the sidebar displays the first 50 matching rows after sorting and sizes columns to those rows. Hover over a column name to see its original table and column, or click the name to edit it in place.
+3. In **Columns**, turn on **Sort** for each visible column and choose **Asc** or **Desc**. **Run preview** beside the **Preview** title displays the first 50 matching rows after sorting and sizes columns to those rows. Hover over a column name to see its original table and column, or click the name to edit it in place.
 4. Choose **Save dataset** and give the definition a name. Choose **Datasets** to return to the library. Saving an existing dataset updates its revision. If another tab saved first, reopen that revision before editing again.
 
 With no groups selected, **Totals only** calculates the selected aggregations across all matching sales in one row.

@@ -5,7 +5,7 @@ export const columnsHelp={
   title:'Columns Help',
   body:<div className="query-help-content">
     <ul className="query-help-list">
-      <li>Click a field in <strong>Objects</strong> to add it. Use <strong>Run preview</strong> in the sidebar to load rows.</li>
+      <li>Click a field in <strong>Objects</strong> to add it. Use <strong>Run preview</strong> beside the Preview title to load rows.</li>
       <li>Drag a column by its grip to reorder it. Turn on <strong>Sort</strong> to order the rows by that column.</li>
       <li>For totals by state, add <strong>Shipping State</strong> and <strong>Sales</strong> to a new dataset. Keep <strong>Sum</strong> selected on Sales.</li>
     </ul>
@@ -22,7 +22,7 @@ export const filtersHelp={
     <ol className="query-help-list">
       <li>Choose <strong>Add filter</strong> and pick a field in <strong>Objects</strong>.</li>
       <li>Choose a <strong>Condition</strong>, then select or enter any values it needs.</li>
-      <li>Choose <strong>Apply filter</strong>, then <strong>Run preview</strong> in the sidebar.</li>
+      <li>Choose <strong>Apply filter</strong>, then <strong>Run preview</strong> beside the Preview title.</li>
     </ol>
     <p className="query-help-example">To keep sales shipped to MN or WI, set <strong>Shipping State</strong> to <strong>is any of</strong> and select <strong>MN</strong> and <strong>WI</strong>.</p>
     <details className="query-help-more">
