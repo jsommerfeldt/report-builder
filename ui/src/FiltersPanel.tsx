@@ -31,16 +31,18 @@ function conditions(field:Field):FilterOp[] {
 function isPeriod(value:ReportFilter['value']):value is RelativePeriod {
   return typeof value==='object' && !Array.isArray(value);
 }
+function allowsMultiple(op:FilterOp) {return op==='in' || op==='neq';}
+function selectedValues(value:ReportFilter['value']|undefined) {
+  return Array.isArray(value)?value:typeof value==='string' && value?[value]:[];
+}
 function describe(rule:ReportFilter,field:Field) {
   const value=rule.value;
   if(isPeriod(value))return (value.direction==='last'?'Last':'Next')+' '+value.amount+' '+(value.amount===1?value.unit.slice(0,-1):value.unit);
   return [label(rule.op,field),Array.isArray(value)?value.join(', '):value,rule.caseSensitive?'· Match case':''].filter(Boolean).join(' ');
 }
 function changeCondition(rule:ReportFilter,op:FilterOp):ReportFilter {
-  const old=rule.value;
-  const value=isPeriod(old)?'':old;
-  const next=op==='relative'?defaultPeriod:op==='blank'?'':op==='in'?(Array.isArray(value)?value:value?[value]:[]):
-    (Array.isArray(value)?value[0]??'':value);
+  const selected=selectedValues(rule.value);
+  const next=op==='relative'?defaultPeriod:op==='blank'?'':allowsMultiple(op)?selected:selected[0]??'';
   return {field:rule.field,enabled:rule.enabled,op,value:next,...(rule.caseSensitive && op!=='blank'?{caseSensitive:true}:{})};
 }
 export type FilterEditor = {index:number;rule:ReportFilter;moveField?:string;overlapField?:string}|null;
@@ -83,8 +85,9 @@ export function FiltersPanel({fields,entities,rules,onChange,lookup,editor,setEd
   },[disclosure.expanded,editorIndex,editorField,editorCondition]);
   const value=editor?.rule.value;
   const relative=value!==undefined && isPeriod(value)?value:null;
+  const selected=selectedValues(value);
   const valid=relative?Number.isInteger(relative.amount) && relative.amount>=1 && relative.amount<=365:
-    (Array.isArray(value)?value.length:typeof value==='string' && Boolean(value.trim()));
+    selected.length>0;
   const canApply=!!editor && !!editing && (!!editor.moveField || !blocked(editing)) && (editor.rule.op==='blank' || valid);
   function updateRule(rule:ReportFilter) {if(editor)setEditor({...editor,rule});}
   function closeEditor() {
@@ -105,28 +108,26 @@ export function FiltersPanel({fields,entities,rules,onChange,lookup,editor,setEd
     {editor ? <form id="filter-editor" ref={formRef} className="filter-editor" onSubmit={commit}>
       <h5>{editor.index<rules.length?'Edit Filter':'New Filter'}</h5>
       {editor.moveField && <p className="hint">Apply the filter to finish the move. Cancel to restore the column.</p>}
-      <div className="filter-control"><label htmlFor="filter-field">Field</label>
-        <select id="filter-field" required disabled={Boolean(editor.moveField)} value={editor.rule.field} title={editing?sourceColumn(editing,entities):undefined}
-          onChange={e=>updateRule(newFilterRule(fields.find(field=>field.id===e.target.value),editor.rule.enabled))}>
-          <option value="" disabled>Choose a field</option>
-          <FieldOptions fields={fields} entities={entities} columnNames={columnNames} disabled={blocked}/>
-        </select>
-      </div>
-      {editing && <>
-        <div className="filter-control"><label htmlFor="filter-condition">Condition</label>
-          <select id="filter-condition" value={editor.rule.op} onChange={e=>updateRule(changeCondition(editor.rule,e.target.value as FilterOp))}>
-            {conditions(editing).map(op=><option key={op} value={op}>{label(op,editing)}</option>)}
+      <div className="filter-editor-selects">
+        <div className="filter-control"><label htmlFor="filter-field">Field</label>
+          <select id="filter-field" required disabled={Boolean(editor.moveField)} value={editor.rule.field} title={editing?sourceColumn(editing,entities):undefined}
+            onChange={e=>updateRule(newFilterRule(fields.find(field=>field.id===e.target.value),editor.rule.enabled))}>
+            <option value="" disabled>Choose a field</option>
+            <FieldOptions fields={fields} entities={entities} columnNames={columnNames} disabled={blocked}/>
           </select>
         </div>
-        {editor.rule.op==='in' && Array.isArray(value) && <ValuePicker key={editing.id} field={editing} lookup={lookup} selected={value}
-          caseSensitive={editor.rule.caseSensitive} change={value=>updateRule({...editor.rule,value})}/>}
-        {editor.rule.op!=='blank' && editor.rule.op!=='in' && typeof value==='string' && <label className="filter-control">
-          {editing.kind==='datetime'?'Date and time':editing.kind==='date'?'Date':'Value'}
-          <input required maxLength={160} type={editing.kind==='datetime'?'datetime-local':editing.kind==='date'?'date':'text'}
-            step={editing.kind==='datetime'?'any':undefined}
-            pattern={editing.measure?'[+\\-]?(?:[0-9]+(?:\\.[0-9]*)?|\\.[0-9]+)':undefined} inputMode={editing.measure?'decimal':undefined}
-            value={editing.kind==='datetime'?value.replace(' ','T'):value} onChange={e=>updateRule({...editor.rule,value:e.target.value})}/>
-        </label>}
+        <div className="filter-control"><label htmlFor="filter-condition">Condition</label>
+          <select id="filter-condition" disabled={!editing} value={editing?editor.rule.op:''}
+            onChange={e=>updateRule(changeCondition(editor.rule,e.target.value as FilterOp))}>
+            {editing?conditions(editing).map(op=><option key={op} value={op}>{label(op,editing)}</option>):
+              <option value="">Choose a condition</option>}
+          </select>
+        </div>
+      </div>
+      {editing && <>
+        {editor.rule.op!=='blank' && editor.rule.op!=='relative' && <ValuePicker key={editing.id} field={editing} lookup={lookup}
+          selected={selected} multiple={allowsMultiple(editor.rule.op)} caseSensitive={editor.rule.caseSensitive}
+          change={values=>updateRule({...editor.rule,value:allowsMultiple(editor.rule.op)?values:values[0]??''})}/>}
         {editor.rule.op==='relative' && relative && <div className="relative-period">
           <div className="filter-control period-direction"><label htmlFor="relative-direction">Direction</label>
             <select id="relative-direction" value={relative.direction}

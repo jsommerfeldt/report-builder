@@ -351,8 +351,11 @@ class PilotTest(unittest.TestCase):
             ("customer.shippingcity", "not_contains", "LUT", False, []),
             ("customer.shippingcity", "not_contains", "LUT", True, [["Duluth"]] * 2),
             ("product.packaging", "not_contains", "box", False, [["40 LB"]] * 2),
+            ("customer.shippingstate", "neq", ["mn", "~NO"], False, []),
+            ("customer.shippingstate", "neq", ["mn", "~NO"], True, [["MN"]] * 2),
             ("sales.reporting_date", "neq", "2026-11-09", None, [["2026-11-10"]]),
             ("sales.sales", "neq", "14.2", None, [["-2.10"]]),
+            ("sales.sales", "neq", ["14.2", "-2.100"], None, []),
         ]:
             with self.subTest(field=field, op=op, case_sensitive=case_sensitive):
                 rule = {"field": field, "op": op, "value": value, "enabled": True}
@@ -360,6 +363,16 @@ class PilotTest(unittest.TestCase):
                     rule["caseSensitive"] = case_sensitive
                 definition = {**self.d, "mode": "detail", "fields": [field], "filters": [rule]}
                 self.assertEqual(self.snapshot.preview(definition)["rows"], expected)
+
+        store = ReportStore(self.reports)
+        rule = {"field": "sales.reporting_date", "op": "neq", "value": ["2026-11-09", "2026-11-10"], "enabled": True}
+        saved = store.save({"name": "Exclude dates", "definition": {**self.d, "filters": [rule]}})
+        reopened = store.get(saved["id"])["definition"]
+        self.assertEqual(reopened["filters"], [rule])
+        self.assertEqual(self.snapshot.preview(reopened)["total"], 0)
+        for invalid in ([], ["2026-11-31"], ["2026-11-09", 2], ["2026-11-09"] * 257):
+            with self.subTest(invalid=invalid), self.assertRaises(InvalidDefinition):
+                self.snapshot.preview({**self.d, "filters": [{**rule, "value": invalid}]})
 
     def test_datetime_filters_with_unassigned_trips(self):
         snapshot = self.expanded_fixture(with_dispatch_time=True)
@@ -372,6 +385,7 @@ class PilotTest(unittest.TestCase):
             ("eq", timestamp.replace(" ", "T"), [[timestamp]] * 3),
             ("neq", timestamp.replace(" ", "T"), []),
             ("neq", "2026-11-10T13:00", [[timestamp]] * 3),
+            ("neq", ["2026-11-10T13:00", timestamp], []),
             ("in", [timestamp], [[timestamp]] * 3),
             ("gte", "2026-11-10T13:00", []),
             ("lte", "2026-11-10T12:30:22.123456", [[timestamp]] * 3),

@@ -149,7 +149,7 @@ def validate_filters(rules):
                     or value["unit"] not in units or value["direction"] not in ("last", "next")):
                 raise InvalidDefinition("Choose a relative period between 1 and 365 for a date or date and time field.")
             continue
-        if op == "in":
+        if op == "in" or (op == "neq" and isinstance(value, list)):
             if not isinstance(value, list) or not 1 <= len(value) <= 256:
                 raise InvalidDefinition("Select between 1 and 256 filter values.")
             for item in value:

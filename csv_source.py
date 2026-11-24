@@ -30,7 +30,7 @@ def matches_filter(sources, field, op, expected, case_sensitive):
     if op == "not_contains":
         return actual != "" and expected not in actual
     if op == "neq":
-        return actual != "" and actual != expected
+        return actual != "" and actual not in expected
     if op == "gte":
         return actual >= expected
     if op == "lte":
@@ -217,8 +217,9 @@ class CsvSnapshot:
                 field = BY_ID[rule["field"]]
                 op, value = rule["op"], rule["value"]
                 case_sensitive = rule.get("caseSensitive", False)
-                if op == "in":
-                    operand = frozenset(filter_operand(field, item, case_sensitive=case_sensitive) for item in value)
+                if op in ("in", "neq"):
+                    items = value if isinstance(value, list) else (value,)
+                    operand = frozenset(filter_operand(field, item, case_sensitive=case_sensitive) for item in items)
                 elif op == "relative":
                     operand = relative_range(field, value, now)
                 else:
