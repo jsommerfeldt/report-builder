@@ -171,25 +171,8 @@ button.field-row { width: 100%; text-align: left; }
 .field-name { min-width: 0; font-weight: 600; line-height: 1.35; }
 .field-label, .field-hidden { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .field-hidden { font-weight: 400; }
-.field-sort, .field-group-switch { justify-self: center; }
-.aggregation-control { position: relative; color: var(--accent-hover); }
-.aggregation-control > svg { position: absolute; inset-inline-end: 5px; top: 50%; transform: translateY(-50%); pointer-events: none; }
-.field-aggregation {
-  display: block;
-  appearance: none;
-  width: 100%;
-  min-height: 25px;
-  padding: 3px 20px 3px 8px;
-  border: 1px solid var(--build-line);
-  border-radius: 6px;
-  background: var(--accent-subtle);
-  font-size: 11px;
-  font-weight: 600;
-  cursor: pointer;
-}
-.field-aggregation:hover { border-color: var(--accent); }
-.field-aggregation:focus-visible { outline-offset: -2px; }
-.field-priority, .field-direction {
+.field-sort { justify-self: center; }
+.field-grouping, .field-priority, .field-direction {
   min-width: 0;
   width: 100%;
   padding: 3px 2px;
@@ -198,6 +181,7 @@ button.field-row { width: 100%; text-align: left; }
   background: var(--surface);
   font-size: 11px;
 }
+.field-grouping { padding-inline-start: 6px; }
 .field-direction[aria-checked=true]:enabled { color: var(--accent-hover); background: var(--accent-subtle); }
 .remove-field, .remove-rule { display: grid; place-items: center; padding: 4px; border-radius: var(--radius); color: var(--muted); }
 .remove-field:hover, .remove-rule:hover:enabled { background: var(--danger-subtle); color: var(--danger); }

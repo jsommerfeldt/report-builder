@@ -166,6 +166,13 @@ def validate_filters(rules):
     return rules
 
 
+def summary_fields(definition):
+    group_by = definition.get("groupBy")
+    aggregations = definition.get("aggregations", {})
+    return [key for key in definition["fields"] if
+            (aggregations.get(key) != "none" if BY_ID[key].measure else group_by is None or key in group_by)]
+
+
 def validate_definition(value):
     if (not isinstance(value, dict)
             or set(value) - {"filters", "order", "groupBy", "aggregations"} != {"version", "source", "mode", "fields"}):
@@ -189,18 +196,18 @@ def validate_definition(value):
                 or any(not isinstance(key, str) or key not in dimensions for key in group_by)
                 or len(set(group_by)) != len(group_by)):
             raise InvalidDefinition("Group by selected non-measure columns, each at most once.")
-        if result["mode"] == "summary" and not group_by and len(dimensions) == len(ids):
-            raise InvalidDefinition("Choose a column to group by or add a measure.")
         result["groupBy"] = list(group_by)
     if "aggregations" in value:
         aggregations = value["aggregations"]
         if not isinstance(aggregations, dict) or any(
-            key not in ids or not BY_ID[key].measure or method not in AGGREGATIONS
+            key not in ids or not BY_ID[key].measure or method not in (*AGGREGATIONS, "none")
             for key, method in aggregations.items()
         ):
             raise InvalidDefinition("Choose a supported aggregation for each selected numeric column.")
         if aggregations:
             result["aggregations"] = dict(aggregations)
+    if result["mode"] == "summary" and not summary_fields(result):
+        raise InvalidDefinition("Choose a column to group by or a numeric column to aggregate.")
     if "order" in value:
         order = value["order"]
         if not isinstance(order, list) or len(order) > len(ids):

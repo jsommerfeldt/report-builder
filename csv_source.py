@@ -9,7 +9,7 @@ from pathlib import Path
 
 from model import (BY_ID, COMPANIES, CSV_COLUMNS, CSV_COLUMNS_WITH_DATETIME, CSV_COLUMNS_WITH_WAREHOUSES, FIELDS,
                    LEGACY_COLUMNS, LEGACY_COMPANY, MEASURES, PREVIEW_LIMIT, RELATIONSHIPS, InvalidDefinition,
-                   filter_operand, relative_range, validate_definition)
+                   filter_operand, relative_range, summary_fields, validate_definition)
 
 
 def matches_filter(sources, field, op, expected, case_sensitive):
@@ -203,10 +203,7 @@ class CsvSnapshot:
         definition = self.definition(raw)
         facts = self.scoped_facts(definition["version"])
         detail = definition["mode"] == "detail"
-        output_ids = definition["fields"]
-        if not detail and "groupBy" in definition:
-            group_by = set(definition["groupBy"])
-            output_ids = [key for key in output_ids if key in group_by or BY_ID[key].measure]
+        output_ids = definition["fields"] if detail else summary_fields(definition)
         fields = [BY_ID[key] for key in output_ids]
         entities = {field.entity for field in fields if field.entity in RELATIONSHIPS}
         active = []
@@ -226,7 +223,8 @@ class CsvSnapshot:
                 if field.entity in RELATIONSHIPS:
                     entities.add(field.entity)
         dimension_pos = [i for i, field in enumerate(fields) if not field.measure]
-        aggregations = {} if detail else definition.get("aggregations", {})
+        aggregations = {} if detail else {key: method for key, method in definition.get("aggregations", {}).items()
+                                          if method != "none"}
         measures = [(i, aggregations.get(field.id, "sum")) for i, field in enumerate(fields) if field.measure]
         count_positions = [i for i, method in measures if method == "count"]
         average_positions = [i for i, method in measures if method == "avg"]

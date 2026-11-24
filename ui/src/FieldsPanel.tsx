@@ -1,5 +1,5 @@
 import React,{useState} from 'react';
-import {Aggregation,aggregationLabels,Aggregations,Field,Order} from './client';
+import {aggregationLabels,Definition,Field,NumericGrouping,Order} from './client';
 import {Icon} from './Icon';
 import {DropField,useFieldDrag} from './useFieldDrag';
 import {CardDisclosure,QueryCard} from './QueryCard';
@@ -9,9 +9,9 @@ interface Props {
   fields:Field[]; outputIds:string[]; order:Order[]; drop:DropField; showDropTarget:boolean; disclosure:CardDisclosure;
   onAdd:React.MouseEventHandler<HTMLButtonElement>;
   remove(id:string):void; sort(setting:Order):void;
-  groupBy:string[]; totalsOnly:boolean; aggregations?:Aggregations;
+  groupBy:string[]; totalsOnly:boolean; aggregations?:Definition['aggregations'];
   onGroupChange(id:string,value:boolean):void; onTotalsChange(value:boolean):void;
-  onAggregationChange(id:string,value:Aggregation):void;
+  onAggregationChange(id:string,value:NumericGrouping):void;
 }
 
 export function FieldsPanel({fields,outputIds,order,drop,onAdd,remove,sort,showDropTarget,disclosure,
@@ -53,16 +53,18 @@ export function FieldsPanel({fields,outputIds,order,drop,onAdd,remove,sort,showD
           <Icon name="grip" size={13}/><span className="column-ordinal">{i+1}</span>
           <span className="field-name"><span className="field-label">{f.label}</span>
             {!included && <small className="hint field-hidden">Hidden by grouping</small>}</span></button>
-        {f.measure ? <div className="aggregation-control">
-          <select className="field-aggregation" aria-label={'Aggregation for '+f.label}
-            title="Applies when Group or Totals only is on" value={aggregations?.[f.id]??'sum'}
-            onChange={e=>onAggregationChange(f.id,e.target.value as Aggregation)}>
-            {Object.entries(aggregationLabels).map(([value,label])=><option key={value} value={value}>{label}</option>)}
-          </select>
-          <Icon name="chevron" size={14}/>
-        </div> : <button type="button" className="switch field-group-switch" role="switch" aria-checked={grouped}
-          aria-label={'Group by '+f.label} title={'Group rows by '+f.label}
-          onClick={()=>onGroupChange(f.id,!grouped)}><span/></button>}
+        <select className="field-grouping" aria-label={(f.measure?'Aggregation for ':'Grouping for ')+f.label}
+          value={f.measure?(aggregations?.[f.id]??'sum'):grouped?'group':'none'}
+          onChange={e=>{
+            const value=e.target.value;
+            if(f.measure)onAggregationChange(f.id,value as NumericGrouping);
+            else onGroupChange(f.id,value==='group');
+          }}>
+          <option value="none">None</option>
+          {f.measure
+            ? Object.entries(aggregationLabels).map(([value,label])=><option key={value} value={value}>{label}</option>)
+            : <option value="group">Group by</option>}
+        </select>
         <button type="button" className="switch field-sort" role="switch" aria-checked={enabled} disabled={!included}
           aria-label={'Sort by '+f.label} title={enabled?'Exclude from row sorting':'Include in row sorting'}
           onClick={()=>sort({field:f.id,direction,enabled:!enabled})}><span/></button>
@@ -80,7 +82,7 @@ export function FieldsPanel({fields,outputIds,order,drop,onAdd,remove,sort,showD
     </div>}
     {fields.length>3 && <button className="text-action more-fields" aria-expanded={expanded} aria-controls="ordered-fields"
       onClick={()=>setExpanded(!expanded)}>{expanded?'Show less':'Show more ('+(fields.length-3)+')'}</button>}
-    {!groupBy.length && fields.some(field=>field.measure) && <label className="totals-option">
+    {!groupBy.length && fields.some(field=>field.measure && aggregations?.[field.id]!=='none') && <label className="totals-option">
       <input type="checkbox" checked={totalsOnly} onChange={e=>onTotalsChange(e.target.checked)}/>Totals only
     </label>}
   </QueryCard>;

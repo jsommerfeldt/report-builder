@@ -129,17 +129,18 @@ class PilotTest(unittest.TestCase):
         client = self.client()
         self.sign_in(client)
         post = {"base_url": ORIGIN, "headers": {"Origin": ORIGIN}}
-        state, sales = "customer.shippingstate", "sales.sales"
-        definition = {**self.d, "groupBy": [state], "aggregations": {sales: "count"}}
+        state, sales, cases = "customer.shippingstate", "sales.sales", "sales.shipquantitycseq"
+        aggregations = {sales: "count", cases: "none"}
+        definition = {**self.d, "groupBy": [state], "aggregations": aggregations}
         created = client.post("/api/reports", json={"name": "Sales by state", "definition": definition}, **post)
         self.assertEqual(created.status_code, 201)
         url = "/api/reports/" + created.json["id"]
         opened = client.get(url, base_url=ORIGIN)
         self.assertEqual(opened.json["definition"]["groupBy"], [state])
-        self.assertEqual(opened.json["definition"]["aggregations"], {sales: "count"})
+        self.assertEqual(opened.json["definition"]["aggregations"], aggregations)
         results = client.get(url + "/results?revision=1", base_url=ORIGIN)
-        self.assertEqual(results.json["fields"], [state, sales, "sales.shipquantitycseq"])
-        self.assertEqual(results.json["rows"][0], ["MN", "2", "1.2501"])
+        self.assertEqual(results.json["fields"], [state, sales])
+        self.assertEqual(results.json["rows"][0], ["MN", "2"])
         self.assertEqual(results.json["aggregations"], {sales: "count"})
         detail = {**definition, "mode": "detail"}
         updated = client.put(url, json={"name": "Sales by state", "definition": detail, "revision": 1}, **post)
@@ -149,7 +150,16 @@ class PilotTest(unittest.TestCase):
         self.assertEqual(results.json["fields"], self.d["fields"])
         self.assertEqual(results.json["total"], 3)
         self.assertEqual(results.json["rows"][0][2], "14.20")
+        self.assertEqual(results.json["rows"][0][3], "1.2500")
         self.assertNotIn("aggregations", results.json)
+
+    def test_none_keeps_raw_values_and_requires_output_in_summary(self):
+        sales = "sales.sales"
+        definition = {**self.d, "fields": [sales], "aggregations": {sales: "none"}}
+        with self.assertRaisesRegex(InvalidDefinition, "numeric column to aggregate"):
+            self.snapshot.preview(definition)
+        detail = self.snapshot.preview({**definition, "mode": "detail"})
+        self.assertEqual(detail["rows"], [["14.20"], ["-2.10"], [None]])
 
     def test_snapshot_integrity(self):
         with (self.path / "fact_sales.csv").open("a", encoding="utf-8") as f:
