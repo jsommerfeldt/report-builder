@@ -69,6 +69,7 @@
 .builder-pane-heading h3 { display: flex; align-items: center; gap: 6px; }
 .objects-heading { justify-content: flex-start; gap: 6px; padding-inline: 16px; }
 .builder-rail {
+  position: relative;
   display: flex;
   flex: none;
   flex-direction: column;
@@ -77,9 +78,16 @@
   width: var(--builder-rail-width);
   padding: 8px 0;
   background: var(--build-bg);
-  border-inline-end: 1px solid var(--build-line);
 }
-.builder-rail:has(+ .library-wrap:not([hidden])) { border-inline-end-color: transparent; }
+.builder-rail::after {
+  content: "";
+  position: absolute;
+  inset-block: 0;
+  inset-inline-end: 0;
+  border-inline-end: 1px solid var(--build-line);
+  pointer-events: none;
+}
+.builder-rail:has(+ .library-wrap:not([hidden]))::after { inset-block-start: var(--pane-heading-height); }
 .builder-rail .secondary-btn { width: 32px; height: 32px; min-height: 0; padding: 0; color: var(--accent-hover); }
 .builder-rail .secondary-btn[aria-expanded=true] {
   color: var(--surface);
