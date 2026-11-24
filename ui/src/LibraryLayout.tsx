@@ -78,7 +78,7 @@ export function LibraryLayout({library,children,newReport,editorSession,queryVis
   const minWidth=Math.min(editorPanes.query.min,widthLimit);
   const minHeight=Math.min(156,heightLimit);
   const queryWidth=clamp(preferred.query,minWidth,widthLimit);
-  const height=queryHeight?clamp(queryHeight,minHeight,heightLimit):Math.min(heightLimit,Math.round(workspace.previewHeight*.8));
+  const height=queryHeight?clamp(queryHeight,minHeight,heightLimit):Math.min(heightLimit,Math.round(workspace.previewHeight*.85));
   const defaultX=compact?leftLimit:workspace.width-queryWidth-28;
   const defaultY=compact?(objectsCollapsed?52:workspace.objectsHeight+6):workspace.height*.23;
   const x=clamp(queryPosition?.x??defaultX,leftLimit,workspace.width-queryWidth-edgeGap);
