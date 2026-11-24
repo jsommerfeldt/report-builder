@@ -1,0 +1,2 @@
+# The snapshot manifest verifies exact CSV bytes.
+/demo-data/*.csv text eol=lf

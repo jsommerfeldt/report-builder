@@ -1,0 +1,50 @@
+{
+  "source": "Synthetic development fixture",
+  "snapshot_version": 2,
+  "trip_datetime": true,
+  "warehouses": true,
+  "scope": {
+    "companies": [
+      "0001",
+      "0030"
+    ],
+    "from": "2026-11-09",
+    "through": "2026-11-15"
+  },
+  "sha256": {
+    "fact_sales": "cb88f0947a6593fa1d33c5043c473bf026aa00b51f7ab0d15541c20570241c49",
+    "dim_customers": "61f42dbbcd5cfcb98d9a264eb9739c8400311f842bfc3bb496d40574f9a68972",
+    "dim_products": "f0ced6f2165592066eff98b885e0d0f07c28ef9c7cbcc76f8a746a7531edb221",
+    "dim_trips": "703e26cc1c5c07569eee14b28526294db1660d3c4dbf250d42111b8bd1fee7a9",
+    "dim_warehouses": "641d82f957fdb268c7c660d1c94c65c728a752b315f4924ff38c54e644c31165"
+  },
+  "verification": {
+    "passed": true,
+    "dimension_rows": {
+      "customers": 12,
+      "products": 10,
+      "trips": 14,
+      "warehouses": 4
+    },
+    "before_joins": {
+      "rows": 84,
+      "sales": "6626.00",
+      "creditsales": "50.00",
+      "shipquantitycseq": "456.00"
+    },
+    "by_company": {
+      "0001": {
+        "rows": 42,
+        "sales": "3093.00",
+        "creditsales": "25.00",
+        "shipquantitycseq": "228.00"
+      },
+      "0030": {
+        "rows": 42,
+        "sales": "3533.00",
+        "creditsales": "25.00",
+        "shipquantitycseq": "228.00"
+      }
+    }
+  }
+}

@@ -5,6 +5,11 @@ dist/
 .venv/
 .env
 *.csv
+!/demo-data/fact_sales.csv
+!/demo-data/dim_customers.csv
+!/demo-data/dim_products.csv
+!/demo-data/dim_trips.csv
+!/demo-data/dim_warehouses.csv
 access.key
 .env.*
 *.key

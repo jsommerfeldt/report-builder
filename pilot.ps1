@@ -6,6 +6,10 @@ param(
 )
 $ErrorActionPreference = 'Stop'
 $pilotHome = Join-Path ([Environment]::GetFolderPath('LocalApplicationData')) 'RDWDW/ReportBuilderPilot'
+if ($env:REPORT_BUILDER_HOME) {
+    if (-not [IO.Path]::IsPathRooted($env:REPORT_BUILDER_HOME)) { throw 'REPORT_BUILDER_HOME must be an absolute path.' }
+    $pilotHome = $env:REPORT_BUILDER_HOME
+}
 $python = Join-Path $pilotHome 'venv/Scripts/python.exe'
 $server = Join-Path $PSScriptRoot 'app.py'
 $origin = 'http://127.0.0.1:8784'

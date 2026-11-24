@@ -1,10 +1,44 @@
-# Report Builder
+# Dataset Builder
 
-A Windows, single-user CSV pilot for composing sales reports. Open **Open Report Builder.cmd** to start the loopback service and open an authorized tab in your default browser. The launcher can also reopen an expired browser session.
+A single-user CSV pilot for building sales datasets. A fresh profile starts with an empty dataset library and the bundled [synthetic sales snapshot](demo-data/manifest.json).
+
+## Quick start on Windows
+
+Install Python 3.13 through the Windows Python launcher, Node.js 24, and pnpm 11. From the repository root, run the following in PowerShell.
+
+```powershell
+.\pilot.ps1 -Action Build -NoBrowser
+.\pilot.ps1 -Action Start
+```
+
+Build downloads the pinned Python and frontend dependencies. Start launches the local service and opens an authorized browser tab at `http://127.0.0.1:8784`. For later launches, double-click **Open Report Builder.cmd** or run `.\pilot.ps1 -Action Open` if the service is already running. An agent can use `Start -NoBrowser` followed by `Status`, then hand off with `Open` to launch the browser.
+
+Choose **New dataset**, add **Sales Company** and **Sales** from Objects, and click the play icon at the bottom of the sidebar. Preview shows totals for `0001` and `0030`.
+
+The files in [demo-data](demo-data/) contain 84 fictional sale rows and the customer, product, trip, and warehouse tables used by the builder. The app reads these CSVs directly on a fresh profile and checks the manifest's hashes, relationships, row counts, and totals at startup. Testing with this snapshot requires no PostgreSQL client, warehouse credentials, export, or saved dataset files.
+
+The Windows runtime and saved datasets live under `%LOCALAPPDATA%\RDWDW\ReportBuilderPilot`. To isolate a test from an existing profile, stop its running service first, then set `$env:REPORT_BUILDER_HOME = Join-Path $env:LOCALAPPDATA 'RDWDW/ReportBuilderDemo'` before building and starting. Use that same environment setting for later commands in the demo profile. Both profiles use port 8784.
+
+## Manual setup on macOS or Linux
+
+Use Python 3.13, Node.js 24, and pnpm 11. From the repository root, choose an absolute path for the runtime using `REPORT_BUILDER_HOME`.
+
+```sh
+export REPORT_BUILDER_HOME="$PWD/.venv/pilot"
+python3.13 -m venv "$REPORT_BUILDER_HOME/venv"
+"$REPORT_BUILDER_HOME/venv/bin/python" -m pip install -r requirements.txt
+pnpm --dir ui install --frozen-lockfile --ignore-scripts
+pnpm --dir ui run build
+mkdir -p "$REPORT_BUILDER_HOME/ui/dist"
+cp ui/dist/builder.js ui/dist/builder.css "$REPORT_BUILDER_HOME/ui/dist/"
+"$REPORT_BUILDER_HOME/venv/bin/python" -B app.py serve
+```
+
+Leave the server running. In a second terminal, set the same `REPORT_BUILDER_HOME` and run `"$REPORT_BUILDER_HOME/venv/bin/python" -B app.py open` from the repository root to open the authorized browser tab.
 
 ## Use the builder
 
-The pilot opens to **Reports**. Search by name, choose a **Location** to browse folders or Trash, or sort by **Name** or **Last modified**. Select a report name or **Run** to see a read-only result with 50 rows per page. **Edit** opens the report in the builder. **New report** starts an empty definition in the current folder.
+The pilot opens to **Datasets**. Search by name, choose a **Location** to browse folders or Trash, or sort by **Name** or **Last modified**. Select a dataset name or **Run** to see a read-only result with 50 rows per page. **Edit** opens the dataset in the builder. **New dataset** starts an empty definition in the current folder.
 
 Open **Folders** and use the plus beside its heading to create a folder or subfolder. Open a folder and choose **Manage folder** to rename or move it. A report's **…** button moves it to another folder or to **Trash**. Restore a report from Trash to return it to its former folder, or to the library root if that folder was removed. If its name has been reused, the restored copy receives a suffix. Choose the trash icon beside a folder or choose **Delete folder** in **Manage folder**. Confirming moves its reports and subfolders up one level.
 
@@ -14,16 +48,16 @@ In **Trash**, choose **Delete permanently** and confirm to remove a saved report
 
 1. In **Objects**, expand Sales, Customers, Products, Trips, or Warehouses, or search for a field. Click fields or drag them into **Columns** in **Query**. Drag columns to reorder them. **Warehouse Code**, **Warehouse Name**, and **Warehouse Company** describe the warehouse recorded on the sale.
 2. In **Columns**, non-numeric fields group the results by default. For numeric fields, use the dropdown to choose a calculation. **Count** counts nonblank values, and **None** keeps a column for detail rows. When no columns define groups, clear **Totals only** to see one row per sale. The **?** icon shows both views.
-3. In **Columns**, turn on **Sort** for each visible column and choose **Asc** or **Desc**. **Run preview** in the **Preview** header displays the first 50 matching rows after sorting and sizes columns to those rows. Use the pencil in **Columns** or **Filters** to rename a field throughout the report. Hover over the name to see its original table and column.
-4. Choose **Save report** and give the definition a name. Choose **Reports** to return to the library. Saving an existing report updates its revision. If another tab saved first, reopen that revision before editing again.
+3. In **Columns**, turn on **Sort** for each visible column and choose **Asc** or **Desc**. **Run preview** at the bottom of the sidebar displays the first 50 matching rows after sorting and sizes columns to those rows. Hover over a column name to see its original table and column, or click the name to edit it in place.
+4. Choose **Save dataset** and give the definition a name. Choose **Datasets** to return to the library. Saving an existing dataset updates its revision. If another tab saved first, reopen that revision before editing again.
 
 With no groups selected, **Totals only** calculates the selected aggregations across all matching sales in one row.
 
-With the expanded snapshot active, a new report includes sales for `0001` and `0030`. Use **Sales company** to group or filter by the company on the sale. Reports saved before the expansion still use `0030`. To broaden one, open it, choose **Include both companies** in Query, run the preview, and save the updated definition. An unassigned trip displays blank trip fields.
+With the expanded snapshot active, a new report includes sales for `0001` and `0030`. Use **Sales Company** to group or filter by the company on the sale. Older reports still use `0030` and open with an editable **Sales Company** filter. Change or remove that filter to adjust the scope, then run the preview and save the report. An unassigned trip displays blank trip fields.
 
 Click **Objects** to collapse it into an icon sidebar. The Objects icon reopens the list, and the Query icon opens the query panel over **Preview** in either layout. Drag the Query title bar to move it and any edge or corner to resize it. When focused, the move and resize handles also respond to arrow keys. Close Query with the same button, the close icon, or Escape.
 
-Drop a field onto **Preview** to see its column header immediately and open Query with **Columns** expanded. Run Preview to load values. Drag a field between **Columns** and **Filters** to move it. For a new filter, **Apply filter** completes the move and **Cancel** restores the column. Moving a field into **Columns** removes all filter rules for that field. Drag a field from **Objects** if you want it in both sections. With a field’s move handle focused, **Shift+Down** moves a column into Filters and **Shift+Up** moves a filtered field into Columns.
+Drop a field onto **Preview** to see its column header immediately and open Query with **Columns** expanded. Run Preview to load values. Drag a field between **Columns** and **Filters** to move it or hold **Ctrl** while dropping to copy it. For a new filter, **Apply filter** completes the move and **Cancel** restores the column. Moving a field into **Columns** removes all filter rules for that field. With a field’s move handle focused, **Shift+Down** moves a column into Filters and **Shift+Up** moves a filtered field into Columns.
 
 Drag a field by its name or grip to move its output column, or focus it and press the up/down arrows. Use **Priority** to order the enabled sorts independently. Priority **1** sorts first and **2** breaks its ties. Choosing a priority shifts the other ranks automatically. New or re-enabled sorts take the last priority. Disabling a sort remembers its direction and releases its rank. With all sorts off, rows and summary groups follow their first occurrence in the filtered source. Older saved definitions start with the precedence they had under column-based sorting.
 
@@ -33,11 +67,11 @@ Drag the right edge of any preview column header to widen or narrow it. A focuse
 
 Drag a library field into **Filters**, or choose **Add filter**. With **is any of**, search the CSV values, check one or more, or type a custom value and choose **Use**. Turn on **Match case** to match text exactly as capitalized. For a date or date and time field, **relative to now** recalculates when the report runs. Days and weeks include today, and date and time fields also support hours counted from the current local time. Choose **Apply filter**, then **Run preview**. Any chosen value can match within a rule, and all enabled rules must match before totals are calculated.
 
-Click the title to rename the draft. Choose **Apply title**, then **Save report** to persist it. Saving under another report's name prompts for confirmation. **Replace report** updates the named target. When editing a different previously saved report, its original definition stays available under its original name.
+Click the title to rename the draft. Choose **Apply title**, then **Save dataset** to persist it. Saving under another dataset's name prompts for confirmation. **Replace dataset** updates the named target. When editing a different previously saved dataset, its original definition stays available under its original name.
 
-## Local operation
+## Warehouse snapshot for authorized users
 
-Run these commands from the project directory. Setup needs Python 3.13, Node, pnpm and the PostgreSQL client on PATH. The built pilot needs only its private Python environment, compiled UI, and CSV snapshot.
+Use these commands when explicitly testing against the configured warehouse on Windows. Export also needs the PostgreSQL client on PATH and access to the warehouse.
 
 ```powershell
 .\pilot.ps1 -Action Build
@@ -54,13 +88,17 @@ The five CSVs and reconciliation manifest are staged in `csv-expanded-v2-warehou
 
 **Activate** selects the latest available verified expanded snapshot for the next server start, preferring the snapshot with warehouse fields. To restore the original single-company snapshot, stop the server, run `./pilot.ps1 -Action Rollback`, and start it again. Saved reports remain in the library and require a snapshot with their selected fields.
 
-The server listens on `127.0.0.1:8784`. The private launcher authenticates the listener and opens a short-lived sign-in link. The browser removes the sign-in fragment and receives a host-only, HTTP-only session cookie. The server checks host, origin, content type, selected fields and definition version. The bundle, icon and styles are served locally. The CSV directory and reports directory have no static HTTP routes.
+The server listens on `127.0.0.1:8784`. The private launcher authenticates the listener and opens a short-lived sign-in link. The browser removes the sign-in fragment and receives a host-only, HTTP-only session cookie. The server checks host, origin, content type, selected fields and definition version. The bundle, icon and styles are served locally. The CSV directory and local dataset directory have no static HTTP routes.
+
+## Tests
 
 Run the offline regression checks from the project directory with the pilot's Python interpreter.
 
 ```powershell
 & "$env:LOCALAPPDATA\RDWDW\ReportBuilderPilot\venv\Scripts\python.exe" -B -m unittest -v test_pilot
 ```
+
+If you set `REPORT_BUILDER_HOME`, use the interpreter in that profile instead. See [AGENTS.md](AGENTS.md) for the setup and verification handoff.
 
 ## Integration boundary
 

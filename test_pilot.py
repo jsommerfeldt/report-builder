@@ -12,7 +12,7 @@ from itsdangerous import URLSafeTimedSerializer
 
 from app import make_app
 from csv_source import CsvSnapshot, file_hash
-from local_paths import ORIGIN
+from local_paths import BUNDLED_SNAPSHOT, LEGACY_SNAPSHOT, ORIGIN, SNAPSHOT_POINTER, WAREHOUSE_SNAPSHOT, active_snapshot
 from model import CSV_COLUMNS, CSV_COLUMNS_WITH_DATETIME, CSV_COLUMNS_WITH_WAREHOUSES, LEGACY_COLUMNS, InvalidDefinition
 from report_store import ReportStore
 
@@ -212,6 +212,22 @@ class PilotTest(unittest.TestCase):
             f.write("\n")
         with self.assertRaisesRegex(ValueError, "checksum"):
             CsvSnapshot(self.path)
+
+    def test_bundled_snapshot_opens_without_local_data(self):
+        profile = self.path / "fresh-profile"
+        self.assertEqual(active_snapshot(profile), BUNDLED_SNAPSHOT)
+        snapshot = CsvSnapshot(active_snapshot(profile))
+        self.assertTrue(snapshot.has_warehouses)
+        self.assertGreater(snapshot.counts["sales"], 50)
+        definition = {**self.d, "version": 2, "fields": ["sales.company", "sales.sales"]}
+        companies = [row[0] for row in snapshot.preview(definition)["rows"]]
+        self.assertEqual(companies, ["0001", "0030"])
+
+        legacy = profile / LEGACY_SNAPSHOT
+        legacy.mkdir(parents=True)
+        self.assertEqual(active_snapshot(profile), legacy)
+        (profile / SNAPSHOT_POINTER).write_text(WAREHOUSE_SNAPSHOT, encoding="ascii")
+        self.assertEqual(active_snapshot(profile), profile / WAREHOUSE_SNAPSHOT)
 
     def expanded_fixture(self, *, with_dispatch_time=False, with_warehouses=False):
         expanded = self.path / "expanded"
