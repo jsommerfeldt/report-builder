@@ -214,11 +214,11 @@ button.field-row { width: 100%; text-align: left; }
 .query-card-heading { display: flex; align-items: stretch; min-height: 36px; }
 .query-card-heading:has([aria-expanded=true]) { border-bottom: 1px solid var(--build-line); }
 .query-card-heading h4 { display: flex; flex: 1; min-width: 0; font-size: 13px; font-weight: 650; }
-.query-card-heading > .query-help { width: 40px; height: auto; cursor: pointer; }
 .query-card-heading .pane-disclosure { width: 100%; min-height: 36px; gap: 5px; padding: 0 12px; cursor: pointer; }
-.query-card-status { margin-left: auto; color: var(--muted); font-size: 11px; font-weight: 400; }
 .query-card-heading .pane-disclosure:hover { background: var(--accent-subtle); }
+.query-card-heading > .query-help { width: 40px; height: auto; cursor: pointer; }
 .query-card-heading svg { flex: none; color: var(--accent-hover); }
+.query-card-status { margin-left: auto; color: var(--muted); font-size: 11px; font-weight: 400; }
 .query-card-body { padding: 8px; }
 .totals-option, .filter-editor .filter-case { display: flex; align-items: center; gap: 6px; font-size: 12px; }
 .totals-option { margin-top: 8px; }
@@ -410,10 +410,10 @@ th[data-preview-field] { user-select: none; touch-action: pan-y; cursor: grab; }
   .bar-title h1 { font-size: 18px; }
   .query-scroll { padding-bottom: 18px; }
 }
-  .editor-bar { flex-wrap: wrap; gap: 8px; }
-  .editor-actions { margin-left: auto; }
 @media (max-width: 555px) {
   .mode-comparison { grid-template-columns: 1fr; }
+  .editor-bar { flex-wrap: wrap; gap: 8px; }
+  .editor-actions { margin-left: auto; }
 }
 @media (max-width: 395px) {
   .title-edit { grid-template-columns: minmax(0, 1fr); }
