@@ -33,12 +33,12 @@ function ModeExample({grouped,description,columns,rows}:ExampleProps) {
 export function QueryModeExamples() {
   return <div className="mode-comparison">
       <ModeExample grouped={false}
-        description={<>Turn off the <strong>Group</strong> switches and clear <strong>Totals only</strong> to show one row per sale.</>}
+        description={<>Turn on <strong>Detail rows</strong> to show one row per sale.</>}
         columns={['Shipping State','Product Description']}
         rows={[[['MN','Apples'],44.50],[['MN','Carrots'],55.50],[['WI','Apples'],72.25]]}/>
       <ModeExample grouped
-        description={<>Turn on <strong>Group</strong> for <strong>Shipping State</strong> and leave it off for <strong>Product Description</strong> to total sales by state.</>}
-        columns={['Shipping State']}
-        rows={[[['MN'],100],[['WI'],72.25]]}/>
+        description={<>Leave <strong>Shipping State</strong> blank under <strong>Aggregate</strong> and choose <strong>First</strong> for <strong>Product Description</strong> to summarize sales by state.</>}
+        columns={['Shipping State','First Product Description']}
+        rows={[[['MN','Apples'],100],[['WI','Apples'],72.25]]}/>
   </div>;
 }

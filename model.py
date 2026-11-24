@@ -83,7 +83,8 @@ FIELDS = (
 )
 BY_ID = {field.id: field for field in FIELDS}
 MEASURES = tuple(field.column for field in FIELDS if field.measure)
-AGGREGATIONS = ("sum", "avg", "min", "max", "count")
+NUMERIC_AGGREGATIONS = ("sum", "avg", "min", "max", "count", "none")
+DIMENSION_AGGREGATIONS = ("first", "last", "count", "unique")
 PREVIEW_LIMIT = 50
 STARTER = {"version": 1, "source": "sales", "mode": "summary",
            "fields": ["customer.shippingstate", "product.productnumber", "sales.sales", "sales.shipquantitycseq"],
@@ -170,7 +171,8 @@ def summary_fields(definition):
     group_by = definition.get("groupBy")
     aggregations = definition.get("aggregations", {})
     return [key for key in definition["fields"] if
-            (aggregations.get(key) != "none" if BY_ID[key].measure else group_by is None or key in group_by)]
+            (aggregations.get(key) != "none" if BY_ID[key].measure
+             else key in aggregations or group_by is None or key in group_by)]
 
 
 def validate_definition(value):
@@ -200,10 +202,10 @@ def validate_definition(value):
     if "aggregations" in value:
         aggregations = value["aggregations"]
         if not isinstance(aggregations, dict) or any(
-            key not in ids or not BY_ID[key].measure or method not in (*AGGREGATIONS, "none")
+            key not in ids or method not in (NUMERIC_AGGREGATIONS if BY_ID[key].measure else DIMENSION_AGGREGATIONS)
             for key, method in aggregations.items()
         ):
-            raise InvalidDefinition("Choose a supported aggregation for each selected numeric column.")
+            raise InvalidDefinition("Choose a supported aggregation for each selected column.")
         if aggregations:
             result["aggregations"] = dict(aggregations)
     if result["mode"] == "summary" and not summary_fields(result):

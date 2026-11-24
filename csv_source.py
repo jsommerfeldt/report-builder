@@ -222,12 +222,15 @@ class CsvSnapshot:
                 active.append((field, op, operand, case_sensitive))
                 if field.entity in RELATIONSHIPS:
                     entities.add(field.entity)
-        dimension_pos = [i for i, field in enumerate(fields) if not field.measure]
         aggregations = {} if detail else {key: method for key, method in definition.get("aggregations", {}).items()
                                           if method != "none"}
-        measures = [(i, aggregations.get(field.id, "sum")) for i, field in enumerate(fields) if field.measure]
-        count_positions = [i for i, method in measures if method == "count"]
-        average_positions = [i for i, method in measures if method == "avg"]
+        group_positions = [i for i, field in enumerate(fields) if not field.measure and field.id not in aggregations]
+        calculations = [(i, aggregations.get(field.id, "sum")) for i, field in enumerate(fields)
+                        if field.measure or field.id in aggregations]
+        count_positions = [i for i, method in calculations if method == "count"]
+        average_positions = [i for i, method in calculations if method == "avg"]
+        unique_positions = [i for i, method in calculations if method == "unique"]
+        ordered_positions = [i for i, method in calculations if method in ("first", "last")]
         rows = []
         groups = {}
         matched = 0
@@ -248,35 +251,44 @@ class CsvSnapshot:
             if detail:
                 rows.append(values)
                 continue
-            key = tuple(values[index] for index in dimension_pos)
+            key = tuple(values[index] for index in group_positions)
             if key not in groups:
                 for index in count_positions:
-                    values[index] = int(values[index] is not None)
-                groups[key] = values, {index: int(values[index] is not None) for index in average_positions}
+                    values[index] = int(values[index] not in (None, ""))
+                for index in ordered_positions:
+                    if values[index] == "":
+                        values[index] = None
+                groups[key] = (values, {i: int(values[i] is not None) for i in average_positions},
+                               {i: set() if values[i] in (None, "") else {values[i]} for i in unique_positions})
                 continue
-            target, average_counts = groups[key]
-            for index, method in measures:
+            target, average_counts, distinct = groups[key]
+            for index, method in calculations:
                 value = values[index]
-                if value is None:
+                if value in (None, ""):
                     continue
                 if method == "count":
                     target[index] += 1
+                    continue
+                if method == "unique":
+                    distinct[index].add(value)
                     continue
                 if method == "avg":
                     average_counts[index] += 1
                 if method in ("sum", "avg"):
                     target[index] = (target[index] or Decimal(0)) + value
-                elif target[index] is None:
+                elif target[index] is None or method == "last":
                     target[index] = value
                 elif method == "min":
                     target[index] = min(target[index], value)
-                else:
+                elif method == "max":
                     target[index] = max(target[index], value)
         if detail:
             total = matched if active else len(facts)
         else:
             # Groups keep the first matching fact's position until an enabled field sorts them.
-            for values, average_counts in groups.values():
+            for values, average_counts, distinct in groups.values():
+                for index, unique in distinct.items():
+                    values[index] = len(unique)
                 for index, count in average_counts.items():
                     if count:
                         values[index] /= count

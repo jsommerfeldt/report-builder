@@ -1,5 +1,5 @@
 import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
-import {Catalog, Collision, Definition, Field, NumericGrouping, Order, Preview, ReportClient, RequestError, SavedInfo, SavedReport} from './client';
+import {Aggregation, Catalog, Collision, Definition, Field, Order, Preview, ReportClient, RequestError, SavedInfo, SavedReport} from './client';
 import {Modal} from './Modal';
 import {FieldLibrary} from './FieldLibrary';
 import {Icon} from './Icon';
@@ -36,8 +36,11 @@ function previewKey(d:Definition,outputIds:string[]) {
   return definitionKey({...d,fields:[...outputIds].sort(),groupBy:undefined,
     aggregations:d.mode==='summary'?d.aggregations:undefined});
 }
+function includesDimension(d:Definition,id:string) {
+  return d.groupBy?.includes(id)??true;
+}
 function summaryFields(d:Definition,byId:Record<string,Field>) {
-  return d.fields.filter(id=>byId[id].measure?d.aggregations?.[id]!=='none':d.groupBy?.includes(id)??true);
+  return d.fields.filter(id=>byId[id].measure?d.aggregations?.[id]!=='none':!!d.aggregations?.[id] || includesDimension(d,id));
 }
 function withOutputMode(d:Definition,byId:Record<string,Field>):Definition {
   return d.mode==='summary' && d.fields.length>0 && !summaryFields(d,byId).length?{...d,mode:'detail'}:d;
@@ -74,10 +77,10 @@ export function ReportBuilder({catalog,client,initialReport,folderId,onReports}:
   const generation = useRef(0);
   const byId = useMemo(() => Object.fromEntries(catalog.fields.map(f => [f.id, f])) as Record<string,Field>, [catalog]);
   const columns=definition.fields.map(id=>byId[id]);
-  const dimensions=columns.filter(field=>!field.measure);
-  const groupBy=definition.groupBy??dimensions.map(field=>field.id);
+  const groupBy=columns.filter(f=>!f.measure && !definition.aggregations?.[f.id] && includesDimension(definition,f.id)).map(f=>f.id);
   const grouped=definition.mode==='summary';
-  const outputIds=useMemo(()=>grouped?summaryFields(definition,byId):definition.fields,[byId,definition,grouped]);
+  const summaryIds=useMemo(()=>summaryFields(definition,byId),[definition,byId]);
+  const outputIds=grouped?summaryIds:definition.fields;
   const hasOutput=outputIds.length>0;
   const lookup = useCallback((field:string, query:string, offset:number)=>client.values(field,query,offset,definition.version),
     [client,definition.version]);
@@ -110,7 +113,8 @@ export function ReportBuilder({catalog,client,initialReport,folderId,onReports}:
   }, [dirty]);
   function changeFields(fields:string[]) {
     setDefinition(prev=>{
-      const groupBy=prev.groupBy?.filter(id=>fields.includes(id));
+      const groupBy=prev.groupBy && fields.filter(id=>
+        includesDimension(prev,id) || (!prev.fields.includes(id) && !byId[id].measure));
       return withOutputMode({...prev,fields,groupBy,
         aggregations:prev.aggregations && Object.fromEntries(Object.entries(prev.aggregations).filter(([id])=>fields.includes(id))),
         order:prev.order && numberSorts(prev.order.filter(o=>fields.includes(o.field)))},byId);
@@ -136,23 +140,19 @@ export function ReportBuilder({catalog,client,initialReport,folderId,onReports}:
     });
     setError('');setNotice('');
   }
-  function setGrouping(mode:Definition['mode'],groupBy:string[]) {
-    setDefinition(prev=>({...prev,mode,groupBy}));
+  function setSummary(summary:boolean) {
+    setDefinition(prev=>({...prev,mode:summary?'summary':'detail'}));
     setNotice('');setError('');
   }
-  function changeAggregation(id:string,method:NumericGrouping) {
+  function changeAggregation(id:string,method:Aggregation|'none'|'') {
     setDefinition(prev=>{
       const aggregations={...prev.aggregations};
-      if(method==='sum')delete aggregations[id];
+      if(method==='' || method==='sum')delete aggregations[id];
       else aggregations[id]=method;
-      return withOutputMode({...prev,aggregations},byId);
+      const groupBy=method==='' && prev.groupBy && !includesDimension(prev,id)?[...prev.groupBy,id]:prev.groupBy;
+      return withOutputMode({...prev,aggregations,groupBy},byId);
     });
     setNotice('');setError('');
-  }
-  function toggleGroup(id:string,active:boolean) {
-    const current=grouped?groupBy:[];
-    const next=active?[...current,id]:current.filter(key=>key!==id);
-    setGrouping(next.length?'summary':'detail',next);
   }
   function cardDisclosure(card:Destination) {
     return {
@@ -270,9 +270,8 @@ export function ReportBuilder({catalog,client,initialReport,folderId,onReports}:
               <FieldsPanel key={'fields-'+editorSession} fields={columns} outputIds={outputIds} disclosure={cardDisclosure('fields')}
                 onAdd={e=>setObjectPick({destination:'fields',trigger:e.currentTarget})}
                 order={definition.order??[]} drop={dropField} remove={toggle} sort={changeSort} showDropTarget={fieldInteraction}
-                groupBy={grouped?groupBy:[]} totalsOnly={grouped && !groupBy.length}
-                aggregations={definition.aggregations} onAggregationChange={changeAggregation}
-                onGroupChange={toggleGroup} onTotalsChange={active=>setGrouping(active?'summary':'detail',[])}/>
+                groupBy={groupBy} summary={grouped} canSummarize={summaryIds.length>0} onSummaryChange={setSummary}
+                aggregations={definition.aggregations} onAggregationChange={changeAggregation}/>
               <FiltersPanel key={editorSession} fields={catalog.fields} entities={catalog.entities} lookup={lookup} rules={definition.filters??[]}
                 disclosure={cardDisclosure('filters')}
                 editor={filterEditor} setEditor={setFilterEditor} showDropTarget={fieldInteraction}

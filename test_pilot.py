@@ -120,10 +120,35 @@ class PilotTest(unittest.TestCase):
                                                    ["~NO", "0" if method == "count" else None, None]])
                 totals = self.snapshot.preview({**report, "groupBy": []})
                 self.assertEqual(totals["rows"], [[expected, "1.2501"]])
-        for invalid in (None, [sales, "sum"], {sales: ["sum"]}, {sales: "median"}, {state: "count"},
+        for invalid in (None, [sales, "sum"], {sales: ["sum"]}, {sales: "median"}, {state: "avg"},
                         {"sales.creditsales": "sum"}):
             with self.subTest(invalid=invalid), self.assertRaises(InvalidDefinition):
                 self.snapshot.preview({**query, "aggregations": invalid})
+
+    def test_dimension_aggregations_respect_groups_blanks_and_source_order(self):
+        state, product, sales = "customer.shippingstate", "product.productdesc", "sales.sales"
+        blank = {**self.snapshot.facts[0], "product_key": "5"}
+        other = {**self.snapshot.facts[0], "product_key": "6"}
+        self.snapshot.dimensions["product"]["5"]["productdesc"] = ""
+        self.snapshot.dimensions["product"]["6"] = {**self.snapshot.dimensions["product"]["3"],
+                                                   "productdesc": "Carrots"}
+        self.snapshot.facts = [blank, *self.snapshot.facts[:2], other, blank, self.snapshot.facts[2]]
+        query = {**self.d, "fields": [state, product, sales], "groupBy": [state],
+                 "order": [{"field": state, "direction": "desc"}]}
+        for method, expected, blank_value in (("first", "Apples", None), ("last", "Carrots", None),
+                                               ("count", "3", "0"), ("unique", "2", "0")):
+            with self.subTest(method=method):
+                configured = {**query, "aggregations": {product: method}}
+                result = self.snapshot.preview(configured)
+                self.assertEqual(result["fields"], [state, product, sales])
+                self.assertEqual(result["aggregations"], {product: method})
+                self.assertEqual([row[1] for row in result["rows"]], [blank_value, expected])
+                implicit = {key: value for key, value in configured.items() if key != "groupBy"}
+                self.assertEqual(self.snapshot.preview(implicit)["rows"], result["rows"])
+        totals = {**query, "groupBy": [], "fields": [product], "aggregations": {product: "unique"}, "order": []}
+        self.assertEqual(self.snapshot.preview(totals)["rows"], [["2"]])
+        raw = self.snapshot.preview({**totals, "mode": "detail"})
+        self.assertEqual(raw["rows"], [[""], ["Apples"], ["Apples"], ["Carrots"], [""], [""]])
 
     def test_grouping_persists_and_runs_from_the_report_library(self):
         client = self.client()

@@ -1,21 +1,24 @@
 import React,{useState} from 'react';
-import {aggregationLabels,Definition,Field,NumericGrouping,Order} from './client';
+import {Aggregation,aggregationLabels,Definition,Field,Order} from './client';
 import {Icon} from './Icon';
 import {DropField,useFieldDrag} from './useFieldDrag';
 import {CardDisclosure,QueryCard} from './QueryCard';
 import {columnsHelp} from './QueryHelp';
 
+const numericOptions:Aggregation[]=['sum','avg','min','max','count'];
+const dimensionOptions:Aggregation[]=['first','last','count','unique'];
+
 interface Props {
   fields:Field[]; outputIds:string[]; order:Order[]; drop:DropField; showDropTarget:boolean; disclosure:CardDisclosure;
   onAdd:React.MouseEventHandler<HTMLButtonElement>;
   remove(id:string):void; sort(setting:Order):void;
-  groupBy:string[]; totalsOnly:boolean; aggregations?:Definition['aggregations'];
-  onGroupChange(id:string,value:boolean):void; onTotalsChange(value:boolean):void;
-  onAggregationChange(id:string,value:NumericGrouping):void;
+  groupBy:string[]; summary:boolean; canSummarize:boolean; aggregations?:Definition['aggregations'];
+  onSummaryChange(value:boolean):void;
+  onAggregationChange(id:string,value:Aggregation|'none'|''):void;
 }
 
 export function FieldsPanel({fields,outputIds,order,drop,onAdd,remove,sort,showDropTarget,disclosure,
-  groupBy,totalsOnly,onGroupChange,onTotalsChange,aggregations,onAggregationChange}:Props) {
+  groupBy,summary,canSummarize,onSummaryChange,aggregations,onAggregationChange}:Props) {
   const [expanded,setExpanded]=useState(true);
   const {begin}=useFieldDrag(drop);
   const settings=new Map(order.map(item=>[item.field,item]));
@@ -29,13 +32,14 @@ export function FieldsPanel({fields,outputIds,order,drop,onAdd,remove,sort,showD
       </button>
     </div> : <div className="configuration-scroll" tabIndex={0} role="group" aria-label="Column order, grouping and sorting">
     <div className="field-control-grid field-headings" aria-hidden="true">
-      <span>Column Order</span><span>Group</span><span>Sort</span><span>Priority</span><span>Direction</span><span/>
+      <span>Column Order</span><span>Aggregate</span><span>Sort</span><span>Priority</span><span>Direction</span><span/>
     </div>
     <div className="field-stack" id="ordered-fields">{visible.map((f,i)=>{
       const setting=settings.get(f.id);
       const enabled=!!setting && setting.enabled!==false;
       const included=outputIds.includes(f.id);
-      const grouped=groupBy.includes(f.id);
+      const method=aggregations?.[f.id];
+      const excluded=!f.measure && !method && !groupBy.includes(f.id);
       const direction=setting?.direction??'asc';
       const desc=direction==='desc';
       return <div className={'field-control-grid field-line '+f.entity} key={f.id} data-column={f.id}>
@@ -53,17 +57,13 @@ export function FieldsPanel({fields,outputIds,order,drop,onAdd,remove,sort,showD
           <Icon name="grip" size={13}/><span className="column-ordinal">{i+1}</span>
           <span className="field-name"><span className="field-label">{f.label}</span>
             {!included && <small className="hint field-hidden">Hidden by grouping</small>}</span></button>
-        <select className="field-grouping" aria-label={(f.measure?'Aggregation for ':'Grouping for ')+f.label}
-          value={f.measure?(aggregations?.[f.id]??'sum'):grouped?'group':'none'}
-          onChange={e=>{
-            const value=e.target.value;
-            if(f.measure)onAggregationChange(f.id,value as NumericGrouping);
-            else onGroupChange(f.id,value==='group');
-          }}>
-          <option value="none">None</option>
-          {f.measure
-            ? Object.entries(aggregationLabels).map(([value,label])=><option key={value} value={value}>{label}</option>)
-            : <option value="group">Group by</option>}
+        <select className="field-grouping" aria-label={'Aggregation for '+f.label}
+          title={f.measure?'Choose a calculation or keep this column for detail rows':'Leave blank to group by this column'}
+          value={method??(f.measure?'sum':excluded?'excluded':'')}
+          onChange={e=>onAggregationChange(f.id,e.target.value as Aggregation|'none'|'')}>
+          {excluded && <option value="excluded" disabled>Excluded</option>}
+          {f.measure?<option value="none">None</option>:<option value="" aria-label="No aggregation">—</option>}
+          {(f.measure?numericOptions:dimensionOptions).map(value=><option key={value} value={value}>{aggregationLabels[value]}</option>)}
         </select>
         <button type="button" className="switch field-sort" role="switch" aria-checked={enabled} disabled={!included}
           aria-label={'Sort by '+f.label} title={enabled?'Exclude from row sorting':'Include in row sorting'}
@@ -82,8 +82,10 @@ export function FieldsPanel({fields,outputIds,order,drop,onAdd,remove,sort,showD
     </div>}
     {fields.length>3 && <button className="text-action more-fields" aria-expanded={expanded} aria-controls="ordered-fields"
       onClick={()=>setExpanded(!expanded)}>{expanded?'Show less':'Show more ('+(fields.length-3)+')'}</button>}
-    {!groupBy.length && fields.some(field=>field.measure && aggregations?.[field.id]!=='none') && <label className="totals-option">
-      <input type="checkbox" checked={totalsOnly} onChange={e=>onTotalsChange(e.target.checked)}/>Totals only
-    </label>}
+    {canSummarize && (groupBy.length>0
+      ? <label className="totals-option"><input type="checkbox" checked={!summary}
+          onChange={e=>onSummaryChange(!e.target.checked)}/>Detail rows</label>
+      : <label className="totals-option"><input type="checkbox" checked={summary}
+          onChange={e=>onSummaryChange(e.target.checked)}/>Totals only</label>)}
   </QueryCard>;
 }

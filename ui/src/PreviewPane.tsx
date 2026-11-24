@@ -5,14 +5,18 @@ import {ReorderMotion} from './ReorderMotion';
 
 const dollars = new Intl.NumberFormat('en-US', {style:'currency', currency:'USD'});
 const quantity = new Intl.NumberFormat('en-US', {maximumFractionDigits:4});
+export function numericResult(field:Field,aggregation?:Aggregation) {
+  return field.measure || aggregation==='count' || aggregation==='unique';
+}
 export function resultCell(value: string | null, field: Field, aggregation?:Aggregation) {
   if (value === null || value === '') return <span className="empty-value" aria-label="Blank">—</span>;
-  if (aggregation === 'count') return quantity.format(Number(value));
+  if (aggregation === 'count' || aggregation === 'unique') return quantity.format(Number(value));
   if (field.kind === 'currency') return dollars.format(Number(value));
   if (field.kind === 'quantity') return quantity.format(Number(value));
   return value;
 }
 export function resultLabel(field:Field, aggregation?:Aggregation) {
+  if(aggregation==='unique')return 'Unique count of '+field.label;
   return aggregation && aggregation!=='sum'?aggregationLabels[aggregation]+' of '+field.label:field.label;
 }
 interface Props { data: Preview | null; byId: Record<string, Field>; stale: boolean; busy: boolean; error:string;
@@ -78,7 +82,7 @@ export function PreviewPane({data,byId,stale,busy,error,hasFields,hasOutput,canM
     {data ? <div className="table-scroll" tabIndex={0} aria-label="Preview table"><table ref={table}
       className={manual?'manual-widths':undefined} style={manual?{width:ids.reduce((sum,id)=>sum+width(id),0)}:undefined}>
       {manual && <colgroup>{ids.map(id=><col key={id} style={{width:width(id)}}/>)}</colgroup>}<thead><tr>{data.fields.map(id => {
-      const field=byId[id]; return <th scope="col" key={id} data-preview-field={id} className={field.measure?'numeric':''}
+      const field=byId[id]; return <th scope="col" key={id} data-preview-field={id} className={numericResult(field,data.aggregations?.[id])?'numeric':''}
         onPointerDown={e=>{
           if(!canMove || !e.isPrimary || e.button!==0)return;
           moving.current={pointer:e.pointerId,x:e.clientX,id,grip:e.clientX-e.currentTarget.getBoundingClientRect().left,motion:null};
@@ -111,7 +115,7 @@ export function PreviewPane({data,byId,stale,busy,error,hasFields,hasOutput,canM
           }}
           onLostPointerCapture={()=>{drag.current=null;}}/></th>;
     })}</tr></thead><tbody>{data.total===0 && <tr><td colSpan={data.fields.length}>No rows match the current filters.</td></tr>}{data.rows.map((row,i) => <tr key={i}>{row.map((value,j) => {
-      const f=byId[data.fields[j]]; return <td key={f.id} title={value??undefined} className={f.measure ? 'numeric' : ''}>
+      const f=byId[data.fields[j]]; return <td key={f.id} title={value??undefined} className={numericResult(f,data.aggregations?.[f.id])?'numeric':''}>
         {resultCell(value,f,data.aggregations?.[f.id])}</td>;
     })}</tr>)}</tbody></table></div> :
       <div className="empty-preview"><span className="empty-icon"><Icon name="grid" size={26}/></span><strong>{busy?'Running preview':hasFields?'No results to display':'Choose your first field'}</strong>

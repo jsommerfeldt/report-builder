@@ -1,9 +1,10 @@
 export type Entity = 'sales' | 'customer' | 'product' | 'trip' | 'warehouse';
 export type Mode = 'summary' | 'detail';
-export type Aggregation = 'sum' | 'avg' | 'min' | 'max' | 'count';
-export type NumericGrouping = Aggregation | 'none';
+export type Aggregation = 'sum' | 'avg' | 'min' | 'max' | 'count' | 'first' | 'last' | 'unique';
 export type Aggregations = Partial<Record<string, Aggregation>>;
-export const aggregationLabels:Record<Aggregation,string>={sum:'Sum',avg:'Average',min:'Minimum',max:'Maximum',count:'Count'};
+export const aggregationLabels:Record<Aggregation,string>={
+  sum:'Sum',avg:'Average',min:'Minimum',max:'Maximum',count:'Count',first:'First',last:'Last',unique:'Unique',
+};
 export type FilterOp = 'eq' | 'contains' | 'gte' | 'lte' | 'blank' | 'in' | 'relative';
 export interface RelativePeriod {amount:number; unit:'hours'|'days'|'weeks'; direction:'last'|'next'}
 export interface ReportFilter {
@@ -13,7 +14,7 @@ export interface Order {field:string; direction:'asc'|'desc'; enabled?:boolean; 
 export interface Definition {
   version:1|2; source:'sales'; mode:Mode; fields:string[]; filters?:ReportFilter[]; order?:Order[];
   groupBy?:string[];
-  aggregations?:Partial<Record<string,NumericGrouping>>;
+  aggregations?:Partial<Record<string,Aggregation|'none'>>;
 }
 export interface Field { id: string; entity: Entity; label: string; kind: 'currency' | 'quantity' | 'date' | 'datetime' | 'text'; measure: boolean }
 export interface Catalog {
