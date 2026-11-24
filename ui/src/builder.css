@@ -86,6 +86,14 @@
   pointer-events: none;
 }
 .builder-rail:has(+ .library-wrap:not([hidden]))::after { inset-block-start: var(--pane-heading-height); }
+.builder-rail:has(+ .library-wrap:not([hidden]))::before {
+  content: "";
+  position: absolute;
+  inset-block-start: calc(var(--pane-heading-height) - 1px);
+  inset-inline: 0;
+  border-block-start: 1px solid var(--build-line);
+  pointer-events: none;
+}
 .builder-rail .secondary-btn { width: 32px; height: 32px; min-height: 0; padding: 0; color: var(--accent-hover); }
 .builder-rail .secondary-btn[aria-expanded=true] {
   color: var(--surface);
@@ -109,7 +117,7 @@
 .pane-resize:is(:hover, :focus-visible, :active)::after { background: var(--accent); }
 
 .library-body { display: flex; flex-direction: column; height: 100%; min-height: 0; }
-.library-toolbar { gap: 6px; flex: none; padding-inline: 0 var(--pane-content-gutter); }
+.library-toolbar { gap: 6px; flex: none; padding-inline: 0 var(--pane-content-gutter); border-bottom-color: transparent; }
 .library-search { flex: 1; min-width: 0; }
 .objects-toggle-all.secondary-btn { flex: none; min-width: 82px; min-height: 32px; padding: 4px 8px; font-size: 12px; white-space: nowrap; }
 .field-groups { padding: 0 var(--pane-content-gutter) 8px; overflow: auto; scrollbar-width: thin; }
