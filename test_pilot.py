@@ -344,6 +344,23 @@ class PilotTest(unittest.TestCase):
                 invalid = {**rule, "value": {**rule["value"], **bad}}
                 self.snapshot.preview({**definition, "filters": [invalid]})
 
+    def test_negative_filters_skip_blanks_and_respect_case(self):
+        for field, op, value, case_sensitive, expected in [
+            ("customer.shippingcity", "neq", "duluth", False, []),
+            ("customer.shippingcity", "neq", "duluth", True, [["Duluth"]] * 2),
+            ("customer.shippingcity", "not_contains", "LUT", False, []),
+            ("customer.shippingcity", "not_contains", "LUT", True, [["Duluth"]] * 2),
+            ("product.packaging", "not_contains", "box", False, [["40 LB"]] * 2),
+            ("sales.reporting_date", "neq", "2026-11-09", None, [["2026-11-10"]]),
+            ("sales.sales", "neq", "14.2", None, [["-2.10"]]),
+        ]:
+            with self.subTest(field=field, op=op, case_sensitive=case_sensitive):
+                rule = {"field": field, "op": op, "value": value, "enabled": True}
+                if case_sensitive is not None:
+                    rule["caseSensitive"] = case_sensitive
+                definition = {**self.d, "mode": "detail", "fields": [field], "filters": [rule]}
+                self.assertEqual(self.snapshot.preview(definition)["rows"], expected)
+
     def test_datetime_filters_with_unassigned_trips(self):
         snapshot = self.expanded_fixture(with_dispatch_time=True)
         field = "trip.dispatchdatetime"
@@ -353,6 +370,8 @@ class PilotTest(unittest.TestCase):
         now = datetime(2026, 11, 10, 13)
         for op, value, expected in [
             ("eq", timestamp.replace(" ", "T"), [[timestamp]] * 3),
+            ("neq", timestamp.replace(" ", "T"), []),
+            ("neq", "2026-11-10T13:00", [[timestamp]] * 3),
             ("in", [timestamp], [[timestamp]] * 3),
             ("gte", "2026-11-10T13:00", []),
             ("lte", "2026-11-10T12:30:22.123456", [[timestamp]] * 3),
@@ -395,7 +414,8 @@ class PilotTest(unittest.TestCase):
             rule = {"field": field, "op": op, "value": value, "enabled": True}
             self.assertEqual(self.snapshot.preview({**self.d,"mode":"detail","filters":[rule]})["total"], expected)
         for field, op, value in [("unknown","eq","1"), ("sales.sales","gte","nan"),
-                                 ("sales.reporting_date","lte","2026-13-02"), ("sales.sales","contains","1")]:
+                                 ("sales.reporting_date","lte","2026-13-02"), ("sales.sales","contains","1"),
+                                 ("sales.sales","not_contains","1"), ("sales.sales","neq","nan")]:
             with self.assertRaises(InvalidDefinition):
                 self.snapshot.preview({**self.d,"filters":[{"field":field,"op":op,"value":value,"enabled":True}]})
 

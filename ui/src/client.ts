@@ -6,7 +6,7 @@ export type ColumnNames = Partial<Record<string,string>>;
 export const aggregationLabels:Record<Aggregation,string>={
   sum:'Sum',avg:'Average',min:'Minimum',max:'Maximum',count:'Count',first:'First',last:'Last',unique:'Unique',
 };
-export type FilterOp = 'eq' | 'contains' | 'gte' | 'lte' | 'blank' | 'in' | 'relative';
+export type FilterOp = 'eq' | 'neq' | 'contains' | 'not_contains' | 'gte' | 'lte' | 'blank' | 'in' | 'relative';
 export interface RelativePeriod {amount:number; unit:'hours'|'days'|'weeks'; direction:'last'|'next'}
 export interface ReportFilter {
   field:string; op:FilterOp; value:string|string[]|RelativePeriod; enabled:boolean; caseSensitive?:boolean;

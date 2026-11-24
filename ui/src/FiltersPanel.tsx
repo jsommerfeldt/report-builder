@@ -8,7 +8,10 @@ import {CardDisclosure,QueryCard} from './QueryCard';
 import {filtersHelp} from './QueryHelp';
 import {DropField,useFieldDrag} from './useFieldDrag';
 
-const labels:Record<FilterOp,string> = {in:'is any of',eq:'equals',contains:'contains',gte:'at least',lte:'at most',blank:'is blank',relative:'relative to now'};
+const labels:Record<FilterOp,string> = {
+  in:'is any of',eq:'equals',neq:'is not',contains:'contains',not_contains:'does not contain',
+  gte:'at least',lte:'at most',blank:'is blank',relative:'relative to now',
+};
 const defaultPeriod:RelativePeriod={direction:'last',amount:7,unit:'days'};
 export function newFilterRule(field?:Field,enabled=true):ReportFilter {
   const useList=!field || field.kind==='text';
@@ -21,9 +24,9 @@ function label(op:FilterOp, field:Field) {
   return labels[op];
 }
 function conditions(field:Field):FilterOp[] {
-  if(field.kind==='text')return ['in','eq','contains','blank'];
-  if(temporal(field))return ['in','eq','gte','lte','relative','blank'];
-  return ['in','eq','gte','lte','blank'];
+  if(field.kind==='text')return ['in','eq','neq','contains','not_contains','blank'];
+  if(temporal(field))return ['in','eq','neq','gte','lte','relative','blank'];
+  return ['in','eq','neq','gte','lte','blank'];
 }
 function isPeriod(value:ReportFilter['value']):value is RelativePeriod {
   return typeof value==='object' && !Array.isArray(value);

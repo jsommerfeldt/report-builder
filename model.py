@@ -140,7 +140,7 @@ def validate_filters(rules):
             raise InvalidDefinition("Choose an available filter field.")
         field = BY_ID[key]
         if "caseSensitive" in rule and (type(rule["caseSensitive"]) is not bool or
-                field.kind != "text" or op not in ("in", "eq", "contains")):
+                field.kind != "text" or op not in ("in", "eq", "neq", "contains", "not_contains")):
             raise InvalidDefinition("Match case is available only for text comparisons.")
         if op == "relative":
             units = {"date": ("days", "weeks"), "datetime": ("hours", "days", "weeks")}.get(field.kind, ())
@@ -157,7 +157,8 @@ def validate_filters(rules):
                     raise InvalidDefinition("Each filter value must be 1 to 160 characters.")
                 filter_operand(field, item)
             continue
-        allowed = ("eq", "contains", "blank") if field.kind == "text" else ("eq", "gte", "lte", "blank")
+        allowed = ("eq", "neq", "contains", "not_contains", "blank") if field.kind == "text" else (
+            "eq", "neq", "gte", "lte", "blank")
         if op not in allowed or not isinstance(value, str) or len(value) > 160:
             raise InvalidDefinition("Unsupported filter condition.")
         if op != "blank":

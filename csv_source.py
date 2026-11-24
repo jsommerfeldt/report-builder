@@ -27,6 +27,10 @@ def matches_filter(sources, field, op, expected, case_sensitive):
         return actual in expected
     if op == "contains":
         return expected in actual
+    if op == "not_contains":
+        return actual != "" and expected not in actual
+    if op == "neq":
+        return actual != "" and actual != expected
     if op == "gte":
         return actual >= expected
     if op == "lte":
