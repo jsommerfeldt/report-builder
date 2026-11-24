@@ -70,9 +70,12 @@
 .objects-toggle { display: flex; align-items: center; gap: 6px; min-height: 32px; padding: 4px; border-radius: var(--radius); }
 .objects-toggle:hover { background: var(--surface); }
 .objects-toggle .objects-label { display: flex; align-items: center; gap: 4px; }
+.library-wrap:not(.is-collapsed) .builder-pane-heading { position: relative; }
+.library-wrap:not(.is-collapsed) .objects-toggle { position: absolute; inset: 0; width: 100%; padding: 0 16px; cursor: pointer; }
+.library-wrap:not(.is-collapsed) .query-toggle { position: relative; }
 .query-toggle.secondary-btn { min-height: 30px; padding: 4px 8px; gap: 5px; font-size: 12px; color: var(--accent-hover); }
 .query-toggle[aria-expanded=true] { background: var(--accent-subtle); border-color: var(--build-line); }
-.library-wrap.is-collapsed .builder-pane-heading { flex-direction: column; gap: 6px; padding: 8px 0; }
+.library-wrap.is-collapsed .builder-pane-heading { flex-direction: column; gap: 6px; padding: 8px 0; border-bottom: 0; }
 .library-wrap.is-collapsed .objects-label { display: none; }
 .library-wrap.is-collapsed :is(.objects-toggle,.query-toggle) { display: grid; place-items: center; width: 32px; height: 32px; padding: 0; }
 .library-wrap.is-collapsed .objects-toggle { background: var(--surface); border: 1px solid var(--line-control); }
