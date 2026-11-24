@@ -6,7 +6,6 @@ import {CardDisclosure,QueryCard} from './QueryCard';
 import {columnsHelp} from './QueryHelp';
 
 const numericOptions:Aggregation[]=['sum','avg','min','max','count'];
-const dimensionOptions:Aggregation[]=['first','last','unique'];
 
 interface Props {
   fields:Field[]; outputIds:string[]; order:Order[]; drop:DropField; showDropTarget:boolean; disclosure:CardDisclosure;
@@ -15,7 +14,7 @@ interface Props {
   remove(id:string):void; sort(setting:Order):void;
   groupBy:string[]; summary:boolean; canSummarize:boolean; aggregations?:Definition['aggregations'];
   onSummaryChange(value:boolean):void;
-  onAggregationChange(id:string,value:Aggregation|'none'|''):void;
+  onAggregationChange(id:string,value:Aggregation|'none'):void;
 }
 
 export function FieldsPanel({fields,outputIds,order,drop,onAdd,remove,sort,showDropTarget,disclosure,columnNames,entities,rename,
@@ -33,7 +32,7 @@ export function FieldsPanel({fields,outputIds,order,drop,onAdd,remove,sort,showD
       </button>
     </div> : <div className="configuration-scroll" tabIndex={0} role="group" aria-label="Column order, grouping and sorting">
     <div className="field-control-grid field-headings" aria-hidden="true">
-      <span>Column Order</span><span>Aggregate</span><span>Sort</span><span>Priority</span><span>Direction</span><span/><span/>
+      <span>Column Order</span><span/><span>Sort</span><span>Priority</span><span>Direction</span><span/><span/>
     </div>
     <div className="field-stack" id="ordered-fields">{visible.map((f,i)=>{
       const setting=settings.get(f.id);
@@ -42,7 +41,6 @@ export function FieldsPanel({fields,outputIds,order,drop,onAdd,remove,sort,showD
       const method=aggregations?.[f.id];
       const label=columnNames?.[f.id]??f.label;
       const source=sourceColumn(f,entities);
-      const excluded=!f.measure && !method && !groupBy.includes(f.id);
       const direction=setting?.direction??'asc';
       const desc=direction==='desc';
       return <div className={'field-control-grid field-line '+f.entity} key={f.id} data-column={f.id}>
@@ -60,15 +58,12 @@ export function FieldsPanel({fields,outputIds,order,drop,onAdd,remove,sort,showD
           <Icon name="grip" size={13}/><span className="column-ordinal">{i+1}</span>
           <span className="field-name"><span className="field-label">{label}</span>
             {!included && <small className="hint field-hidden">Hidden by grouping</small>}</span></button>
-        <select className="field-grouping" aria-label={'Aggregation for '+label}
-          title={f.measure?'Choose a calculation or keep this column for detail rows':'Leave blank to group by this column'}
-          value={method??(f.measure?'sum':excluded?'excluded':'')}
-          onChange={e=>onAggregationChange(f.id,e.target.value as Aggregation|'none'|'')}>
-          {excluded && <option value="excluded" disabled>Excluded</option>}
-          {!f.measure && method==='count' && <option value="count" disabled>Count</option>}
-          {f.measure?<option value="none">None</option>:<option value="" aria-label="No aggregation">—</option>}
-          {(f.measure?numericOptions:dimensionOptions).map(value=><option key={value} value={value}>{aggregationLabels[value]}</option>)}
-        </select>
+        {f.measure ? <select className="field-grouping" aria-label={'Aggregation for '+label}
+          title="Choose a calculation or keep this column for detail rows" value={method??'sum'}
+          onChange={e=>onAggregationChange(f.id,e.target.value as Aggregation|'none')}>
+          <option value="none">None</option>
+          {numericOptions.map(value=><option key={value} value={value}>{aggregationLabels[value]}</option>)}
+        </select> : <span className="hint">{method && method!=='none'?aggregationLabels[method]:null}</span>}
         <button type="button" className="switch field-sort" role="switch" aria-checked={enabled} disabled={!included}
           aria-label={'Sort by '+label} title={enabled?'Exclude from row sorting':'Include in row sorting'}
           onClick={()=>sort({field:f.id,direction,enabled:!enabled})}><span/></button>

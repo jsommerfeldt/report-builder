@@ -177,13 +177,12 @@ export function ReportBuilder({catalog,client,initialReport,folderId,onReports}:
     setDefinition(prev=>({...prev,mode:summary?'summary':'detail'}));
     setNotice('');setError('');
   }
-  function changeAggregation(id:string,method:Aggregation|'none'|'') {
+  function changeAggregation(id:string,method:Aggregation|'none') {
     setDefinition(prev=>{
       const aggregations={...prev.aggregations};
-      if(method==='' || method==='sum')delete aggregations[id];
+      if(method==='sum')delete aggregations[id];
       else aggregations[id]=method;
-      const groupBy=method==='' && prev.groupBy && !includesDimension(prev,id)?[...prev.groupBy,id]:prev.groupBy;
-      return withOutputMode({...prev,aggregations,groupBy},byId);
+      return withOutputMode({...prev,aggregations},byId);
     });
     setNotice('');setError('');
   }

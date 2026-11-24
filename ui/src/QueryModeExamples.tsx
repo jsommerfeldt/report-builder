@@ -37,8 +37,8 @@ export function QueryModeExamples() {
         columns={['Shipping State','Product Description']}
         rows={[[['MN','Apples'],44.50],[['MN','Carrots'],55.50],[['WI','Apples'],72.25]]}/>
       <ModeExample grouped
-        description={<>Leave <strong>Shipping State</strong> blank under <strong>Aggregate</strong> and choose <strong>First</strong> for <strong>Product Description</strong> to summarize sales by state.</>}
-        columns={['Shipping State','First Product Description']}
-        rows={[[['MN','Apples'],100],[['WI','Apples'],72.25]]}/>
+        description={<>Select <strong>Shipping State</strong> and choose <strong>Sum</strong> on <strong>Sales</strong> to show one total per state.</>}
+        columns={['Shipping State']}
+        rows={[[['MN'],100],[['WI'],72.25]]}/>
   </div>;
 }
