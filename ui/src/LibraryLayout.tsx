@@ -1,4 +1,4 @@
-import React, {useEffect, useRef, useState} from 'react';
+import React, {useEffect, useLayoutEffect, useRef, useState} from 'react';
 import {Icon} from './Icon';
 
 const min=480, initial=624;
@@ -32,8 +32,9 @@ function PaneDivider({className,label,controls,min,max,value,step,dragScale=1,va
     }}/>;
 }
 
-export function LibraryLayout({library,headerAction,children,newReport}:{
+export function LibraryLayout({library,headerAction,children,newReport,searchRef,focusRequest}:{
   library:React.ReactNode;headerAction:React.ReactNode;children:React.ReactNode;newReport:boolean;
+  searchRef:React.RefObject<HTMLInputElement>;focusRequest:{trigger:HTMLButtonElement}|null;
 }) {
   const prefix=newReport?'new-report-':'';
   const [hidden,setHidden]=useState(()=>{const pref=stored(prefix+'hidden');return pref===null?window.matchMedia('(max-width:900px)').matches:pref==='true';});
@@ -57,6 +58,15 @@ export function LibraryLayout({library,headerAction,children,newReport}:{
   useEffect(()=>{if(width!==null)remember(prefix+'build-width',String(width));},[prefix,width]);
   useEffect(()=>{remember(prefix+'objects-share',String(objectsShare));},[prefix,objectsShare]);
   useEffect(()=>{remember(prefix+'hidden',String(hidden));},[prefix,hidden]);
+  useLayoutEffect(()=>{
+    if(!focusRequest)return;
+    setHidden(false);
+    const frame=requestAnimationFrame(()=>{
+      searchRef.current?.focus();
+      searchRef.current?.select();
+    });
+    return ()=>cancelAnimationFrame(frame);
+  },[focusRequest,searchRef]);
   return <section id="build-report-pane" ref={layout} style={layoutStyle} className={'build-report'+(hidden?' library-hidden':'')} aria-labelledby="build-report-heading">
     <div className="pane-header build-header"><h2 id="build-report-heading">Build Report</h2>{headerAction}</div>
     <aside id="objects-pane" className="library-wrap" aria-labelledby="objects-heading">

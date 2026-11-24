@@ -58,6 +58,8 @@ export function ReportBuilder({catalog,client,initialReport,folderId,onReports}:
   const [modalError,setModalError] = useState('');
   const [editorSession,setEditorSession] = useState(0);
   const [filterEditor,setFilterEditor]=useState<FilterEditor>(null);
+  const [objectPick,setObjectPick]=useState<{destination:Destination;trigger:HTMLButtonElement}|null>(null);
+  const objectSearch=useRef<HTMLInputElement>(null);
   const [queryCollapsed,setQueryCollapsed]=useState(false);
   const [expandedCards,setExpandedCards]=useState<Partial<Record<Destination,boolean>>>(()=>newReport?{fields:true}:{});
   const [fieldInteraction,setFieldInteraction]=useState(false);
@@ -161,10 +163,17 @@ export function ReportBuilder({catalog,client,initialReport,folderId,onReports}:
     setQueryCollapsed(false);
     cardDisclosure(card).setExpanded(true);
   }
-  function startFilter(id?:string) {
+  function cancelObjectPick(returnFocus:boolean) {
+    if(!objectPick)return false;
+    setObjectPick(null);
+    if(returnFocus)objectPick.trigger.focus();
+    return true;
+  }
+  function startFilter(id:string) {
     const count=definition.filters?.length??0;
-    const field=id?byId[id]:undefined;
-    if(!filterEditor && count<32 && (!id || field)) {
+    const field=byId[id];
+    if(!filterEditor && count<32 && field) {
+      setObjectPick(null);
       revealDestination('filters');
       setFilterEditor({index:count,rule:newFilterRule(field)});
     }
@@ -172,9 +181,14 @@ export function ReportBuilder({catalog,client,initialReport,folderId,onReports}:
   const dropField:DropField=(id,zone,anchor,after)=>{
     if(zone==='filters'){startFilter(id);return;}
     if (!byId[id] || id===anchor) return;
+    setObjectPick(null);
     changeFields(placeField(definition.fields,id,anchor,after));
     revealDestination('fields');
   };
+  function selectObjectField(id:string) {
+    if(objectPick)dropField(id,objectPick.destination);
+    else toggle(id);
+  }
   function moveOutputColumn(id:string,anchor:string,after:boolean) {
     if(id===anchor)return;
     const reordered=placeField(outputIds,id,anchor,after);
@@ -191,7 +205,7 @@ export function ReportBuilder({catalog,client,initialReport,folderId,onReports}:
     if (!discardOK()) return;
     setWorking(true); setModalError('');
     try { const r=await client.open(id);
-      setEditorSession(n=>n+1);setFilterEditor(null);setFieldInteraction(false);setExpandedCards({});
+      setEditorSession(n=>n+1);setFilterEditor(null);setObjectPick(null);setFieldInteraction(false);setExpandedCards({});
       setSaved(r); setTitle(r.name); setBaseTitle(r.name); setRenaming(false); setDefinition(r.definition); setBaseline(definitionKey(r.definition));
       setResult(null); setDialog(null); setNotice('Report opened'); void run(r.definition);
     } catch(e) {setModalError(message(e));} finally {setWorking(false);}
@@ -236,8 +250,10 @@ export function ReportBuilder({catalog,client,initialReport,folderId,onReports}:
     </header>
     </div>
     <main className="editor-content">
-      <LibraryLayout newReport={newReport} library={<FieldLibrary key={editorSession} catalog={catalog} fields={definition.fields} toggle={toggle}
-        drop={dropField} onInteraction={setFieldInteraction}/>}
+      <LibraryLayout newReport={newReport} searchRef={objectSearch} focusRequest={objectPick}
+        library={<FieldLibrary key={editorSession} catalog={catalog} fields={definition.fields} selectField={selectObjectField}
+          searchRef={objectSearch} pickingFilter={objectPick?.destination==='filters'} cancelPick={cancelObjectPick}
+          drop={dropField} onInteraction={setFieldInteraction}/>}
         headerAction={<button type="button" className="primary-btn" disabled={busy || !hasOutput} onClick={()=>void run(definition)}>
           <Icon name="play" size={15}/>{busy?'Running…':'Run preview'}
         </button>}>
@@ -250,14 +266,16 @@ export function ReportBuilder({catalog,client,initialReport,folderId,onReports}:
           </div>
           <div className="query-body" id="query-contents" hidden={!queryOpen}>
             <div className="query-scroll">
-              <FieldsPanel key={'fields-'+editorSession} catalog={catalog} fields={columns} outputIds={outputIds} disclosure={cardDisclosure('fields')}
+              <FieldsPanel key={'fields-'+editorSession} fields={columns} outputIds={outputIds} disclosure={cardDisclosure('fields')}
+                onAdd={e=>setObjectPick({destination:'fields',trigger:e.currentTarget})}
                 order={definition.order??[]} drop={dropField} remove={toggle} sort={changeSort} showDropTarget={fieldInteraction}
                 groupBy={grouped?groupBy:[]} totalsOnly={grouped && !groupBy.length}
                 aggregations={definition.aggregations} onAggregationChange={changeAggregation}
                 onGroupChange={toggleGroup} onTotalsChange={active=>setGrouping(active?'summary':'detail',[])}/>
               <FiltersPanel key={editorSession} fields={catalog.fields} entities={catalog.entities} lookup={lookup} rules={definition.filters??[]}
                 disclosure={cardDisclosure('filters')}
-                editor={filterEditor} setEditor={setFilterEditor} start={startFilter} showDropTarget={fieldInteraction}
+                editor={filterEditor} setEditor={setFilterEditor} showDropTarget={fieldInteraction}
+                onAdd={e=>setObjectPick({destination:'filters',trigger:e.currentTarget})}
                 onChange={filters=>{setDefinition(prev=>({...prev,filters}));setNotice('');setError('');}}/>
             </div>
             <div className="query-footer">

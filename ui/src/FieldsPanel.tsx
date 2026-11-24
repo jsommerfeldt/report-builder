@@ -1,38 +1,30 @@
-import React,{useRef,useState} from 'react';
-import {Aggregation,aggregationLabels,Aggregations,Catalog,Field,Order} from './client';
-import {FieldOptions} from './FieldOptions';
+import React,{useState} from 'react';
+import {Aggregation,aggregationLabels,Aggregations,Field,Order} from './client';
 import {Icon} from './Icon';
-import {Modal} from './Modal';
 import {DropField,useFieldDrag} from './useFieldDrag';
 import {CardDisclosure,QueryCard} from './QueryCard';
 import {columnsHelp} from './QueryHelp';
 
 interface Props {
-  catalog:Catalog;
   fields:Field[]; outputIds:string[]; order:Order[]; drop:DropField; showDropTarget:boolean; disclosure:CardDisclosure;
+  onAdd:React.MouseEventHandler<HTMLButtonElement>;
   remove(id:string):void; sort(setting:Order):void;
   groupBy:string[]; totalsOnly:boolean; aggregations?:Aggregations;
   onGroupChange(id:string,value:boolean):void; onTotalsChange(value:boolean):void;
   onAggregationChange(id:string,value:Aggregation):void;
 }
 
-export function FieldsPanel({catalog,fields,outputIds,order,drop,remove,sort,showDropTarget,disclosure,
+export function FieldsPanel({fields,outputIds,order,drop,onAdd,remove,sort,showDropTarget,disclosure,
   groupBy,totalsOnly,onGroupChange,onTotalsChange,aggregations,onAggregationChange}:Props) {
   const [expanded,setExpanded]=useState(true);
-  const [columnChoice,setColumnChoice]=useState<string|null>(null);
-  const focusAfterPicker=useRef<HTMLButtonElement>(null);
   const {begin}=useFieldDrag(drop);
   const settings=new Map(order.map(item=>[item.field,item]));
   const priorities=order.filter(item=>item.enabled!==false).map((_,i)=>i+1);
   const visible=expanded?fields:fields.slice(0,3);
-  function closePicker() {
-    setColumnChoice(null);
-    requestAnimationFrame(()=>focusAfterPicker.current?.focus());
-  }
   return <QueryCard title="Columns" icon="grid" className="selection" dropZone="fields" showDropTarget={showDropTarget}
     disclosure={disclosure} help={columnsHelp}>
     {fields.length===0 ? <div className="field-stack">
-      <button ref={focusAfterPicker} type="button" className="query-add" aria-haspopup="dialog" onClick={()=>setColumnChoice('')}>
+      <button type="button" className="query-add" aria-controls="library-contents" onClick={onAdd}>
         <Icon name="plus" size={14}/>Add column{showDropTarget && <span className="hint" aria-hidden="true">Drop a field here</span>}
       </button>
     </div> : <div className="configuration-scroll" tabIndex={0} role="group" aria-label="Column order, grouping and sorting">
@@ -47,7 +39,7 @@ export function FieldsPanel({catalog,fields,outputIds,order,drop,remove,sort,sho
       const direction=setting?.direction??'asc';
       const desc=direction==='desc';
       return <div className={'field-control-grid field-line '+f.entity} key={f.id} data-column={f.id}>
-        <button ref={i===0?focusAfterPicker:null} type="button" className="move-field" aria-label={'Move '+f.label+', column '+(i+1)}
+        <button type="button" className="move-field" aria-label={'Move '+f.label+', column '+(i+1)}
           title={'Drag '+f.label+' or use the up and down arrow keys'}
           onPointerDown={e=>begin(e,f.id)} onKeyDown={e=>{
             const up=e.key==='ArrowUp'||(e.altKey && e.key==='ArrowLeft');
@@ -88,22 +80,5 @@ export function FieldsPanel({catalog,fields,outputIds,order,drop,remove,sort,sho
     {!groupBy.length && fields.some(field=>field.measure) && <label className="totals-option">
       <input type="checkbox" checked={totalsOnly} onChange={e=>onTotalsChange(e.target.checked)}/>Totals only
     </label>}
-    {columnChoice!==null && <Modal title="Add column" close={closePicker}><form onSubmit={event=>{
-      event.preventDefault();
-      if(!columnChoice)return;
-      drop(columnChoice,'fields');
-      closePicker();
-    }}>
-      <label className="input-label" htmlFor="column-picker-field">Field</label>
-      <select id="column-picker-field" className="name-input" ref={select=>{if(select)select.autofocus=true;}}
-        required value={columnChoice} onChange={event=>setColumnChoice(event.target.value)}>
-        <option value="" disabled>Choose a field</option>
-        <FieldOptions fields={catalog.fields} entities={catalog.entities}/>
-      </select>
-      <footer>
-        <button type="button" className="secondary-btn" onClick={closePicker}>Cancel</button>
-        <button type="submit" className="primary-btn" disabled={!columnChoice}>Add column</button>
-      </footer>
-    </form></Modal>}
   </QueryCard>;
 }

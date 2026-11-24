@@ -40,8 +40,8 @@ function changeCondition(rule:ReportFilter,op:FilterOp):ReportFilter {
 }
 export type FilterEditor = {index:number;rule:ReportFilter}|null;
 interface Props { fields:Field[]; entities:Catalog['entities']; rules:ReportFilter[]; lookup:ReportClient['values']; onChange(rules:ReportFilter[]):void;
-  editor:FilterEditor;setEditor(value:FilterEditor):void;start():void;showDropTarget:boolean;disclosure:CardDisclosure }
-export function FiltersPanel({fields,entities,rules,onChange,lookup,editor,setEditor,start,showDropTarget,disclosure}:Props) {
+  editor:FilterEditor;setEditor(value:FilterEditor):void;onAdd:React.MouseEventHandler<HTMLButtonElement>;showDropTarget:boolean;disclosure:CardDisclosure }
+export function FiltersPanel({fields,entities,rules,onChange,lookup,editor,setEditor,onAdd,showDropTarget,disclosure}:Props) {
   const all = rules.every(r=>r.enabled);
   const editing = editor && fields.find(f=>f.id===editor.rule.field);
   const addButton=useRef<HTMLButtonElement>(null);
@@ -156,7 +156,7 @@ export function FiltersPanel({fields,entities,rules,onChange,lookup,editor,setEd
           <button type="button" className="remove-rule" aria-label={'Remove filter '+(i+1)} onClick={()=>onChange(rules.filter((_,j)=>j!==i))}><Icon name="close" size={14}/></button>
         </li>;
       })}</ul>}
-      <button ref={addButton} type="button" className="query-add" disabled={rules.length>=32} onClick={()=>start()}>
+      <button ref={addButton} type="button" className="query-add" aria-controls="library-contents" disabled={rules.length>=32} onClick={onAdd}>
         <Icon name="plus" size={14}/>Add filter{showDropTarget && <span className="hint" aria-hidden="true">Drop a field here</span>}
       </button>
     </div>}
