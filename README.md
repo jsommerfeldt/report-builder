@@ -25,7 +25,7 @@ With the expanded snapshot active, a new report includes sales for `0001` and `0
 
 Drag a field by its name or grip to move its output column, or focus it and press the up/down arrows. Use **Priority** to order the enabled sorts independently. Priority **1** sorts first and **2** breaks its ties. Choosing a priority shifts the other ranks automatically. New or re-enabled sorts take the last priority. Disabling a sort remembers its direction and releases its rank. With all sorts off, rows and summary groups follow their first occurrence in the filtered source. Older saved definitions start with the precedence they had under column-based sorting.
 
-Drag a preview header by its label to move the column and its values immediately. The numbered **Column Order** list in **Columns** follows that move. A focused header label also supports left and right arrow keys. **Row Order** uses the separate Sort, Priority, and Direction controls. After adding or removing fields, run the preview to enable header dragging for the new selection.
+Drag a preview header by its label to move the column and its values immediately. The numbered **Column Order** list in **Columns** follows that move. A focused header label also supports left and right arrow keys. Use **Sort**, **Priority**, and **Direction** to order the rows. After adding or removing fields, run the preview to enable header dragging for the new selection.
 
 Drag the right edge of any preview column header to widen or narrow it. A focused divider also responds to left and right arrow keys. Widths follow their columns and carry over when rerunning a preview in the same editor session. **Auto-fit columns** restores automatic sizing.
 

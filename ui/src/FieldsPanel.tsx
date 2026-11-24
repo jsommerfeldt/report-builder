@@ -19,12 +19,9 @@ export function FieldsPanel({fields,outputIds,order,drop,remove,sort,showDropTar
   return <QueryCard title="Columns" icon="grid" className="selection" dropZone="fields" showDropTarget={showDropTarget}
     disclosure={disclosure} help={columnsHelp}>
     <div className="configuration-scroll" tabIndex={0} role="group" aria-label="Field order and sorting">
-    {fields.length>0 && <><div className="field-control-grid ordering-groups">
-      <strong>Column Order</strong><strong>Row Order</strong></div>
-      <div className="field-control-grid field-headings" aria-hidden="true">
-        <div className="column-name-heading"><span>Columns</span></div>
-        <span>Sort</span><span>Priority</span><span>Direction</span><span/>
-      </div></>}
+    {fields.length>0 && <div className="field-control-grid field-headings" aria-hidden="true">
+      <span>Column Order</span><span>Sort</span><span>Priority</span><span>Direction</span><span/>
+    </div>}
     <div className="field-stack" id="ordered-fields">{visible.map((f,i)=>{
       const setting=settings.get(f.id);
       const enabled=!!setting && setting.enabled!==false;
